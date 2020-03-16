@@ -1,0 +1,22 @@
+Package: PolyLinkR
+Type: Package
+Title: Polygenic Pathway Enrichment Accounting for Genetic Linkage
+Version: 0.3.0
+Author: Raymond Tobler, Yassine Souilmi, Christian Huber.
+Maintainer: Raymond Tobler <raymond.tobler@adelaide.edu.au>
+Description: Is an R package that performs gene-based pathway enrichment, 
+    which can also be used as evidence for polygenic selection in case the
+    software is used with selection signals evidence. The package explicitly
+    also accounts for linkage desiquilibrium between adjacent loci belonging
+    on the same pathway.
+License: MIT
+Encoding: UTF-8
+LazyData: true
+Depends:
+	data.table,
+	qvalue,
+	Matrix,
+	matrixStats,
+	igraph,
+	doParallel
+RoxygenNote: 7.1.0

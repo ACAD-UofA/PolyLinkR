@@ -1,0 +1,452 @@
+#===========================================================================
+# Function: get.null(x)
+# permutation algorithm for PolyLink used to generate null distribution
+#
+# - set.info: data.frame file with fields:
+#                  setID, setName, ...
+# - set.obj : data.frame with fields:
+#                  setID, objID
+# - obj.info: data.frame with fields:
+#                  objID, objName, objStat, (objBin), (objSNPcnt), ...
+# - n.cores: integer specifying the number of cores to use in computation
+# - emp.nruns: number of iterations of permatution algorithm to comput null
+# - NN: subset of iterations on which to summarize results (improves computation speed); default = 1000
+#
+#===========================================================================
+
+#permutation function
+#' Compute null distribution and probability estimation of gene score enrichment in pathways or gene sets.
+#'
+#' This is the core function of PolyLink, it runs the permuation algorithm that
+#' creates a random mapping of genomic scores while preserving the inherent linkage
+#' disequilibrium amongt the different genomic regions.
+#' This process performed iteratively to generate a null distribution for testing
+#' enrichment in biological pathways or gene sets.
+#'
+#'
+#' @param set.info data.frame: four required fields; gene IDs, associated scores, chromosome, and start position
+#' @param obj.info data.frame: two required fields; genomic regions and associated scores
+#' @param set.obj data.frame: two required fields; genomic regions and associated scores
+#' @param n.cores integer: number of cores to run in parallel
+#' @param emp.nruns integer: number of iterations used to compute null
+#' @param NN integer: subset of interations for summary statistic calculations; default = 1000
+#'
+#' @return Returns a data.table.
+#'
+#' @seealso \code{\link{PolyLink_SetInfo}}, \code{\link{PolyLink_SetObj}}
+#'
+#'
+#' @examples
+#' Anatolia_EF_CLR
+#' output = run.polylink(obj.info = Anatolia_EF_CLR, set.info = PolyLink_SetInfo, set.obj = PolyLink_SetObj,
+#'              n.cores = 8, emp.nruns = 1000, NN = 10000)
+#' output
+#'
+#' @export
+run.polylink <- function(set.info, obj.info, set.obj,
+                         n.cores, emp.nruns, NN=1000){
+
+   print(paste("Running enrichment test..."))
+
+   #permutation function
+   permute.data <- function(obj.info, n.chr, n.genes, gene.pos, chr.ord.now){
+      # 1. string together chromosomes
+      chr.ord.now <- sample(1:n.chr, n.chr)
+      new.ord <- unlist(gene.pos[chr.ord.now])
+      r1 <- obj.info[new.ord, objStat]
+
+      # 2. rotate scores
+      rotate.now <- sample(2:n.genes, 1)
+      r1[c(rotate.now:n.genes, 1:(rotate.now-1))]
+   }
+
+   #sumstat calculation function
+   sum.stat <- function(set.obj, ID, perm){
+      # 3. compute new sumstat scores
+      mm.e <- data.table::merge(data.table(objID=ID, objStat=perm), set.obj, by="objID")[order(setID)]
+      mm.e[, lapply(.SD, sum), .SDcols=grep("objStat", names(mm.e)), by="setID"]
+   }
+
+   #p.value calculation function
+   compute.p.val <- function(obs, exp){
+      # 4. compute p values
+      e <- exp[, setID:=NULL]
+      matrixStats::rowSums(obs <= e)
+   }
+
+   #timer function
+   timer <- function(time.point, emp.nruns, I){
+      if((I-1000) %% time.point == 0 & I>1000){ # estimate time remaining
+         d.now <- as.numeric(difftime(Sys.time(), s0, units="secs"))
+         est.time <- (emp.nruns-I+1000)*(d.now/(I-1000))
+         print(paste("Completed", I-1000, "iterations"))
+         mins <- est.time %/% 60
+         secs <- round(est.time %% 60, 0)
+         if(mins>=60){
+            hours <- mins %/% 60
+            mins <- mins %% 60
+            print(paste("Estimated time remaining:", hours, "h", mins, "m", secs, "s"))
+         }else{
+            if(mins==0){
+               print(paste("Estimated time remaining:", secs, "s"))
+            }else{
+               print(paste("Estimated time remaining:", mins, "m", secs, "s"))
+            }
+         }
+      }
+   }
+
+   #break up emp.nruns into specific size iteration chunks for computation
+   #(improves run time; 1000 seems optimal for ~10k genes)
+   get.blocks <- function(emp.nruns, block.size){
+      if(emp.nruns<block.size){
+         rb <- emp.nruns
+      }else{
+         onek.blocks <- rep(block.size, emp.nruns %/% block.size)
+         remainder <- emp.nruns %% block.size
+         if(remainder>0){
+            rb <- c(onek.blocks, remainder)
+         }else{
+            rb <- onek.blocks
+         }
+      }
+      return(rb)
+   }
+
+   #convert to datatable format
+   data.table::setDT(set.info)
+   data.table::setDT(obj.info)
+   data.table::setDT(set.obj)
+
+   print(obj.info$chr)
+
+   #set up parallel backend for foreach %dopar%
+   doParallel::registerDoParallel(cores=n.cores)
+
+   # order obj.info table (needed to compare rotated values against)
+   obj.info <- obj.info[order(chr, startpos)]
+   ID <- obj.info$objID
+
+   #get relevant variables
+   n.genes <- obj.info[, .N]
+   n.paths <- set.info[, .N]
+   n.chr <- obj.info[, length(unique(chr))]
+
+   #determine matrix position of each gene for each chromosome
+   gene.pos <- foreach::foreach(i=1:n.chr) %do% obj.info[, which(chr==i)]
+
+   # compute observed sumstat scores
+   mm.o <- data.table::merge(set.obj, obj.info[, .(objID, objStat)], by="objID")
+   mm.n <- mm.o[order(setID), .(N=length(unique(objID))),
+                by=c("setID")]
+   m.obs <- mm.o[order(setID), .(SumStat=sum(objStat, na.rm=T)),
+                 by=c("setID")]
+
+   #housekeeping
+   rm(mm.o, mm.n)
+   gc()
+
+   # compute expected sumstat scores
+   run.blocks <- get.blocks(emp.nruns, NN)
+   I=0
+   sig.tests <- rep(0, n.paths)
+   s0 <- Sys.time()
+   for(l in run.blocks){
+      I=I+l
+      timer(NN, emp.nruns, I)
+      pp <- foreach(i=1:l) %dopar% {
+         permute.data(obj.info, n.chr, n.genes, gene.pos)
+      }
+      perm <- matrix(unlist(pp), ncol=l, byrow=FALSE)
+      m.exp <- sum.stat(set.obj, ID, perm)
+      sig.tests <- sig.tests + compute.p.val(obs=m.obs$SumStat, exp=m.exp)
+      rm(perm, m.exp)
+      gc()
+   }
+
+   ##-----------------------------------------##
+   ## Compute p and q values
+   ##-----------------------------------------##
+
+   p.vals <- sig.tests/emp.nruns
+   q.vals <- qvalue::qvalue(p.vals, pi0.method="smoother")
+
+   q.list <- list(P=p.vals, Q=q.vals)
+   save(q.list, file=file.path(results.path, "q.values.Rdata"))
+
+
+   data.table::data.table(set.info[, .(setID, setName)],
+              setScore=m.obs$SumStat, setSize=mm.n$N,
+              setP=p.vals, setQ=q.vals$qvalues)[order(setP)]
+
+}
+#===========================================================================
+# The following functions are from PolySel
+#
+# https://github.com/CMPG/polysel
+#
+#===========================================================================
+# Function: ReadSetObjTables(in.path, set.info.file,set.obj.file,
+#                            obj.info.file)
+# Read in all required gene (object) and gene set (set) tables
+#
+# - in.path      : path to directory with input files
+# - set.info.file: tab seperated file with fields:
+#                  setID, setName, ...
+# - set.obj.file : tab seperated file with fields:
+#                  setID, objID
+# - obj.info.file: tab seperated file with fields:
+#                  objID, objName, objStat, (objBin), (objSNPcnt), ...
+# - minsetsize   : exclude gene sets with size below minsetsize
+# - maxsetsize   : exclude gene sets with size above maxsetsize
+# - obj.in.set   : exclude genes that are not part of a set
+#
+# These files must contain headers, IDs can be strings
+# Internal numeric IDs will be assigned to objects and sets to improve
+# further computations
+#===========================================================================
+
+ReadSetObjTables<-function(in.path, set.info.file, set.obj.file,
+                           obj.info.file, minsetsize=10, maxsetsize=1000,
+                           obj.in.set=FALSE, merge.similar.sets){
+
+  # Read in information on gene sets
+  set.info <- read.table(file=file.path(in.path,set.info.file),
+                       header=T, sep="\t", stringsAsFactors=F,
+                       quote = "")
+  set.info$setID.orig <- as.character(set.info$setID)
+  set.info$setID <- seq(nrow(set.info))
+
+  # Read in information on genes
+  obj.info <- read.table(file=file.path(in.path,obj.info.file),
+                       header=T, sep="\t", stringsAsFactors=F,
+                       quote = "")
+  obj.info$objID.orig<-as.character(obj.info$objID)
+  obj.info$objID<-seq(nrow(obj.info))
+  if (!("objBin" %in% names(obj.info))) obj.info$objBin<-1
+
+  # Read in information on which genes are in which set
+  set.obj<-read.table(file=file.path(in.path,set.obj.file),
+                      header=T, sep="\t", stringsAsFactors=F,
+                      quote = "")
+  set.obj$setID<-as.character(set.obj$setID)
+  set.obj$objID<-as.character(set.obj$objID)
+  m<-match(set.obj$setID,set.info$setID.orig)
+  set.obj$setID<-set.info$setID[m]
+  m<-match(set.obj$objID,obj.info$objID.orig)
+  set.obj$objID<-obj.info$objID[m]
+
+  # Cleaning data:
+
+  # Remove sets from set.obj that are not in set.info
+  ix<-set.obj$setID %in% set.info$setID
+  cat("Found and removed ", sum(!ix), " gene sets in set.obj",
+      " which where not in set.info\n", sep="")
+  set.obj<-set.obj[ix,]
+
+  # Remove genes from set.obj that are not in obj.info
+  ix<-set.obj$objID %in% obj.info$objID
+  cat("Found and removed ", sum(!ix), " objects in set.obj",
+      " which where not in obj.info\n", sep="")
+  set.obj<-set.obj[set.obj$objID %in% obj.info$objID,]
+
+  # Remove gene sets that have size outside [minsetsize,maxsetsize]
+  t <- table(set.obj$setID)
+  ix <- (t<minsetsize | t>maxsetsize)
+  cat("Found and removed ", sum(ix), " gene sets in set.obj with size ",
+      "outside [",minsetsize, ", ", maxsetsize,"]\n",
+      sep="")
+  set.obj <- set.obj[set.obj$setID %in% names(t)[!ix],]
+  set.info <- set.info[set.info$setID %in% names(t)[!ix],]
+
+  # Exclude genes that are not part of a set
+  if (obj.in.set){
+    ix<-obj.info$objID %in% set.obj$objID
+    cat("Found and removed ", sum(!ix), " objects in obj.info",
+        " which where not in set.obj\n", sep="")
+    obj.info<-obj.info[ix,]
+  }
+
+  if (merge.similar.sets){
+    r<-MergeSimilarSets(set.info, set.obj)
+    set.info<-r$set.info
+    set.obj<-r$set.obj
+    set.info.lnk<-r$set.info.lnk
+    cat("Merged ", r$aff.sets, " sets into ", r$nr.clusters ,
+        " unions of similar gene sets\n", sep="")
+  } else {
+    set.info.lnk<-set.info
+    set.info.lnk$setID.new<-set.info.lnk$setID
+  }
+
+  # Create new field with setName and setSource
+  # to tell apart sets with the same name (coming from different sources)
+  if ("setSource" %in% colnames(set.info)){
+    t<-table(tolower(set.info$setName))
+    double.names<-names(t[t>1])
+    set.info$setNameSource<-set.info$setName
+    ix<-which(tolower(set.info$setName) %in% double.names)
+    set.info$setNameSource[ix]<-
+      paste(set.info$setName[ix]," (", set.info$setSource[ix], ")",sep="")
+  }
+
+  return(list(set.info=set.info,set.obj=set.obj,obj.info=obj.info,
+              set.info.lnk=set.info.lnk))
+}
+
+
+#===========================================================================
+# Function: MergeSimilarSets(set.info, set.obj)
+# Merge gene sets that have more than 95% similarity
+#
+# -set.info : dataframe with fields setID, setName, ...
+# -set.obj  : dataframe with fields setID, objID
+#
+#===========================================================================
+
+MergeSimilarSets<-function(set.info, set.obj, min.sim=0.95){
+
+   # Get similarity matrix
+   # Which sets are 95% similar (two way)
+   # Choose the one with largest original set to keep
+   # Remove rest, but keep link in set.info.old
+
+   # get the (original) set sizes
+   t<-table(set.obj$setID)
+   m<-match(set.info$setID,names(t))
+   set.info$setSizeOrg<-as.vector(t[m])
+
+   # Create similarity matrix
+   sim.mtx<-CreateSimilarityMtx(set.obj)
+   sim.mtx.t<-t(sim.mtx)
+   adj.mtx <-(sim.mtx>=min.sim)*(sim.mtx.t>=min.sim)
+   g<- igraph::graph.adjacency(adj.mtx, diag=F)
+
+   set.info.nw<-set.info
+   set.info.lnk<-set.info
+   set.info.lnk$setID.new<-set.info.lnk$setID
+   set.obj.lnk<-set.obj
+
+   # find clusters
+   cl<-clusters(g)
+   cl.names<-which(cl$csize>1)
+   for (c in cl.names) {
+      # get sets in cluster
+      ix<-which(cl$membership %in% c)
+      subg<-induced.subgraph(g,ix)
+      setIDs<-V(subg)$name
+      m<-match(setIDs,set.info.nw$setID)
+      # get set with highest number of genes in original set
+      ix.max<-which.max(set.info.nw$setSizeOrg[m])
+      setID.max<-set.info.nw$setID[m[ix.max]]
+      set.info.nw$setName[m[ix.max]]<-
+         paste(set.info.nw$setName[m[ix.max]],"*",sep="")
+      # get all objects in union of cluster
+      objs.all<-unique(set.obj$objID[set.obj$setID %in% setIDs])
+      objs.max<-set.obj$objID[set.obj$setID == setID.max]
+      objs.diff<-setdiff(objs.all,objs.max)
+      # add missing ones to setID.max
+      if (length(objs.diff)>0){
+         df.diff<-data.frame(setID=rep(setID.max,length(objs.diff)),objID=objs.diff)
+         set.obj<-rbind(set.obj,df.diff)
+      }
+      set.info.lnk$setID.new[set.info.lnk$setID %in% setIDs]<-setID.max
+      # remove all others
+      ix.remove <- m[-ix.max]
+      set.info.nw<-set.info.nw[-ix.remove,]
+   }
+   set.info<-set.info.nw
+
+   # exclude sets in set.obj not in set.info
+   set.obj<-set.obj[set.obj$setID %in% set.info$setID,]
+
+   # number of affected sets
+   nr.clusters<-length(cl.names)
+   aff.sets<-nr.clusters+sum(set.info.lnk$setID.new !=set.info.lnk$setID)
+
+   return(list(set.obj=set.obj, set.info=set.info, set.info.lnk=set.info.lnk,
+               nr.clusters=nr.clusters,aff.sets=aff.sets))
+}
+
+#=======================================================================
+# Function: CreateSimilarityMtx(set.obj, objIDs, setIDs)
+# Create similarity matrix
+# Each element i,j is the proportion of genes in set i
+# that is also part of set j
+# -set.obj: dataframe with fields setID, objID
+# -setIDs   : (optional) vector with setIDs
+# -objIDs   : (optional) vector with objIDs
+#=======================================================================
+
+CreateSimilarityMtx<-function(set.obj,objIDs,setIDs){
+
+  if (missing(objIDs)) objIDs<-unique(set.obj$objID)
+  k<-length(objIDs)
+  if (missing(setIDs)) setIDs<-unique(set.obj$setID)
+  l <- length(setIDs)
+
+  # step 1
+  # create matrix setobjmat
+  # nrows = # sets, ncols = # objs
+  # each row is logical vector indicating which obj is in set
+  setobjmat<-matrix(nrow=l,ncol=k,dimnames=list(setIDs,objIDs))
+  for (i in 1:l) {
+    obj_i <- set.obj$objID[set.obj$setID==setIDs[i]]
+    setobjmat[i,]<-objIDs %in% obj_i
+  }
+
+  # step 2
+  # do matrix multiplication setobjmat x T(setobjmat)
+  # resulting in a similarity matrix
+  # each element (i,j) gives the number of objects
+  # that set i and j have in common
+  sim.mtx<-setobjmat %*% t(setobjmat)
+
+  # step 3
+  # divide matrix elements by setsize to get
+  # proportion of elements in common with other set
+  setsizes<-rowSums(setobjmat)
+  sim.mtx<-apply(sim.mtx,2,x<-function(x) return(x/setsizes))
+
+  return(sim.mtx)
+}
+
+#===========================================================================
+# Function: modz(x)
+# Returns modified z-score of vector x
+#
+# Reference:
+# Iglewicz, B. and Hoaglin, D. (1993).
+# How to detect and handle outliers.
+# Milwaukee (WI): ASQC Quality Press.
+#===========================================================================
+
+modz<- function (x)
+{
+  y<-x-median(x)
+  return(0.6745*y/median(abs(y)))
+}
+
+
+#===========================================================================
+# Function: permute.data(x)
+# permutation algorithm for PolyLink
+#
+# Each element i,j is the proportion of genes in set i
+# that is also part of set j
+# -set.obj: dataframe with fields setID, objID
+# -setIDs   : (optional) vector with setIDs
+# -objIDs   : (optional) vector with objIDs
+#===========================================================================
+
+#permutation function
+permute.data <- function(obj.info, n.chr, n.genes, gene.pos, chr.ord.now){
+   # 1. string together chromosomes
+   chr.ord.now <- sample(1:n.chr, n.chr)
+   new.ord <- unlist(gene.pos[chr.ord.now])
+   r1 <- obj.info[new.ord, objStat]
+
+   # 2. rotate scores
+   rotate.now <- sample(2:n.genes, 1)
+   r1[c(rotate.now:n.genes, 1:(rotate.now-1))]
+}

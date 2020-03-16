@@ -1,0 +1,104 @@
+#!/usr/bin/env Rscript
+
+##------------------------------------------------------------------##
+##Example command line
+#Rscript --verbose --vanilla ~/Scripts/PolyLink_CMD.R ~/WorkDir Input Output CEU 10000 3 1 1000 True
+#
+# 1st argument: 'string' pathway to working directory
+# 2nd argument: 'string' directory where input files are located
+# 3rd argument: 'string' directory to create output file
+# 4th argument: 'string' name of population
+# 5th argument: 'integer' number of permutations to calculate null distribution
+# 6th argument: 'integer' number of cores to use
+# 7th argument: 'integer' minimum number of genes needed for pathway to be considered
+# 8th argument: 'integer' maximum number of genes needed for pathway to be considered
+# 9th argument: 'logical' should similar sets be merged?
+##------------------------------------------------------------------##
+
+#library("qvalue")
+#library("Matrix")
+#library("igraph")
+#library("data.table")
+#library("ggplot2")
+#library("foreach")
+#library("doParallel")
+#library("optparse")
+
+library("optparse")
+library("PolyLink")
+
+##-----------------------------------------##
+##Parse command line
+##-----------------------------------------##
+
+#!/usr/bin/env Rscript
+
+oo <- list(
+   optparse::make_option(c("-p", "--path"), type="character", default='./',
+               help="Path to data directory"),
+   optparse::make_option(c("-o", "--out"), type="character", default="Output",
+               help="output file name [default= %default]"),
+   optparse::make_option(c("-m", "--min.genes"), type="integer", default=1,
+               help="Minimum gene set size [default= %default]"),
+   optparse::make_option(c("-M", "--max.genes"), type="integer", default=1000,
+               help="Maximum gene set size [default= %default]"),
+   optparse::make_option(c("-i", "--iterations"), type="integer", default=100000,
+               help="No. of permutations to compute null [default= %default]"),
+   optparse::make_option(c("-P", "--population"), type="character", default=NULL,
+               help="Name of population / dataset to input (should be identical to label in file names) [default= %default]"),
+   optparse::make_option(c("-c", "--n.cores"), type="integer", default=1,
+               help="No. of computer cores to use [default= %default]"),
+   optparse::make_option(c("-s", "--merge.sets"), type="double", default=1,
+               help="Minimum proportion of shared genes in set before merging [default= %default]")
+)
+
+opt_parser <- optparse::OptionParser(option_list=oo)
+opt <- optparse::parse_args(opt_parser)
+
+
+##-----------------------------------------##
+##read in data
+##-----------------------------------------##
+
+print(paste("Inputting data files..."))
+
+#determine population files
+ll <- list.files()
+pf <- ll[grep(opt$population, ll)]
+
+#read in tab delimited files
+raw <- ReadSetObjTables(in.path=opt$path,
+                        set.info.file=pf[grep(".SetInfo.txt", pf)],
+                        set.obj.file=pf[grep(".SetObj.txt", pf)],
+                        obj.info.file=pf[grep(".ObjInfo.txt", pf)],
+                        minsetsize=opt$min.genes,
+                        maxsetsize=opt$max.genes,
+                        obj.in.set=F,
+                        merge.similar.sets=opt$merge.sets)
+
+SI <- setDT(raw$set.info)
+OI <- setDT(raw$obj.info)
+SO <- setDT(raw$set.obj)
+
+dir.create(file.path(opt$path, opt$out))
+
+write.table(raw$set.info.lnk, quote=FALSE, sep="\t", row.names=FALSE,
+            file=file.path(opt$path, opt$out, "merged.pathways.txt"))
+
+##-----------------------------------------##
+##Run new enrichment test [polylink scripts]
+##-----------------------------------------##
+
+out.file <- run.polylink(set.info=SI, obj.info=OI, set.obj=SO,
+                         n.cores=opt$n.cores,
+                         emp.nruns=opt$iterations)
+
+##-----------------------------------------##
+##write output
+##-----------------------------------------##
+
+fwrite(out.file, quote=FALSE, sep="\t", row.names=FALSE,
+       file=file.path(opt$path, opt$out, "setscores.txt"))
+
+
+

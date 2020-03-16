@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1584401358745.000,
+    "dirty" : true,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "6F4E94BC",
+    "lastKnownWriteTime" : 1584401307,
+    "last_content_update" : 1584401537046,
+    "path" : "~/Dropbox/R_projects/PolyLink/R/polylinkr.R",
+    "project_path" : "R/polylinkr.R",
+    "properties" : {
+        "cursorPosition" : "322,58",
+        "scrollLine" : "304"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
