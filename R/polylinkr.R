@@ -310,22 +310,19 @@ ReadSetObjTables<-function(in.path, set.info.file, set.obj.file,
 #===========================================================================
 
 
-MergeSimilarSets<-function(set.info, set.obj, min.sim=0.95){
-
-   #get gene set size
-   set.obj[, .N, by="setID"]
-   set.obj[, X:=1]
+MergeSimilarSets<-function(SI, SO, min.sim=0.95){
 
    #create set.obj matrix
-   ss <- dcast(set.obj, objID~setID, value.var="X",
+   SO[, X:=1]
+   ss <- dcast(SO, objID~setID, value.var="X",
                fun.aggregate=length)
+   s.mat <- as.matrix(ss, nrow=nrow(ss), rownames="objID")
 
-   ss <- as.matrix(ss, nrow=nrow(ss), rownames="objID")
-
-   sim.mat <- t(ss) %*% ss
+   #determine number of shared genes
+   sim.mat <- t(s.mat) %*% s.mat
    set.n <- diag(sim.mat)
 
-   sim.mat / set.n
+   rbind(1:, sim.mat / set.n
 }
 
 
