@@ -322,7 +322,7 @@ MergeSimilarSets<-function(SI, SO, min.sim=0.95){
 
    s.mat <- as.matrix(ss, nrow=nrow(ss), rownames="objID")
 
-   sim.mat <- t(ss) %*% ss
+   sim.mat <- t(s.mat) %*% s.mat
    set.n <- diag(sim.mat)
 
    sim.mat / set.n
