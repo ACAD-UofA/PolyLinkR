@@ -11,7 +11,7 @@ Description: Is an R package that performs gene-based pathway enrichment,
     software is used with selection signals evidence. The package explicitly
     also accounts for linkage desiquilibrium between adjacent loci belonging
     on the same pathway.
-License: MIT
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends:
