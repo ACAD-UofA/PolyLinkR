@@ -5,7 +5,7 @@
 #' definitions from BIOCYC (Romero et al., 2005), KEGG (Kanehisa and Goto, 2000),
 #' PID (Schaefer et al., 2009), and REACTOME (Fabregat et al., 2018).
 #'
-#' @seealso \code{\link{PolyLinkR_SetObj}}
+#' @seealso \code{\link{polylinkr}}, \code{\link{PolyLinkR_SetObj}}, \code{\link{Anatolia_EF_CLR}}
 #' @format A data.table with 1868 rows and 3 variables:
 #' \describe{
 #'   \item{setID}{pathway ID}
