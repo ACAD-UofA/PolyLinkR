@@ -20,14 +20,17 @@
 #'
 #'
 #' @examples
-#' output = polylinkr(obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj,
+#' output = (obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj,
 #'              n.cores = 8, emp.nruns = 1000, NN = 10000)
+#' p = plot_polyviolinr(polylinkr.out =  output, obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj,
+#'              p.cutoff = 0.001)
+#' p            
 #'
 #' @export
 plot_polyviolinr <- function(polylinkr.out, set.info, obj.info, set.obj, p.cutoff = 0, q.cutoff = 0){
   
   # Get the Gene-scores in the enriched pathways bellow or equal a given q or p-value cutoff
-  genes = PolyLinkR_SetObj[setID %in% output[setP =< p.cutoff & setQ =< q.cutoff, unique(setID)]]
+  genes = PolyLinkR_SetObj[setID %in% output[setP <= p.cutoff & setQ <= q.cutoff, unique(setID)]]
   gene_scores = merge(genes, Anatolia_EF_CLR, by = "objID")
   gene_scores = merge(gene_scores, PolyLinkR_SetInfo, by = "setID")
   gene_scores = merge(gene_scores, output, by = "setName")
