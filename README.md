@@ -13,8 +13,9 @@ devtools::install_github("r-lib/testthat")
 ```
 
 ## Usage
+To run PolyLinkR pathway/gene set enrichment you will need a dataframe/data.table with the geneID, gene scores (from whichever test you're using; e.g. Fst or CLR scores), the chromosome/contig number or ID, and the start/end positions of the gene. Also, two additional dataframes are required, the first definging the gene sets/pathways, and the second linking each gene to the corresponding gene set(s)/pathway(s).
 
-
+For example, you can use the build in examples:
 
 ```
 output = polylinkr(obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj,
