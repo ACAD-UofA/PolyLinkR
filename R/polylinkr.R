@@ -37,7 +37,8 @@
 #'
 #'
 #' @examples
-#' output = polylinkr(obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj,
+#' output = polylinkr(obj.info = Anatolia_EF_CLR, 
+#'              set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj,
 #'              n.cores = 8, emp.nruns = 1000, NN = 10000)
 #'
 #' @export
