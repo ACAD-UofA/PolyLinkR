@@ -310,19 +310,37 @@ ReadSetObjTables<-function(in.path, set.info.file, set.obj.file,
 #===========================================================================
 
 
-MergeSimilarSets<-function(SI, SO, min.sim=0.95){
+MergeSimilarSets<- function(SI, SO, min.sim=0.95, n.cores){
 
    #create set.obj matrix
    SO[, X:=1]
    ss <- dcast(SO, objID~setID, value.var="X",
                fun.aggregate=length)
    s.mat <- as.matrix(ss, nrow=nrow(ss), rownames="objID")
+   s.mat.t <- t(s.mat)
 
+   NP <- ncol(s.mat)
    #determine number of shared genes
-   sim.mat <- t(s.mat) %*% s.mat
+   if(NP>100){
+      #speed up computation by using threading and blocks
+      #split matrix into blocks of length 100 (subset gene sets)
+      #set up parallel backend for foreach %dopar%
+      doParallel::registerDoParallel(cores=n.cores)
+
+      sim.mat <- foreach(i=1:ceiling(NP/100), .combine=rbind) %dopar% {
+         s.mat.t[(((i-1)*100)+1):min(i*100, NP), ] %*% s.mat
+      }
+   }else{
+      sim.mat <- t(s.mat) %*% s.mat
+   }
+
    set.n <- diag(sim.mat)
 
-   rbind(1:, sim.mat / set.n
+   #proportion shared
+   p.mat <- sim.mat/set.n
+   diag(p.mat) <- NA
+
+   which(p.mat>min.sim) %% NP
 }
 
 

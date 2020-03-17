@@ -1,7 +1,9 @@
 Package: PolyLinkR
 Type: Package
 Title: Polygenic Pathway Enrichment Accounting for Genetic Linkage
-Version: 0.3.0
+Version: 0.3.1
+URL: https://github.com/ACAD-UofA/PolyLinkR
+BugReports: https://github.com/ACAD-UofA/PolyLinkR/issues
 Author: Raymond Tobler, Yassine Souilmi, Christian Huber.
 Maintainer: Raymond Tobler <raymond.tobler@adelaide.edu.au>
 Description: Is an R package that performs gene-based pathway enrichment, 
