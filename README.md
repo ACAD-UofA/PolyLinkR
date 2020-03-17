@@ -9,7 +9,7 @@ PolyLinkR is introduces several improvements, and faster implementations of the 
 ```
 Install from GitHub:
 # install.packages("devtools")
-devtools::install_github("r-lib/testthat")
+devtools::install_github("ACAD-UofA/PolyLinkR")
 ```
 
 ## Usage
