@@ -11,4 +11,4 @@
 #'   \item{setID}{pathway ID}
 #'   \item{objID}{gene ID}
 #' }
-"PolyLink_SetObj"
+"PolyLinkR_SetObj"

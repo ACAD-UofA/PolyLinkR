@@ -12,4 +12,4 @@
 #'   \item{setName}{pathwaty name}
 #'   \item{setSource}{source database of the pathwaty}
 #' }
-"PolyLink_SetInfo"
+"PolyLinkR_SetInfo"
