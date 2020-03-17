@@ -35,8 +35,10 @@ Plots a violin plot showing the gene-score distribution of the enriched gene set
 above a give q-value and/or p-value cutoff(s)
 }
 \examples{
-output = (obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj, n.cores = 8, emp.nruns = 1000, NN = 10000)
-p = plot_polyviolinr(polylinkr.out =  output, obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj, p.cutoff = 0.001)
+output = (obj.info = Anatolia_EF_CLR, set.info = PolyLinkR_SetInfo, 
+          set.obj = PolyLinkR_SetObj, n.cores = 8, emp.nruns = 1000, NN = 10000)
+p = plot_polyviolinr(polylinkr.out =  output, obj.info = Anatolia_EF_CLR, 
+                     set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj, p.cutoff = 0.001)
 
 }
 \seealso{
