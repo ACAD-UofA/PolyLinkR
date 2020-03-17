@@ -14,13 +14,15 @@ Description: Is an R package that performs gene-based pathway enrichment,
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
+biocViews: GeneSetEnrichment, GO
 Depends:
 	data.table,
 	qvalue,
 	Matrix,
 	matrixStats,
 	igraph,
-	doParallel
+	doParallel,
+	ggplot2
 RoxygenNote: 7.1.0
 Suggests: 
     testthat (>= 2.1.0)
