@@ -42,16 +42,26 @@
 #'
 #' @export
 polylinkr <- function(set.info, obj.info, set.obj,
-                         n.cores, emp.nruns, NN=1000){
+                         n.cores=NA, emp.nruns=10000, NN=1000){
 
-   if(NN>emp.nruns){
-      NN <- min(emp.nruns, 1000)
-      warning("WARNING: summary statistic evalution block size exceeds total number of iterations",
-              immediate.=T)
-      warning("summary statistic evalution set to arg.min(1000, emp.nruns)",
-              immediate.=T)
-   }
-
+  #check for common errors
+  if(emp.nruns<=0){ 
+    emp.nruns <- max(NN, 10000)
+    warning(paste("WARNING: iterations incorrectly entered, resetting to", emp.nruns),
+            immediate.=T)
+  }
+  if(NN>emp.nruns){
+    NN <- min(emp.nruns, 1000)
+    warning("WARNING: summary statistic evalution block size exceeds total number of iterations",
+            immediate.=T)
+    warning("summary statistic evalution set to arg.min(1000, emp.nruns)",
+            immediate.=T)
+  }
+  
+  #set cores
+  dc <- detectCores()
+  if(n.cores<=0 | n.cores>dc | is.na(n.cores)) n.cores <- dc-1
+  
    print(paste("Running enrichment test..."))
 
    #permutation function
@@ -119,10 +129,10 @@ polylinkr <- function(set.info, obj.info, set.obj,
       return(rb)
    }
 
-   #convert to datatable format
-   data.table::setDT(set.info)
-   data.table::setDT(obj.info)
-   data.table::setDT(set.obj)
+   #convert to datatable format (if not already data.table)
+   if(!is.data.table(set.info)) data.table::setDT(set.info)
+   if(!is.data.table(set.info)) data.table::setDT(obj.info)
+   if(!is.data.table(set.info)) data.table::setDT(set.obj)
 
    #remove na's
    no.scores <- obj.info[is.na(objStat), objID]
@@ -168,7 +178,8 @@ polylinkr <- function(set.info, obj.info, set.obj,
       }
       perm <- matrix(unlist(pp), ncol=l, byrow=FALSE)
       m.exp <- sum.stat(set.obj, ID, perm)
-      sig.tests <- sig.tests + compute.p.val(obs=m.obs$SumStat, exp=m.exp)
+      sig.tests <- sig.tests + rowSums(m.obs[, SumStat] <= m.exp[, -1])
+      #compute.p.val(obs=m.obs$SumStat, exp=m.exp)
       rm(perm, m.exp)
       gc()
    }
@@ -180,123 +191,112 @@ polylinkr <- function(set.info, obj.info, set.obj,
    p.vals <- sig.tests/emp.nruns
    q.vals <- qvalue::qvalue(p.vals, pi0.method="smoother")
 
-   data.table::data.table(set.info[, .(setID, setName)],
+   data.table::data.table(set.info[order(setID), .(setID, setName)],
               setScore=m.obs$SumStat, setSize=mm.n$N,
               setP=p.vals, setQ=q.vals$qvalues)[order(setP)]
 
 }
-#===========================================================================
-# The following functions are from PolySel
-#
-# https://github.com/CMPG/polysel
-#
+
+#read input data function
+#' Read in polylink data.
+#'
+#' Reads in data. Optionally, can merge gene sets that share more than a specified proportion of genes, or remove gene sets with less/more than a specified number of genes.
+#'
+#'
+#' @param in.path character: pathway to input files
+#' @param population character: label used to identify input files. Three input files are required, specified by 'setInfo', 'setObj', and 'objInfo'.
+#' @param minsetsize integer: minimum number of genes required in gene set
+#' @param maxsetsize integer: maximum number of genes required in gene set
+#' @param min.sim double: sets sharing at least this proportion of genes will be merged
+#' @param n.cores integer: number of cores to run in parallel
+#'
+#' @return Returns a list with three elements.
+#'
+#' @export
 #===========================================================================
 # Function: ReadSetObjTables(in.path, set.info.file,set.obj.file,
 #                            obj.info.file)
 # Read in all required gene (object) and gene set (set) tables
 #
-# - in.path      : path to directory with input files
-# - set.info.file: tab seperated file with fields:
+# - in.path      : path to directory with input files. 
+#                  default = local folder './'
+# - population   : label specifying which dataset to load. Must be specified. 
+#                  Will search for the following files:
+#                 - setInfo: tab seperated file with fields:
 #                  setID, setName, ...
-# - set.obj.file : tab seperated file with fields:
+#                 - setObj : tab seperated file with fields:
 #                  setID, objID
-# - obj.info.file: tab seperated file with fields:
-#                  objID, objName, objStat, (objBin), (objSNPcnt), ...
+#                 - objInfo: tab seperated file with fields:
+#                  objID, objName, objStat, chr, start, ...
 # - minsetsize   : exclude gene sets with size below minsetsize
+#                  (default = 10)
 # - maxsetsize   : exclude gene sets with size above maxsetsize
-# - obj.in.set   : exclude genes that are not part of a set
+#                  (default = 1000)
+# - min.sim      : minimum proportion of shared genes used to 
+#                  concatenate gene sets (default = 1, i.e. no concatenation)
+# - n.cores      : no. of computation cores to use (default = no. cores - 1)
 #
 # These files must contain headers, IDs can be strings
 # Internal numeric IDs will be assigned to objects and sets to improve
 # further computations
 #===========================================================================
-
-ReadSetObjTables<-function(in.path, set.info.file, set.obj.file,
-                           obj.info.file, minsetsize=10, maxsetsize=1000,
-                           obj.in.set=FALSE, merge.similar.sets){
+ReadSetObjTables<-function(in.path="./", population=NA, 
+                           minsetsize=10, maxsetsize=1000,
+                           merge.set.prop=1, n.cores=NA){
+  
+  #Reading in data
+  print(paste("Reading data for", population))
+  
+  #determine input files
+  ll <- list.files(in.path)
+  pf <- ll[grep(population, ll)]
+  
+  if(merge.set.prop>1 | merge.set.prop<=0){
+    merge.set.prop <- min(emp.nruns, 1)
+    warning("WARNING: minimim (0) or maximum (1) gene set similarity exceeded",
+            immediate.=T)
+    warning("merge.set.prop set to 1",
+            immediate.=T)
+  }
 
   # Read in information on gene sets
-  set.info <- read.table(file=file.path(in.path,set.info.file),
-                       header=T, sep="\t", stringsAsFactors=F,
-                       quote = "")
-  set.info$setID.orig <- as.character(set.info$setID)
-  set.info$setID <- seq(nrow(set.info))
+  set.info <- fread(file.path(in.path, pf[grep("SetInfo", pf)]))
+  set.obj <- fread(file.path(in.path, pf[grep("SetObj", pf)]))
+  obj.info <- fread(file.path(in.path, pf[grep("ObjInfo", pf)]))
 
-  # Read in information on genes
-  obj.info <- read.table(file=file.path(in.path,obj.info.file),
-                       header=T, sep="\t", stringsAsFactors=F,
-                       quote = "")
-  obj.info$objID.orig<-as.character(obj.info$objID)
-  obj.info$objID<-seq(nrow(obj.info))
-  if (!("objBin" %in% names(obj.info))) obj.info$objBin<-1
-
-  # Read in information on which genes are in which set
-  set.obj<-read.table(file=file.path(in.path,set.obj.file),
-                      header=T, sep="\t", stringsAsFactors=F,
-                      quote = "")
-  set.obj$setID<-as.character(set.obj$setID)
-  set.obj$objID<-as.character(set.obj$objID)
-  m<-match(set.obj$setID,set.info$setID.orig)
-  set.obj$setID<-set.info$setID[m]
-  m<-match(set.obj$objID,obj.info$objID.orig)
-  set.obj$objID<-obj.info$objID[m]
-
-  # Cleaning data:
-
-  # Remove sets from set.obj that are not in set.info
-  ix<-set.obj$setID %in% set.info$setID
-  cat("Found and removed ", sum(!ix), " gene sets in set.obj",
-      " which where not in set.info\n", sep="")
-  set.obj<-set.obj[ix,]
-
-  # Remove genes from set.obj that are not in obj.info
-  ix<-set.obj$objID %in% obj.info$objID
-  cat("Found and removed ", sum(!ix), " objects in set.obj",
-      " which where not in obj.info\n", sep="")
-  set.obj<-set.obj[set.obj$objID %in% obj.info$objID,]
-
-  # Remove gene sets that have size outside [minsetsize,maxsetsize]
-  t <- table(set.obj$setID)
-  ix <- (t<minsetsize | t>maxsetsize)
-  cat("Found and removed ", sum(ix), " gene sets in set.obj with size ",
-      "outside [",minsetsize, ", ", maxsetsize,"]\n",
-      sep="")
-  set.obj <- set.obj[set.obj$setID %in% names(t)[!ix],]
-  set.info <- set.info[set.info$setID %in% names(t)[!ix],]
-
-  # Exclude genes that are not part of a set
-  if (obj.in.set){
-    ix<-obj.info$objID %in% set.obj$objID
-    cat("Found and removed ", sum(!ix), " objects in obj.info",
-        " which where not in set.obj\n", sep="")
-    obj.info<-obj.info[ix,]
+  # Cleaning data
+  #merge similar sets
+  if(merge.set.prop<1){
+    print(paste0("Merging gene sets with >", merge.set.prop, " similarity"))
+    r <- MergeSimilarSets(SI=set.info, SO=set.obj,
+                          min.sim=merge.set.prop, 
+                          n.cores=n.cores)
+    set.info <- r$set.info
+    set.obj <- r$set.obj
   }
-
-  if (merge.similar.sets){
-    r<-MergeSimilarSets(set.info, set.obj)
-    set.info<-r$set.info
-    set.obj<-r$set.obj
-    set.info.lnk<-r$set.info.lnk
-    cat("Merged ", r$aff.sets, " sets into ", r$nr.clusters ,
-        " unions of similar gene sets\n", sep="")
-  } else {
-    set.info.lnk<-set.info
-    set.info.lnk$setID.new<-set.info.lnk$setID
+  
+  # Remove resized gene sets that have too many/too few genes
+  if(!is.na(minsetsize) | !is.na(maxsetsize)){
+    setN <- set.obj[, .N, by=setID][N>minsetsize & N<maxsetsize, setID]
+    set.info <- set.info[setID %in% setN]
+    set.obj <- set.obj[setID %in% setN]
   }
-
+  
   # Create new field with setName and setSource
-  # to tell apart sets with the same name (coming from different sources)
-  if ("setSource" %in% colnames(set.info)){
-    t<-table(tolower(set.info$setName))
-    double.names<-names(t[t>1])
-    set.info$setNameSource<-set.info$setName
-    ix<-which(tolower(set.info$setName) %in% double.names)
-    set.info$setNameSource[ix]<-
-      paste(set.info$setName[ix]," (", set.info$setSource[ix], ")",sep="")
+  # to tell apart sets with the same name
+  dups <- r
+  if(length(dups)>0){
+    print("Relabeling duplicated gene set names")
+    dup.set <- set.info[, .N, by=setName][N>1, setName]
+    for(d.now in dup.set){
+      set.info[setName==d.now, setName:=paste0(setName, " set", 1:.N)]
+    }
   }
-
-  return(list(set.info=set.info,set.obj=set.obj,obj.info=obj.info,
-              set.info.lnk=set.info.lnk))
+  
+  #add in setIDs for unmerged sets
+  set.obj[is.na(setID.merged), setID.merged:=setID]
+  
+  return(list(set.info=set.info, set.obj=set.obj, obj.info=obj.info))
 }
 
 
@@ -304,151 +304,99 @@ ReadSetObjTables<-function(in.path, set.info.file, set.obj.file,
 # Function: MergeSimilarSets(set.info, set.obj)
 # Merge gene sets that have more than 95% similarity
 #
-# -set.info : dataframe with fields setID, setName, ...
-# -set.obj  : dataframe with fields setID, objID
-#
+# -SI : dataframe with fields setID, setName, ...
+# -SO  : dataframe with fields setID, objID
+# -min.sim  : minimum proportion of gene sharing before merging
+# -n.cores  : number of cores to use
 #===========================================================================
 
 
-MergeSimilarSets<- function(SI, SO, min.sim=0.95, n.cores){
+MergeSimilarSets<- function(SI, SO, min.sim=0.95, n.cores=NA){
 
-   #create set.obj matrix
-   SO[, X:=1]
-   ss <- dcast(SO, objID~setID, value.var="X",
-               fun.aggregate=length)
-   s.mat <- as.matrix(ss, nrow=nrow(ss), rownames="objID")
-   s.mat.t <- t(s.mat)
+  # Get similarity matrix
+  # Which sets are min.sim proportion similar (two way)
+  # Choose the one with largest original set to keep
+  # Remove rest, but keep link in set.info.old
+  
+  #set cores
+  dc <- detectCores()
+  if(n.cores<=0 | n.cores>dc | is.na(n.cores)) n.cores <- dc-1
+  
+  #create set.obj matrix
+  SO[, X:=1]
+  ss <- dcast(SO, objID~setID, value.var="X",
+              fun.aggregate=length)
+  s.mat <- as.matrix(ss, nrow=nrow(ss), rownames="objID")
+  s.mat.t <- t(s.mat)
+  
+  NP <- ncol(s.mat)
+  #determine number of shared genes
+  np <- 100
+  if(NP>np){
+    #speed up computation by using multiple cores and blocks
+    #split matrix into blocks of length 100 (subset gene sets)
+    #set up parallel backend for foreach %dopar%
+    doParallel::registerDoParallel(cores=n.cores)
+  
+    sim.mat <- foreach(i=1:ceiling(NP/np), .combine=rbind) %dopar% {
+      print(paste0("Quantified gene overlap in ", i*np, " of ", NP, " gene sets"))
+      
+      s.mat.t[(((i-1)*np)+1):min(i*np, NP), ] %*% s.mat
+    }
+  }else{
+    sim.mat <- t(s.mat) %*% s.mat
+    print(paste0("Quantified gene overlap in ", NP, " gene sets"))
+  }
+  
+  set.n <- diag(sim.mat)
+  
+  #proportion shared
+  p.mat <- sim.mat/set.n
+  
+  #check for similarity prop > min.sim in both pathways
+  ff <- foreach(i=seq_len(NP), .combine=rbind) %dopar% {
+    data.table(P=i, X=which(p.mat[i, ]>min.sim))
+  }
+  
+  xx <- rbind(data.table(Z=1, ff), data.table(Z=2, P=ff$X, X=ff$P))
+  xx[, PX:=paste(P, X)]
+  keep <- xx[X!=P, .N, by="PX"][N>1, PX]
+  
+  set.m <- xx[Z==1 & PX %in% keep, .(P, X)]
+  
+  #concatenate pathways
+  pc <- list()
+  cc=0
+  for(i in set.m[, unique(P)]){
+    PC <- c(i, set.m[P==i, unique(X)])
+    if(!any(PC %in% unlist(pc))){
+      cc=cc+1
+      pc[[cc]] <- PC
+    }
+  }
+  
+  if(length(pc)>0){
+    so.new <- foreach(i=pc, .combine=rbind) %dopar% {
+      so.now <- SO[setID %in% i]
+      #rename according to largest set 
+      #take random if equivalent
+      new.setID <- so.now[, .N, by=setID][N==max(N), setID][1]
+      data.table(setID=new.setID, objID=so.now[, unique(objID)], 
+                 setID.merged=so.now[, paste0(unique(setID), collapse=",")])
+    }
+    
+    SO.out <- rbind(SO[!(setID %in% unlist(pc)), .(setID, objID, setID.merged=NA)], 
+                    so.new)[order(setID, objID)]
+    SI.out <- SI[setID %in% SO.out$setID]
+    SI.out <- SI.out[setID %in% unlist(pc), setName:=paste0(setName, "*")]
+    
+    print(paste0("Merged ", length(pc), " gene sets >", min.sim, " similarity"))
 
-   NP <- ncol(s.mat)
-   #determine number of shared genes
-   if(NP>100){
-      #speed up computation by using threading and blocks
-      #split matrix into blocks of length 100 (subset gene sets)
-      #set up parallel backend for foreach %dopar%
-      doParallel::registerDoParallel(cores=n.cores)
-
-      sim.mat <- foreach(i=1:ceiling(NP/100), .combine=rbind) %dopar% {
-         s.mat.t[(((i-1)*100)+1):min(i*100, NP), ] %*% s.mat
-      }
-   }else{
-      sim.mat <- t(s.mat) %*% s.mat
-   }
-
-   set.n <- diag(sim.mat)
-
-   #proportion shared
-   p.mat <- sim.mat/set.n
-   diag(p.mat) <- NA
-
-   which(p.mat>min.sim) %% NP
-}
-
-
-MergeSimilarSets<-function(set.info, set.obj, min.sim=0.95){
-
-   # Get similarity matrix
-   # Which sets are 95% similar (two way)
-   # Choose the one with largest original set to keep
-   # Remove rest, but keep link in set.info.old
-
-   # get the (original) set sizes
-   t<-table(set.obj$setID)
-   m<-match(set.info$setID,names(t))
-   set.info$setSizeOrg<-as.vector(t[m])
-
-   set.obj[, .N, by="setID"]
-
-   # Create similarity matrix
-   sim.mtx<-CreateSimilarityMtx(set.obj)
-   sim.mtx.t<-t(sim.mtx)
-   adj.mtx <-(sim.mtx>=min.sim)*(sim.mtx.t>=min.sim)
-   g<- igraph::graph.adjacency(adj.mtx, diag=F)
-
-   set.info.nw<-set.info
-   set.info.lnk<-set.info
-   set.info.lnk$setID.new<-set.info.lnk$setID
-   set.obj.lnk<-set.obj
-
-   # find clusters
-   cl<-clusters(g)
-   cl.names<-which(cl$csize>1)
-   for (c in cl.names) {
-      # get sets in cluster
-      ix<-which(cl$membership %in% c)
-      subg<-induced.subgraph(g,ix)
-      setIDs<-V(subg)$name
-      m<-match(setIDs,set.info.nw$setID)
-      # get set with highest number of genes in original set
-      ix.max<-which.max(set.info.nw$setSizeOrg[m])
-      setID.max<-set.info.nw$setID[m[ix.max]]
-      set.info.nw$setName[m[ix.max]]<-
-         paste(set.info.nw$setName[m[ix.max]],"*",sep="")
-      # get all objects in union of cluster
-      objs.all<-unique(set.obj$objID[set.obj$setID %in% setIDs])
-      objs.max<-set.obj$objID[set.obj$setID == setID.max]
-      objs.diff<-setdiff(objs.all,objs.max)
-      # add missing ones to setID.max
-      if (length(objs.diff)>0){
-         df.diff<-data.frame(setID=rep(setID.max,length(objs.diff)),objID=objs.diff)
-         set.obj<-rbind(set.obj,df.diff)
-      }
-      set.info.lnk$setID.new[set.info.lnk$setID %in% setIDs]<-setID.max
-      # remove all others
-      ix.remove <- m[-ix.max]
-      set.info.nw<-set.info.nw[-ix.remove,]
-   }
-   set.info<-set.info.nw
-
-   # exclude sets in set.obj not in set.info
-   set.obj<-set.obj[set.obj$setID %in% set.info$setID,]
-
-   # number of affected sets
-   nr.clusters<-length(cl.names)
-   aff.sets<-nr.clusters+sum(set.info.lnk$setID.new !=set.info.lnk$setID)
-
-   return(list(set.obj=set.obj, set.info=set.info, set.info.lnk=set.info.lnk,
-               nr.clusters=nr.clusters,aff.sets=aff.sets))
-}
-
-#=======================================================================
-# Function: CreateSimilarityMtx(set.obj, objIDs, setIDs)
-# Create similarity matrix
-# Each element i,j is the proportion of genes in set i
-# that is also part of set j
-# -set.obj: dataframe with fields setID, objID
-# -setIDs   : (optional) vector with setIDs
-# -objIDs   : (optional) vector with objIDs
-#=======================================================================
-
-CreateSimilarityMtx<-function(set.obj,objIDs,setIDs){
-
-  if (missing(objIDs)) objIDs<-unique(set.obj$objID)
-  k<-length(objIDs)
-  if (missing(setIDs)) setIDs<-unique(set.obj$setID)
-  l <- length(setIDs)
-
-  # step 1
-  # create matrix setobjmat
-  # nrows = # sets, ncols = # objs
-  # each row is logical vector indicating which obj is in set
-  setobjmat<-matrix(nrow=l,ncol=k,dimnames=list(setIDs,objIDs))
-  for (i in 1:l) {
-    obj_i <- set.obj$objID[set.obj$setID==setIDs[i]]
-    setobjmat[i,]<-objIDs %in% obj_i
+  }else{
+    print(paste0("No gene sets >", min.sim, "similarity"))
   }
 
-  # step 2
-  # do matrix multiplication setobjmat x T(setobjmat)
-  # resulting in a similarity matrix
-  # each element (i,j) gives the number of objects
-  # that set i and j have in common
-  sim.mtx<-setobjmat %*% t(setobjmat)
-
-  # step 3
-  # divide matrix elements by setsize to get
-  # proportion of elements in common with other set
-  setsizes<-rowSums(setobjmat)
-  sim.mtx<-apply(sim.mtx,2,x<-function(x) return(x/setsizes))
-
-  return(sim.mtx)
+  return(list(set.obj=SO.out, set.info=SI.out))
 }
+
+
