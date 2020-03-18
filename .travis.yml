@@ -2,12 +2,13 @@
 
 language: R
 r: bioc-release
+sudo: false
 cache: packages
 
 install:
-- R -e 'install.packages("devtools")'
-- R -e 'devtools::install_deps(dep = T)'
+  - R -e 'install.packages("devtools")'
+  - R -e 'devtools::install_deps(dep = T)'
 
 script:
-- R CMD build .
-- Rscript -e "library(testthat); testthat::test_dir('tests/testthat')"
+  - R CMD build .
+  #- Rscript -e "library(testthat); testthat::test_dir('tests/testthat')"
