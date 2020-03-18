@@ -10,4 +10,4 @@ install:
 
 script:
 - R CMD build .
-- Rscript -e "devtools::install_github("ACAD-UofA/PolyLinkR"); library(PolyLinkR); library(testthat); testthat::test_dir('tests/testthat')"
+- Rscript -e "library(testthat); testthat::test_dir('tests/testthat')"
