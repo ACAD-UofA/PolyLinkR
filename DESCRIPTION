@@ -20,7 +20,6 @@ Depends:
 	qvalue,
 	Matrix,
 	matrixStats,
-	igraph,
 	doParallel,
 	ggplot2
 RoxygenNote: 7.1.0
