@@ -7,9 +7,9 @@
 \format{
 A data.table with 1868 rows and 3 variables:
 \describe{
-  \item{setID}{pathway ID}
-  \item{setName}{pathwaty name}
-  \item{setSource}{source database of the pathwaty}
+  \item{setID: pathway ID}
+  \item{setName: pathwaty name}
+  \item{setSource: source database of the pathwaty}
 }
 }
 \usage{

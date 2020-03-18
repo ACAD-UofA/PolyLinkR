@@ -7,8 +7,8 @@
 \format{
 A data.table with 132382 rows and 2 variables:
 \describe{
-  \item{setID}{pathway ID}
-  \item{objID}{gene ID}
+  \item{setID: pathway ID}
+  \item{objID: gene ID}
 }
 }
 \usage{
