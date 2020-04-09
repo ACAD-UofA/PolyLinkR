@@ -42,159 +42,119 @@
 #'              n.cores = 8, emp.nruns = 1000, NN = 10000)
 #'
 #' @export
-polylinkr <- function(set.info, obj.info, set.obj,
-                         n.cores=NA, emp.nruns=10000, NN=1000){
-
-  #check for common errors
-  if(emp.nruns<=0){ 
-    emp.nruns <- max(NN, 10000)
-    warning(paste("WARNING: iterations incorrectly entered, resetting to", emp.nruns),
-            immediate.=T)
-  }
-  if(NN>emp.nruns){
-    NN <- min(emp.nruns, 1000)
-    warning("WARNING: summary statistic evalution block size exceeds total number of iterations",
-            immediate.=T)
-    warning("summary statistic evalution set to arg.min(1000, emp.nruns)",
-            immediate.=T)
-  }
-  
-  #set cores
-  dc <- detectCores()
-  if(n.cores<=0 | n.cores>dc | is.na(n.cores)) n.cores <- dc-1
-  
-   print(paste("Running enrichment test..."))
-
-   #permutation function
-   permute.data <- function(obj.info, n.chr, n.genes, gene.pos, chr.ord.now){
-      # 1. string together chromosomes
-      chr.ord.now <- sample(1:n.chr, n.chr)
-      new.ord <- unlist(gene.pos[chr.ord.now])
-      r1 <- obj.info[new.ord, objStat]
-
-      # 2. rotate scores
-      rotate.now <- sample(2:n.genes, 1)
-      r1[c(rotate.now:n.genes, 1:(rotate.now-1))]
+polylinkr <- function(set.info, obj.info, set.obj, n.cores=NA, emp.nruns=10000,
+                NN=1000)
+{
+   if (emp.nruns <= 0) {
+      emp.nruns <- max(NN, 10000)
+      warning(paste("WARNING: iterations incorrectly entered, resetting to",
+                    emp.nruns), immediate. = T)
+   }
+   if (NN > emp.nruns) {
+      NN <- min(emp.nruns, 1000)
+      warning("WARNING: summary statistic evalution block size exceeds total number of iterations",
+              immediate. = T)
+      warning("summary statistic evalution set to arg.min(1000, emp.nruns)",
+              immediate. = T)
    }
 
-   #sumstat calculation function
-   sum.stat <- function(set.obj, ID, perm){
-      # 3. compute new sumstat scores
-      mm.e <- merge(data.table(objID=ID, objStat=perm), set.obj, by="objID")[order(setID)]
-      mm.e[, lapply(.SD, sum), .SDcols=grep("objStat", names(mm.e)), by="setID"]
-   }
+   #internal functions
 
-   #p.value calculation function
-   compute.p.val <- function(obs, exp){
-      # 4. compute p values
-      e <- exp[, setID:=NULL]
-      rowSums(obs <= e)
-   }
+   block.exec <- function(obj.info, n.chr, n.genes,
+                          gene.pos, ID, block.size){
 
-   #timer function
-   timer <- function(time.point, emp.nruns, I){
-      if((I-1000) %% time.point == 0 & I>1000){ # estimate time remaining
-         d.now <- as.numeric(difftime(Sys.time(), s0, units="secs"))
-         est.time <- (emp.nruns-I+1000)*(d.now/(I-1000))
-         print(paste("Completed", I-1000, "iterations"))
-         mins <- est.time %/% 60
-         secs <- round(est.time %% 60, 0)
-         if(mins>=60){
-            hours <- mins %/% 60
-            mins <- mins %% 60
-            print(paste("Estimated time remaining:", hours, "h", mins, "m", secs, "s"))
-         }else{
-            if(mins==0){
-               print(paste("Estimated time remaining:", secs, "s"))
-            }else{
-               print(paste("Estimated time remaining:", mins, "m", secs, "s"))
-            }
-         }
+      permute.data <- function(obj.info, n.chr, n.genes, gene.pos){
+         chr.ord.now <- sample(1:n.chr, n.chr)
+         new.ord <- unlist(gene.pos[chr.ord.now])
+         r1 <- obj.info[new.ord, objStat]
+         rotate.now <- sample(2:n.genes, 1)
+         r1[c(rotate.now:n.genes, 1:(rotate.now - 1))]
       }
+
+      sum.stat <- function(set.obj, ID, perm){
+         mm.e <- merge(data.table(objID=ID, objStat=perm),
+                       set.obj, by="objID")
+         mm.e[, lapply(.SD, sum), .SDcols=grep("objStat", names(mm.e)),
+              by="setID"][order(setID)]
+      }
+
+      pp <- foreach(i=1:block.size, .packages=c('data.table',
+                                                'doParallel')) %dopar% {
+         permute.data(obj.info, n.chr, n.genes, gene.pos)
+      }
+      perm <- matrix(unlist(pp), ncol=block.size, byrow=FALSE)
+      m.exp <- sum.stat(set.obj, ID, perm)
+      rowSums(m.obs[, SumStat] <= m.exp[, -1])
    }
 
-   #break up emp.nruns into specific size iteration chunks for computation
-   #(improves run time; 1000 seems optimal for ~10k genes)
-   get.blocks <- function(emp.nruns, block.size){
-      if(emp.nruns<block.size){
+   get.blocks <- function(emp.nruns, block.size) {
+      if (emp.nruns < block.size) {
          rb <- emp.nruns
-      }else{
-         onek.blocks <- rep(block.size, emp.nruns %/% block.size)
-         remainder <- emp.nruns %% block.size
-         if(remainder>0){
+      }
+      else {
+         onek.blocks <- rep(block.size, emp.nruns%/%block.size)
+         remainder <- emp.nruns%%block.size
+         if (remainder > 0) {
             rb <- c(onek.blocks, remainder)
-         }else{
+         }
+         else {
             rb <- onek.blocks
          }
       }
       return(rb)
    }
 
-   #convert to datatable format (if not already data.table)
-   if(!is.data.table(set.info)) data.table::setDT(set.info)
-   if(!is.data.table(set.info)) data.table::setDT(obj.info)
-   if(!is.data.table(set.info)) data.table::setDT(set.obj)
+   #run pipeline
+   print(paste("Running enrichment test..."))
 
-   #remove na's
+   if (!is.data.table(set.info))
+      data.table::setDT(set.info)
+   if (!is.data.table(set.info))
+      data.table::setDT(obj.info)
+   if (!is.data.table(set.info))
+      data.table::setDT(set.obj)
+
    no.scores <- obj.info[is.na(objStat), objID]
    obj.info <- obj.info[!(objID %in% no.scores)]
    set.obj <- set.obj[!(objID %in% no.scores)]
 
-   #set up parallel backend for foreach %dopar%
-   doParallel::registerDoParallel(cores=n.cores)
-
-   # order obj.info table (needed to compare rotated values against)
    obj.info <- obj.info[order(chr, startpos)]
    ID <- obj.info$objID
 
-   #get relevant variables
    n.genes <- obj.info[, .N]
    n.paths <- set.info[, .N]
    n.chr <- obj.info[, length(unique(chr))]
+   chr.names <- obj.info[, unique(chr)]
 
-   #determine matrix position of each gene for each chromosome
-   gene.pos <- foreach::foreach(i=1:n.chr) %do% obj.info[, which(chr==i)]
-
-   # compute observed sumstat scores
-   mm.o <- merge(set.obj, obj.info[, .(objID, objStat)], by="objID")
-   mm.n <- mm.o[order(setID), .(N=length(unique(objID))),
-                by=c("setID")]
-   m.obs <- mm.o[order(setID), .(SumStat=sum(objStat, na.rm=T)),
-                 by=c("setID")]
-
-   #housekeeping
-   rm(mm.o)
-   gc()
-
-   # compute expected sumstat scores
-   run.blocks <- get.blocks(emp.nruns, NN)
-   I=0
-   sig.tests <- rep(0, n.paths)
-   s0 <- Sys.time()
-   for(l in run.blocks){
-      I=I+l
-      timer(NN, emp.nruns, I)
-      pp <- foreach(i=1:l) %dopar% {
-         permute.data(obj.info, n.chr, n.genes, gene.pos)
-      }
-      perm <- matrix(unlist(pp), ncol=l, byrow=FALSE)
-      m.exp <- sum.stat(set.obj, ID, perm)
-      sig.tests <- sig.tests + rowSums(m.obs[, SumStat] <= m.exp[, -1])
-      #compute.p.val(obs=m.obs$SumStat, exp=m.exp)
-      rm(perm, m.exp)
-      gc()
+   gene.pos <- foreach::foreach(i=chr.names) %do% {
+      obj.info[, which(chr == i)]
    }
+   
+   mm.o <- merge(set.obj, obj.info[, .(objID, objStat)], by = "objID")
+   mm.n <- mm.o[order(setID), .(N = length(unique(objID))),
+                by = c("setID")]
+   m.obs <- mm.o[order(setID), .(SumStat = sum(objStat, na.rm = T)),
+                 by = c("setID")]
 
-   ##-----------------------------------------##
-   ## Compute p and q values
-   ##-----------------------------------------##
+   #set up blocks
+   run.blocks <- get.blocks(emp.nruns, NN)
+
+   #iterate
+   cc=0
+   sig.tests <- foreach(l=run.blocks, .combine="+") %do% {
+      cc=cc+1
+      if(cc>1) print(paste("Completed ", (cc-1)*1000, " iterations"))
+      block.exec(obj.info, n.chr, n.genes,
+                 gene.pos, ID, block.size=l)
+
+   }
+   print(paste("Completed ", cc*1000, " iterations"))
 
    p.vals <- sig.tests/emp.nruns
-   q.vals <- qvalue::qvalue(p.vals, pi0.method="smoother")
-
+   q.vals <- qvalue::qvalue(p.vals, pi0.method = "smoother")
    data.table::data.table(set.info[order(setID), .(setID, setName)],
-              setScore=m.obs$SumStat, setSize=mm.n$N,
-              setP=p.vals, setQ=q.vals$qvalues)[order(setP)]
+                          setScore = m.obs$SumStat, setSize = mm.n$N, setP = p.vals,
+                          setQ = q.vals)[order(setP)]
 
 }
 
