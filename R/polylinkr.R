@@ -39,122 +39,142 @@
 #' @examples
 #' output = polylinkr(obj.info = Anatolia_EF_CLR, 
 #'              set.info = PolyLinkR_SetInfo, set.obj = PolyLinkR_SetObj,
-#'              n.cores = 8, emp.nruns = 1000, NN = 10000)
+#'              n.cores = 8, emp.nruns = 10000, NN = 1000)
 #'
 #' @export
-polylinkr <- function(set.info, obj.info, set.obj, n.cores=NA, emp.nruns=10000,
-                NN=1000)
+polylinkr <- function(set.info, obj.info, set.obj, n.cores=NA, 
+                      emp.nruns=10000, NN=1000)
 {
-   if (emp.nruns <= 0) {
-      emp.nruns <- max(NN, 10000)
-      warning(paste("WARNING: iterations incorrectly entered, resetting to",
-                    emp.nruns), immediate. = T)
-   }
-   if (NN > emp.nruns) {
-      NN <- min(emp.nruns, 1000)
-      warning("WARNING: summary statistic evalution block size exceeds total number of iterations",
-              immediate. = T)
-      warning("summary statistic evalution set to arg.min(1000, emp.nruns)",
-              immediate. = T)
-   }
+  if (emp.nruns <= 0) {
+    emp.nruns <- max(NN, 10000)
+    warning(paste("WARNING: iterations incorrectly entered, resetting to",
+                  emp.nruns), immediate. = T)
+  }
+  if (NN > emp.nruns) {
+    NN <- min(emp.nruns, 1000)
+    warning("WARNING: summary statistic evalution block size exceeds total number of iterations",
+            immediate. = T)
+    warning("summary statistic evalution set to arg.min(1000, emp.nruns)",
+            immediate. = T)
+  }
 
-   #internal functions
+  #internal functions
+  make.perm.mat <- function(n.chr, n.genes, emp.nruns){
+    chr.ord <- rowRanks(matrix(sample(1:(n.chr*emp.nruns)), ncol=n.chr))
+    rot <- sample(2:n.genes, emp.nruns)
+    list(CHR.ORD=chr.ord, ROT=rot)
+  }
+  
+  all.perm.chr <- gene.pos[t(perm.mat$CHR.ORD)]
+  
+  #permute.data <- function(chr.o.now, rot.now, gene.pos, mask.sites){
+  #  new.ord <- unlist(gene.pos[chr.o.now])
+  #  r1 <- obj.info[new.ord, objStat]
+  #  r1[c(rot.now:n.genes, 1:(rot.now - 1))]
+  #}
 
-   block.exec <- function(obj.info, n.chr, n.genes,
-                          gene.pos, ID, block.size){
+  permute.data <- function(gene.pos, n.genes, chr.ord.now, 
+                           rot.now, mask.sites){
+    all.perm.chr <- unlist(gene.pos[t(chr.ord.now)])
+    
+    foreach(j=1:length(rot.now), .combine=cbind) %do% {
+      x.start <- (j-1)*n.genes+1
+      x <- it.x + rot.now[j] 
+      x.end <- j*n.genes
+      obj.info[all.perm.chr[c(x:x.end, x.start:(x-1))], objStat]
+    }
+  } 
+  
+     
+  block.exec <- function(set.obj, obj.info, n.chr, n.genes,
+                         gene.pos, ID, chr.ord.now, rot.now){
+  
+    sum.stat <- function(set.obj, ID, perm){
+      mm.e <- merge(data.table(objID=ID, objStat=perm),
+                    set.obj, by="objID")
+      mm.e[, lapply(.SD, sum), .SDcols=grep("objStat", names(mm.e)),
+          by="setID"][order(setID)]
+    }
+    
+    perm <- permute.data(chr.ord.now, rot.now, gene.pos, mask.sites=NA)
 
-      permute.data <- function(obj.info, n.chr, n.genes, gene.pos){
-         chr.ord.now <- sample(1:n.chr, n.chr)
-         new.ord <- unlist(gene.pos[chr.ord.now])
-         r1 <- obj.info[new.ord, objStat]
-         rotate.now <- sample(2:n.genes, 1)
-         r1[c(rotate.now:n.genes, 1:(rotate.now - 1))]
-      }
+    m.exp <- sum.stat(set.obj, ID, perm)
+    rowSums(m.obs[, SumStat] <= m.exp[, -1])
+  }
+  
+  
+  get.blocks <- function(emp.nruns, block.size) {
+    if (emp.nruns < block.size) {
+       rb <- cbind(1, emp.nruns)
+    }
+    else {
+       ss <- unique(c(seq(0, emp.nruns, block.size), emp.nruns))
+       
+       rb <- cbind(ss[1:(length(ss)-1)]+1, ss[2:length(ss)])
+    }
+    return(rb)
+  }
+  
+  #run pipeline
+  print(paste("Running enrichment test..."))
+  
+  if (!is.data.table(set.info))
+    data.table::setDT(set.info)
+  if (!is.data.table(set.info))
+    data.table::setDT(obj.info)
+  if (!is.data.table(set.info))
+    data.table::setDT(set.obj)
+  
+  no.scores <- obj.info[is.na(objStat), objID]
+  obj.info <- obj.info[!(objID %in% no.scores)]
+  set.obj <- set.obj[!(objID %in% no.scores)]
+  
+  obj.info <- obj.info[order(chr, startpos)]
+  ID <- obj.info$objID
+  
+  n.genes <- obj.info[, .N]
+  n.paths <- set.info[, .N]
+  n.chr <- obj.info[, length(unique(chr))]
+  chr.names <- obj.info[, unique(chr)]
+  
+  #generate list of all gene positions by chromosome
+  gene.pos <- foreach::foreach(i=chr.names) %do% {
+    obj.info[, which(chr == i)]
+  }
+  
+  #compute observed values
+  mm.o <- merge(set.obj, obj.info[, .(objID, objStat)], by = "objID")
+  mm.n <- mm.o[order(setID), .(N = length(unique(objID))),
+              by = c("setID")]
+  m.obs <- mm.o[order(setID), .(SumStat = sum(objStat, na.rm = T)),
+               by = c("setID")]
+  
+  #generate permutation matrix
+  perm.mat <- make.perm.mat(n.chr, n.genes, emp.nruns)
+  
+  #set up blocks
+  run.blocks <- get.blocks(emp.nruns, NN)
+  
+  #iterate
+  sig.tests <- foreach(l=1:nrow(run.blocks), .combine="+") %do% {
+    
+    rb.now <- run.blocks[l, ]
 
-      sum.stat <- function(set.obj, ID, perm){
-         mm.e <- merge(data.table(objID=ID, objStat=perm),
-                       set.obj, by="objID")
-         mm.e[, lapply(.SD, sum), .SDcols=grep("objStat", names(mm.e)),
-              by="setID"][order(setID)]
-      }
-
-      pp <- foreach(i=1:block.size, .packages=c('data.table',
-                                                'doParallel')) %dopar% {
-         permute.data(obj.info, n.chr, n.genes, gene.pos)
-      }
-      perm <- matrix(unlist(pp), ncol=block.size, byrow=FALSE)
-      m.exp <- sum.stat(set.obj, ID, perm)
-      rowSums(m.obs[, SumStat] <= m.exp[, -1])
-   }
-
-   get.blocks <- function(emp.nruns, block.size) {
-      if (emp.nruns < block.size) {
-         rb <- emp.nruns
-      }
-      else {
-         onek.blocks <- rep(block.size, emp.nruns%/%block.size)
-         remainder <- emp.nruns%%block.size
-         if (remainder > 0) {
-            rb <- c(onek.blocks, remainder)
-         }
-         else {
-            rb <- onek.blocks
-         }
-      }
-      return(rb)
-   }
-
-   #run pipeline
-   print(paste("Running enrichment test..."))
-
-   if (!is.data.table(set.info))
-      data.table::setDT(set.info)
-   if (!is.data.table(set.info))
-      data.table::setDT(obj.info)
-   if (!is.data.table(set.info))
-      data.table::setDT(set.obj)
-
-   no.scores <- obj.info[is.na(objStat), objID]
-   obj.info <- obj.info[!(objID %in% no.scores)]
-   set.obj <- set.obj[!(objID %in% no.scores)]
-
-   obj.info <- obj.info[order(chr, startpos)]
-   ID <- obj.info$objID
-
-   n.genes <- obj.info[, .N]
-   n.paths <- set.info[, .N]
-   n.chr <- obj.info[, length(unique(chr))]
-   chr.names <- obj.info[, unique(chr)]
-
-   gene.pos <- foreach::foreach(i=chr.names) %do% {
-      obj.info[, which(chr == i)]
-   }
-   
-   mm.o <- merge(set.obj, obj.info[, .(objID, objStat)], by = "objID")
-   mm.n <- mm.o[order(setID), .(N = length(unique(objID))),
-                by = c("setID")]
-   m.obs <- mm.o[order(setID), .(SumStat = sum(objStat, na.rm = T)),
-                 by = c("setID")]
-
-   #set up blocks
-   run.blocks <- get.blocks(emp.nruns, NN)
-
-   #iterate
-   cc=0
-   sig.tests <- foreach(l=run.blocks, .combine="+") %do% {
-      cc=cc+1
-      if(cc>1) print(paste("Completed ", (cc-1)*1000, " iterations"))
-      block.exec(obj.info, n.chr, n.genes,
-                 gene.pos, ID, block.size=l)
-
-   }
-   print(paste("Completed ", cc*1000, " iterations"))
-
-   p.vals <- sig.tests/emp.nruns
-   q.vals <- qvalue::qvalue(p.vals, pi0.method = "smoother")
-   data.table::data.table(set.info[order(setID), .(setID, setName)],
-                          setScore = m.obs$SumStat, setSize = mm.n$N, setP = p.vals,
-                          setQ = q.vals)[order(setP)]
+    block.exec(set.obj, obj.info, n.chr, n.genes, gene.pos, ID, 
+               chr.ord.now=perm.mat$CHR.ORD[rb.now[1]:rb.now[2], ],
+               rot.now=perm.mat$CHR.ORD[rb.now[1]:rb.now[2]])
+    
+    print(paste("Completed ", run.blocks[l, 2], " iterations"))
+  
+  }
+  
+  p.vals <- sig.tests/emp.nruns
+  q.vals <- qvalue::qvalue(p.vals, pi0.method = "smoother")
+  
+  list(D=data.table::data.table(set.info[order(setID), .(setID, setName)],
+                               setScore = m.obs$SumStat, setSize = mm.n$N, setP = p.vals,
+                               setQ = q.vals)[order(setP)],
+      P=perm.mat)
 
 }
 
@@ -175,8 +195,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores=NA, emp.nruns=10000,
 #'
 #' @export
 #===========================================================================
-# Function: ReadSetObjTables(in.path, set.info.file,set.obj.file,
-#                            obj.info.file)
+# Function: ReadSetObjTables(in.path, set.info.file, set.obj.file, obj.info.file)
 # Read in all required gene (object) and gene set (set) tables
 #
 # - in.path      : path to directory with input files. 
@@ -245,13 +264,11 @@ ReadSetObjTables<-function(in.path="./", population=NA,
   
   # Create new field with setName and setSource
   # to tell apart sets with the same name
-  dups <- r
+  dups <- set.info[, .N, by=setName][N>1, setName]
   if(length(dups)>0){
     print("Relabeling duplicated gene set names")
-    dup.set <- set.info[, .N, by=setName][N>1, setName]
-    for(d.now in dup.set){
-      set.info[setName==d.now, setName:=paste0(setName, " set", 1:.N)]
-    }
+    set.info[setName %in% d.now, setName:=paste0(setName, ": set", 1:.N), 
+             by=setName]
   }
   
   #add in setIDs for unmerged sets
@@ -291,23 +308,25 @@ MergeSimilarSets<- function(SI, SO, min.sim=0.95, n.cores=NA){
   s.mat.t <- t(s.mat)
   
   NP <- ncol(s.mat)
+  
   #determine number of shared genes
   np <- 100
+  
   if(NP>np){
     #speed up computation by using multiple cores and blocks
-    #split matrix into blocks of length 100 (subset gene sets)
+    #split matrix into blocks of row length 100 (subset gene sets)
     #set up parallel backend for foreach %dopar%
     doParallel::registerDoParallel(cores=n.cores)
   
     sim.mat <- foreach(i=1:ceiling(NP/np), .combine=rbind) %dopar% {
-      print(paste0("Quantified gene overlap in ", i*np, " of ", NP, " gene sets"))
+      #print(paste0("Quantified gene overlap in ", i*np, " of ", NP, " gene sets"))
       
       s.mat.t[(((i-1)*np)+1):min(i*np, NP), ] %*% s.mat
     }
   }else{
     sim.mat <- t(s.mat) %*% s.mat
-    print(paste0("Quantified gene overlap in ", NP, " gene sets"))
   }
+  print(paste0("Quantified gene overlap in ", NP, " gene sets"))
   
   set.n <- diag(sim.mat)
   
@@ -359,5 +378,12 @@ MergeSimilarSets<- function(SI, SO, min.sim=0.95, n.cores=NA){
 
   return(list(set.obj=SO.out, set.info=SI.out))
 }
+
+
+#Run pipeline
+dd <- ReadSetObjTables(in.path="~/Dropbox/R_projects/PolyLink_code/Example/PolyLink/Input", 
+                       population="WHG", minsetsize=10, 
+                       maxsetsize=1000, merge.set.prop=0.95, n.cores=3)
+
 
 

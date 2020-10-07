@@ -31,3 +31,6 @@ vignettes/*.pdf
 .DS_Store
 .Rproj.user
 PolyLink.Rproj
+PolyLinkR.Rproj
+# Devel Env
+PolyLink_extension/
