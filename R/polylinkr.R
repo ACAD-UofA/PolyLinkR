@@ -19,6 +19,7 @@
 #                    (default = 1000)
 # - merge.set.prop : minimum proportion of shared genes used to concatenate gene sets (default = 0.95, 1 = no concatenation)
 # - n.cores        : no. of computation cores to use (default = no. cores - 1)
+# - non.test.sets  : names of gene sets that will provide genes to the null computations, but will not be directly tested for enrichment
 #
 # These files must contain headers, IDs can be strings
 # Note: numeric IDs are internally assigned to objects and sets to improve computation
@@ -121,13 +122,14 @@ ReadSetObjTables <- function(in.path="./", population=NA, minsetsize=10,
                                           set.info[, .(setID, setID.orig)], 
                                           by="setID.orig")
   
-  
   cat(paste("Finished data entry:", nrow(set.info), "gene sets and", 
             set.obj[, uniqueN(objID)], "genes remaining\n"))
+  
   return(list(set.info=set.info[order(setID)], obj.info=obj.info[order(objID)],
               set.obj=set.obj[order(setID, objID), .(setID, objID, setID.orig, objID.orig)], 
               minsetsize=minsetsize, population=population))
 }
+
 
 
 #===========================================================================
@@ -278,7 +280,12 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
       rr2 <- rr %% 60
       if(rr2 > 0) {
         S <- round(rr2)
+      }else{
+        S <- 0
       }
+    }else{
+      M <- 0
+      S <- 0
     }
     return(paste0(H, "h ", M, "m ", S, "s"))
   }
@@ -314,7 +321,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   
   #udpate parameters during pruning step
   pruning.param <- function(set.obj.now, top.sets.now, 
-                            nobj=n.genes, nset=n.paths){
+                            nobj=n.genes, nset=n.sets){
     #get genes from top ranked set
     gene.rm <- set.obj.now[setID %in% top.sets.now, objID] 
     set.obj.now[objID %in% gene.rm, KEEP:=0]
@@ -348,9 +355,9 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
       k=0; TT=TRUE
       while(isTRUE(TT)){ #run to covergence
         k=k+1
-        true.pos <- fdr.dt[1:obs.excess, sum(OBS - EXP.scaled)/n.OBS]
+        true.pos <- fdr.dt[1:obs.excess, sum(OBS-EXP.scaled)/n.OBS]
         pi0 <- 1 - true.pos
-        fdr.dt[, EXP.scaled:=pi0*(EXP/n.EXP)*n.OBS]
+        fdr.dt[, EXP.scaled:=pi0*EXP.scaled]
         obs.excess <- fdr.dt[, which(cumsum(OBS < EXP.scaled)==1)-1][1]
         track.pi0 <- c(track.pi0, pi0)
         # test convergence
@@ -362,14 +369,13 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   }
     
   #calculate q values
-  q.estimator <- function(pp, pi0, n.FDR, n.pruned.sets){  
-    total.tests <- n.FDR*n.pruned.sets
+  q.estimator <- function(pp, pi0, n.EXP, n.OBS){  
     RP.star <- pp[REP==1, cumsum(table(P))] # cumulative number of rejected hypotheses (account for non-unique p-values)
     emp.p.bins <- pp[REP==1, c(0, sort(unique(P)))] # bins to evaluate expected number of true nulls
     VP.star <- cumsum(table(pp[REP!=1, cut(P, emp.p.bins, right=TRUE)])) # count expected true nulls if all nulls are true
-    VP.star.scaled <- pi0*VP.star*(n.bins/total.tests) # compute expected true nulls after scaling by pi0 and number of tests
+    VP.star.scaled <- pi0*(VP.star/n.EXP)*n.OBS # compute expected true nulls after scaling by pi0 and number of tests
     FDR.vect <- VP.star.scaled / RP.star
-    FDR.vect[FDR.vect==0] <- 1/total.tests # reset values == 0
+    FDR.vect[FDR.vect==0] <- 1/n.EXP # reset values == 0
     FDR.vect[FDR.vect>1] <- 1 # reset values larger than 1
     
     #compute q values from FDR values
@@ -412,6 +418,16 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   if(!is.data.table(set.info))
     data.table::setDT(set.obj)
   
+  #add in mandatory column if data is not read in by ReadSetObjTables
+  if(!("setID.orig" %in% names(set.info))){
+    set.info[, setID.orig:=setID]
+    set.obj[, setID.orig:=setID]
+  }
+  if(!("objID.orig" %in% names(obj.info))){
+    obj.info[, objID.orig:=objID]
+    set.obj[, objID.orig:=objID]
+  }
+  
   #set scores to integers (reduce memory pressure and speed up calculations)
   if(obj.info[, !is.integer(objStat)]){
     max.sum.int <- .Machine$integer.max
@@ -426,7 +442,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   
   #get no. paths and genes
   n.genes <- obj.info[, .N]
-  n.paths <- set.info[, .N]
+  n.sets <- set.info[, .N]
   
   #---------------------------------#
   ##check iteration options
@@ -452,16 +468,10 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
                     "Resetting to", n.perm.pruning, "iterations"), immediate.=T)
     }
     
-    if(n.pruned.sets > n.paths){
-      n.pruned.sets <- min(n.paths, 100)
+    if(n.pruned.sets > n.sets){
+      n.pruned.sets <- n.sets
       warning(paste("Number of gene sets evaluated in pruning step exceeds total number of gene sets.", 
                     "Resetting to", n.pruned.sets, "iterations"), immediate.=T)
-    }
-    
-    if(n.FDR > n.paths){
-      n.FDR <- min(n.paths, 100)
-      warning(paste("Number of FDR iterations exceeds total number of gene sets.", 
-                    "Resetting to", n.FDR, "iterations"), immediate.=T)
     }
     
     #in case non-integer values are used
@@ -521,7 +531,11 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   }
   
   cat("Completed checking data\n")
-  cat(paste("Passed", n.paths, "gene sets &", n.genes, "unique genes\n"))
+  cat(paste("Passed", n.sets, "gene sets &", n.genes, "unique genes\n"))
+  if(n.genes-set.obj[, uniqueN(objID)]!=0){
+    cat(paste("NOTE:", n.genes-set.obj[, uniqueN(objID)], 
+              "genes are not in any gene set, but will be retained for computing null\n"))
+  }
   cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
   
   
@@ -537,8 +551,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   
   #generate pathway x gene matrix
   PxG <- Matrix::sparseMatrix(i=set.obj$setID, j=set.obj$objID, 
-                              x=1L, dims=c(n.paths, n.genes))
-
+                              x=1L, dims=c(n.sets, n.genes))
+  
   #----------------------------------------------------------#
   ## generate observed and FDR scores (if pruning chosen)
   #----------------------------------------------------------#
@@ -958,7 +972,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
             pp.now <- pruned.sets[[z]] #iterate over observed and FDR ranked sets
             
             #enumerate linked null permutations
-            OUT <- foreach(j=1:n.pruned.sets) %do% { #iterate over each set
+            OUT <- foreach(j=1:nrow(pp.now$set.info.pruned)) %do% { #iterate over each set
               so.now <- pp.now$set.obj.pruned[RANK==j]
               si.now <- pp.now$set.info.pruned[j]
   
@@ -1045,7 +1059,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     }else{ 
       # if no. of pruning steps is >= no. steps used for precise p values reuse the p values from the pruning step
       e.mss1 <- "No. of iterations for p-value recalculation less than iterations used in pruning step\n"
-      e.mss2 <- "q values will be calculated on results from pruning step"
+      e.mss2 <- "q values will be calculated using results from pruning step"
       warning(paste0(e.mss1, e.mss2), immediate.=T)
       p.vals <- foreach(ps.now=pruned.sets, .combine=rbind) %do% {
         OUT <- ps.now$set.info.pruned
@@ -1069,26 +1083,31 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
                                                  set.obj, by=c("setID", "objID"))
     set.info.temp <- p.vals[REP==1]
     
-    n.EXP <- n.FDR * n.pruned.sets # total number of null hypothesis tests
-    n.OBS <- n.FDR # total number of observed hypotehsis tests
-    n.bins <- min(n.FDR, n.pruned.sets) #bin p values: use ~10 values per bin or max 100 bins
+    #n.EXP <- ~ n.FDR * n.pruned.sets # total number of null hypothesis tests
+    n.EXP <- p.vals[REP!=1, .N]
+    #n.OBS <- n.FDR # total number of observed hypothesis tests
+    n.OBS <- set.info.temp[, .N]
+    n.bins <- min(50, n.OBS) #bin p values; number of tested gene sets up to maximum 50 bins
     
-    if(n.bins < 40 & est.pi0){ # force pi0 == 1 if less than 40 bins
+    # force pi0 == 1 if any of the following conditions is not observed:
+    #1. the total number of evaluated FDR gene sets exceeds 200
+    #2. >= 50% of total genes sets are evaluated OR >= 50 genes sets are evaluated
+    if(!(n.EXP > 200 & (n.OBS/n.sets >= 0.5 | n.OBS >= 50)) & est.pi0){ 
       est.pi0 <- FALSE
-      e.mss <- paste("Too few intervals to estimate pi0 using histogram method\n",
+      e.mss <- paste("Too few FDR realisations to provide reasonable estimate pi0 using histogram method\n",
                      "Setting pi0 to 1 (equivalent to Holm method)")
       warning(e.mss, immediate.=T)
     }
   
     pi0.full <- NA; pi0.pruned <- NA
     if(precise.p.method %in% c("full", "both") & n.perm.p > n.perm.pruning){
-      p.vals[, P:=P.full.null]
+      p.vals.full <- data.table::data.table(p.vals, P=p.vals$P.full.null)
       if(est.pi0){
-        pi0.full <- pi0.estimator(pp=p.vals, n.EXP, n.OBS, n.bins)
+        pi0.full <- pi0.estimator(pp=p.vals.full, n.OBS=n.OBS, n.EXP=n.EXP, n.bins=n.bins)
       }else{
         pi0.full <- 1
       }
-      q1 <- q.estimator(pp=p.vals, pi0=pi0.full, n.FDR, n.pruned.sets)
+      q1 <- q.estimator(pp=p.vals.full, pi0=pi0.full, n.OBS=n.OBS, n.EXP=n.EXP)
       set.info.temp <- data.table::merge.data.table(set.info.temp, 
                                                     q1$q[, .(RANK, Q.full.null=Q)], 
                                                     by="RANK")[order(P.full.null)]
@@ -1096,13 +1115,13 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
       set.info.temp[, Q.full.null:=NA]
     }
     if(precise.p.method %in% c("pruned", "both")){
-      p.vals[, P:=P.pruned.null]
+      p.vals.pruned <- data.table::data.table(p.vals, P=p.vals$P.pruned.null)
       if(est.pi0){
-        pi0.pruned <- pi0.estimator(pp=p.vals, n.EXP, n.OBS, n.bins)
+        pi0.pruned <- pi0.estimator(pp=p.vals.pruned, n.OBS=n.OBS, n.EXP=n.EXP, n.bins=n.bins)
       }else{
         pi0.pruned <- 1
       }
-      q2 <- q.estimator(pp=p.vals, pi0=pi0.pruned, n.FDR, n.pruned.sets)
+      q2 <- q.estimator(pp=p.vals.pruned, pi0=pi0.pruned, n.OBS=n.OBS, n.EXP=n.EXP)
       set.info.temp <- data.table::merge.data.table(set.info.temp, 
                                                     q2$q[, .(RANK, Q.pruned.null=Q)], 
                                                     by="RANK")[order(P.pruned.null)]
@@ -1115,12 +1134,11 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
       set.info.temp[, setScore.pruned:=setScore.pruned/10^prec]
     }
     
-    #return null sets
+    #return runs used to estimate FDR
     null.out <- p.vals[REP!=1]
     null.out[, REP:=REP-1] # rescale replicates from 1 to n.FDR
     null.out[, setID:=setID.orig] #revert to original setIDs
     null.out[, setID.orig:=NULL]
-    null.out[, P:=NULL]; null.out[, P.bin:=NULL]
     
     #revert IDs back to original
     OUT <- list(set.info=set.info.temp[, .(setName, setID=setID.orig, N, N.pruned,
@@ -1223,8 +1241,8 @@ polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10, maxset
 # 
 #===========================================================================
 
-cluster.genes <- function(set.obj, set.info, use.recomb.rate=F, recomb.rate.path=NA, 
-                          fictive.gene.size=1, n.cores="max"){
+cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F, 
+                          recomb.rate.path=NA, fictive.gene.size=1, n.cores="max"){
   
   #------------------------------------------------------------------#
   ##set up for parallize processing
@@ -1276,7 +1294,7 @@ cluster.genes <- function(set.obj, set.info, use.recomb.rate=F, recomb.rate.path
     gene.map <- foreach::foreach(chr.now=unq.chr, .combine=rbind) %do% { #use genetic distances
       map.now <- rr.dt[chr==chr.now]
       genes.now <- obj.info[chr==chr.now][order(startpos)]
-      genes.now[, midpos:=startpos+endpos/2]
+      genes.now[, midpos:=(startpos+endpos)/2]
       rr <- approx(map.now$pos, map.now$cM, xout=genes.now[, midpos])$y #interpolation
       
       #correct for non-interpolated regions outside of estimated RR regions
@@ -1328,7 +1346,7 @@ cluster.genes <- function(set.obj, set.info, use.recomb.rate=F, recomb.rate.path
           if(use.recomb.rate){
             x <- dd.now[chr==chr.now, MapPos]
           }else{
-            x <- dd.now[chr==chr.now, (endpos-startpos)/2]
+            x <- dd.now[chr==chr.now, (endpos+startpos)/2]
           }
           xx <- as.matrix(dist(x)) < fictive.gene.size # get pairwise distances
           #xx[upper.tri(xx)] <- NA
@@ -1351,15 +1369,13 @@ cluster.genes <- function(set.obj, set.info, use.recomb.rate=F, recomb.rate.path
   
   #return results
   path.fict[, objID.fictive:=paste0(setID, ".", objID.fictive)]
-  set.obj.out <- merge.data.table(path.fict, set.obj, by=c("setID", "objID"))
-  set.info.out <- merge.data.table(set.obj.out[, .(N.fictive=uniqueN(objID.fictive)), 
-                                               by=setID],
-                                   set.info, by="setID")
+  set.obj.out <- data.table::merge.data.table(path.fict, set.obj, by=c("setID", "objID"))
+  set.info.out <- data.table::merge.data.table(set.obj.out[, .(N.fictive=uniqueN(objID.fictive)), 
+                                                           by=setID],
+                                               set.info, by="setID")
   set.info.out[, setClustering:=(N-N.fictive)/N]
   
-  list(set.info=set.info.out[, c(1, 3:5, 2, 7:6), with=F],
-       set.obj=set.obj.out)
-  
+  return(list(set.info=set.info.out, set.obj=set.obj.out))
 }
 
 
@@ -1399,8 +1415,10 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, r
   cat("Generating clustering metics...\n")
   
   #cluster genes
-  cl.g <- cluster.genes(set.obj, set.info, use.recomb.rate, recomb.rate.path, 
-                        fictive.gene.size, n.cores)
+  cl.g <- cluster.genes(set.obj, set.info, obj.info,
+                        use.recomb.rate=use.recomb.rate, 
+                        recomb.rate.path=recomb.rate.path, 
+                        fictive.gene.size=fictive.gene.size, n.cores=n.cores)
   
   cat("Completed computing clustering metric for", nrow(set.info), "gene sets\n")
   cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
@@ -1474,7 +1492,7 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, r
       theme_bw()
     
     ggsave(file.path(plot.path, paste0(plot.label, "_scatter_plot.pdf")), 
-           height=0.75*n.bins, width=1.25*n.bins, dpi=600)
+           height=max(4, 0.75*n.bins), width=max(6, 1.25*n.bins), dpi=600)
     
     #distributions
     pl.cl.comb <- rbind(data.table(Clustering=pl.cl$clust.bin, Perm="Random", 
@@ -1489,11 +1507,11 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, r
       theme_bw()
     
     ggsave(file.path(plot.path, paste0(plot.label, "_density_plot.pdf")), 
-           height=0.75*n.bins, width=1.25*n.bins, dpi=600)
+           height=max(4, 0.75*n.bins), width=max(6, 1.25*n.bins), dpi=600)
   }
 
   #output
-  pl.cl[, c(1, 6:9, 10, 2:5, 11), with=F]
+  return(pl.cl[, c(1, 6:9, 10, 2:5, 11), with=F])
 }
 
 
@@ -1517,58 +1535,58 @@ library(qvalue)
 library(Matrix)
 library(progressr)
 
-dd <- ReadSetObjTables(in.path="~/Dropbox/R_projects/PolyLink_code/Example/PolyLink/Input", 
-                       population="Anatolia_EF", minsetsize=10, 
-                       maxsetsize=1000, merge.set.prop=0.95, 
-                       n.cores=4)
-
-#test clustering
-cl1 <- compare.clustering(set.obj=dd$set.obj, set.info=dd$set.info, obj.info=dd$obj.info,
-                          use.recomb.rate=F, recomb.rate.path=NA, fictive.gene.size=1, 
-                          n.cores="max", n.perm.p=100000, perm.block.size=1000, make.plot=T, 
-                          n.bins='default', plot.path="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/plots", 
-                          q.sig=0.05, plot.label=paste0(dd$population, "_PhysicalMap"))
-
-cl2 <- compare.clustering(set.obj=dd$set.obj, set.info=dd$set.info, obj.info=dd$obj.info, 
-                          use.recomb.rate=T, recomb.rate.path="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/RecombRate", 
-                          fictive.gene.size=1, n.cores="max", n.perm.p=100000, perm.block.size=1000, 
-                          make.plot=T, n.bins='default', plot.path="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/plots", 
-                          q.sig=0.05, plot.label=paste0(dd$population, "_GeneticMap"))
-
-#pruning, with linkage, fast
-pl1 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
-                 n.cores="max", linked=T, minsetsize=dd$minsetsize, n.perm.p=100000, 
-                 perm.block.size=1000, prune=T, n.perm.pruning=5000, n.FDR=100, 
-                 n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL, 
-                 startT=NA)
-
-save(pl1, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.linked.Robj")
-
-#pruning, without linkage, fast
-pl2 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
-                 n.cores=4, linked=F, minsetsize=dd$minsetsize, n.perm.p=100000, 
-                 perm.block.size=1000, prune=T, n.perm.pruning=5000, n.FDR=100, 
-                 n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL,
-                 startT=NA)
-
-save(pl2, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.unlinked.Robj")
-
-#pruning, with linkage, fast
-pl3 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
-                 n.cores="max", linked=T, minsetsize=dd$minsetsize, n.perm.p=100000, 
-                 perm.block.size=1000, prune=F, n.perm.pruning=5000, n.FDR=100, 
-                 n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL, 
-                 startT=NA)
-
-save(pl3, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.linked.NoPruning.Robj")
-
-#pruning, without linkage, fast
-pl4 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
-                 n.cores=4, linked=F, minsetsize=dd$minsetsize, n.perm.p=100000, 
-                 perm.block.size=1000, prune=F, n.perm.pruning=5000, n.FDR=100, 
-                 n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL,
-                 startT=NA)
-
-save(pl4, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.unlinked.NoPruning.Robj")
+# dd <- ReadSetObjTables(in.path="~/Dropbox/R_projects/PolyLink_code/Example/PolyLink/Input", 
+#                        population="Anatolia_EF", minsetsize=10, 
+#                        maxsetsize=1000, merge.set.prop=0.95, 
+#                        n.cores=4)
+# 
+# #test clustering
+# cl1 <- compare.clustering(set.obj=dd$set.obj, set.info=dd$set.info, obj.info=dd$obj.info,
+#                           use.recomb.rate=F, recomb.rate.path=NA, fictive.gene.size=1, 
+#                           n.cores="max", n.perm.p=100000, perm.block.size=1000, make.plot=T, 
+#                           n.bins='default', plot.path="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/plots", 
+#                           q.sig=0.05, plot.label=paste0(dd$population, "_PhysicalMap"))
+# 
+# cl2 <- compare.clustering(set.obj=dd$set.obj, set.info=dd$set.info, obj.info=dd$obj.info, 
+#                           use.recomb.rate=T, recomb.rate.path="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/RecombRate", 
+#                           fictive.gene.size=1, n.cores="max", n.perm.p=100000, perm.block.size=1000, 
+#                           make.plot=T, n.bins='default', plot.path="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/plots", 
+#                           q.sig=0.05, plot.label=paste0(dd$population, "_GeneticMap"))
+# 
+# #pruning, with linkage, fast
+# pl1 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
+#                  n.cores="max", linked=T, minsetsize=dd$minsetsize, n.perm.p=100000, 
+#                  perm.block.size=1000, prune=T, n.perm.pruning=5000, n.FDR=100, 
+#                  n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL, 
+#                  startT=NA)
+# 
+# save(pl1, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.linked.Robj")
+# 
+# #pruning, without linkage, fast
+# pl2 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
+#                  n.cores=4, linked=F, minsetsize=dd$minsetsize, n.perm.p=100000, 
+#                  perm.block.size=1000, prune=T, n.perm.pruning=5000, n.FDR=100, 
+#                  n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL,
+#                  startT=NA)
+# 
+# save(pl2, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.unlinked.Robj")
+# 
+# #pruning, with linkage, fast
+# pl3 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
+#                  n.cores="max", linked=T, minsetsize=dd$minsetsize, n.perm.p=100000, 
+#                  perm.block.size=1000, prune=F, n.perm.pruning=5000, n.FDR=100, 
+#                  n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL, 
+#                  startT=NA)
+# 
+# save(pl3, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.linked.NoPruning.Robj")
+# 
+# #pruning, without linkage, fast
+# pl4 <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
+#                  n.cores=4, linked=F, minsetsize=dd$minsetsize, n.perm.p=100000, 
+#                  perm.block.size=1000, prune=F, n.perm.pruning=5000, n.FDR=100, 
+#                  n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE, perm.mat=NULL,
+#                  startT=NA)
+# 
+# save(pl4, file="~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/polylink.test.unlinked.NoPruning.Robj")
 
 
