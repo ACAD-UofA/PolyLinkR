@@ -1,6 +1,8 @@
 
 #===========================================================================
-# Function: ReadSetObjTables(in.path, set.info.file, set.obj.file, obj.info.file)
+# Function: read.setobj.tables(in.path, population, minsetsize, maxsetsize,
+#                            merge.set.prop, n.cores)
+# JD: changed function name following naming convention
 # Read in all required gene (object) and gene set (set) tables
 #
 # - in.path        : path to directory with input files. 
@@ -17,29 +19,38 @@
 #                    (default = 10)
 # - maxsetsize     : exclude gene sets with size above maxsetsize
 #                    (default = 1000)
-# - merge.set.prop : minimum proportion of shared genes used to concatenate gene sets (default = 0.95, 1 = no concatenation)
+# - merge.set.prop : minimum proportion of shared genes used to concatenate 
+#                    gene sets (default = 0.95, 1 = no concatenation)
 # - n.cores        : no. of computation cores to use (default = no. cores - 1)
-# - non.test.sets  : names of gene sets that will provide genes to the null computations, but will not be directly tested for enrichment
+# JD: non.test.sets is not used anymore, right?
+# - non.test.sets  : names of gene sets that will provide genes to the null 
+#                    computations, but will not be directly tested for 
+#                    enrichment
 #
 # These files must contain headers, IDs can be strings
-# Note: numeric IDs are internally assigned to objects and sets to improve computation
+# 
+# Note: numeric IDs are internally assigned to objects and sets to improve 
+# computation
 #===========================================================================
 
-ReadSetObjTables <- function(in.path="./", population=NA, minsetsize=10, 
-                             maxsetsize=1000, merge.set.prop=0.95, n.cores='default'){
+read.setobj.tables <- function(in.path="./", population=NA, minsetsize=10, 
+                               maxsetsize=1000, merge.set.prop=0.95, 
+                               n.cores='default'){
   
-  #Reading in data
+  # Reading in data
   cat(paste0("Reading data for ", population, "\n"))
   
-  #determine input files
+  # Determine input files
   ll <- list.files(in.path)
   PF <- ll[grep(population, ll)]
   
   if(length(PF)<3){
     miss.f <- setdiff(1:3, grep(".ObjInfo|.SetInfo|.SetObj", PF))
-    ff <- paste(paste0(population, c(".ObjInfo", ".SetInfo", ".SetObj")[miss.f]), 
+    ff <- paste(paste0(population, 
+                       c(".ObjInfo", ".SetInfo", ".SetObj")[miss.f]), 
                 collapse=" & ")
-    stop(paste(ff, "were not detected. Check path and ensure correct file names are used."))
+    stop(paste0(ff, "were not detected. Check path and ensure correct ",
+                "file names are used."))
   }
   
   if(merge.set.prop>1 | merge.set.prop<=0){
@@ -56,12 +67,12 @@ ReadSetObjTables <- function(in.path="./", population=NA, minsetsize=10,
   obj.info <- data.table::fread(file.path(in.path, PF[grep("ObjInfo", PF)]))
 
   # Cleaning data
-  #merge similar sets
+  # Merge similar sets
   if(merge.set.prop<1){
     cat(paste0("Merging gene sets with >", merge.set.prop, " similarity\n"))
-    r <- MergeSimilarSets(SI=set.info, SO=set.obj,
-                          min.sim=merge.set.prop, 
-                          n.cores=n.cores)
+    r <- merge.similar.sets(SI=set.info, SO=set.obj,
+                            min.sim=merge.set.prop, 
+                            n.cores=n.cores, bfs=T)
     set.info <- r$set.info
     set.obj <- r$set.obj
   }else{
@@ -69,7 +80,8 @@ ReadSetObjTables <- function(in.path="./", population=NA, minsetsize=10,
   }
   
   # Remove resized gene sets that have too many/too few genes (and orphan genes)
-  cat(paste("Removing gene sets with <", minsetsize, "or >", maxsetsize, "genes\n"))
+  cat(paste("Removing gene sets with <", minsetsize, "or >", 
+            maxsetsize, "genes\n"))
   if(!is.na(minsetsize) | !is.na(maxsetsize)){
     setN <- set.obj[, .N, by=setID][N>=minsetsize & N<=maxsetsize, setID]
     set.info <- set.info[setID %in% setN]
@@ -81,38 +93,38 @@ ReadSetObjTables <- function(in.path="./", population=NA, minsetsize=10,
   dups <- set.info[, .N, by=setName][N>1, setName]
   if(length(dups)>0){
     cat("Relabeling duplicated gene set names\n")
-    set.info[setName %in% d.now, setName:=paste0(setName, ": set", 1:.N), 
+    set.info[setName %in% dups, setName:=paste0(setName, ": set", 1:.N), 
              by=setName]
   }
   
-  #add in setIDs for unmerged sets
+  # Add in setIDs for unmerged sets
   set.obj[is.na(setID.merged), setID.merged:=setID]
   
-  #record full gene set size (including genes with missing data)
+  # Record full gene set size (including genes with missing data)
   set.info <- data.table::merge.data.table(set.info, set.obj[, .N, by=setID], 
                                            by="setID")
   
   #------------------------------------------------------#
-  ## Prepare input for permuations
+  ## Prepare input for permutations
   #------------------------------------------------------#
   
-  #remove genes with no information
+  # Remove genes with no information
   no.scores <- obj.info[is.na(objStat), objID]
   obj.info <- obj.info[!(objID %in% no.scores)]
   
-  #create unique integer for each chromosome
+  # Create unique integer for each chromosome
   obj.info[, chr.orig:=chr]
   obj.info[, chr:=as.integer(factor(sort(chr)))]
   
-  #reorder gene IDs
+  # Reorder gene IDs
   obj.info[, objID.orig:=objID]
   obj.info[order(chr, startpos, endpos, objName), objID:=1:.N]
   
-  #reorder set IDs
+  # Reorder set IDs
   set.info[, setID.orig:=setID]
   set.info[order(setName), setID:=1:.N]
   
-  #regenerate set x object table
+  # Regenerate set x object table
   set.obj.tmp <- data.table::merge.data.table(set.obj[, .(setID.orig=setID, 
                                                           objID.orig=objID)], 
                                               obj.info[, .(objID, objID.orig)], 
@@ -126,14 +138,15 @@ ReadSetObjTables <- function(in.path="./", population=NA, minsetsize=10,
             set.obj[, uniqueN(objID)], "genes remaining\n"))
   
   return(list(set.info=set.info[order(setID)], obj.info=obj.info[order(objID)],
-              set.obj=set.obj[order(setID, objID), .(setID, objID, setID.orig, objID.orig)], 
+              set.obj=set.obj[order(setID, objID), .(setID, objID, setID.orig, 
+                                                     objID.orig)], 
               minsetsize=minsetsize, population=population))
 }
 
 
 
 #===========================================================================
-# Function: MergeSimilarSets(set.info, set.obj)
+# Function: merge.similar.sets(set.info, set.obj)
 # Merge gene sets that have more than 95% similarity
 #
 # -SI : dataframe with fields setID, setName, ...
@@ -142,12 +155,44 @@ ReadSetObjTables <- function(in.path="./", population=NA, minsetsize=10,
 # -n.cores : integer specifying number of cores to use; default = 'default' (max cores - 1)
 #===========================================================================
 
-MergeSimilarSets <- function(SI, SO, min.sim=0.95, n.cores='default'){
+merge.similar.sets <- function(SI, SO, min.sim=0.95, n.cores='default', bfs=T){
 
   # Get similarity matrix
   # Which sets are min.sim proportion similar (two way)
   # Choose the one with largest original set to keep
-  # Remove rest, but keep link in set.info.old
+  # Remove rest, but keep link in set.obj.merged
+  
+  # JD: added pc.bfs function to find connected components
+  pc.bfs <- function(graph){
+    # Implementation of Breadth-First-Search (BFS) using adjacency matrix
+    # to find connected components in graph
+    # Returns list with components, name of each element is first node
+    pc<-list()
+    cc<-0
+    ix.do<-which(rowSums(graph)>1)
+    visited = rep(FALSE, nrow(graph))
+    for (k in ix.do){
+      #for (k in seq_along(visited)){
+      if (!visited[k]){
+        k.char<-as.character(k)
+        queue <- c(k)
+        visited[k]<-T
+        cc<-cc+1
+        pc[[cc]]<-c(k)
+        # While there are nodes left to visit...
+        while(length(queue) > 0) {
+          node = queue[1] # get...
+          queue = queue[-1] # ...and remove next node
+          ix<-graph[node,] & !visited
+          add2q <- which(ix)
+          pc[[cc]]<-c(pc[[cc]],add2q)
+          visited <- visited | ix
+          queue <- c(queue,add2q)
+        }
+      }
+    }
+    return (pc)
+  }
   
   #parallize processing
   library(doFuture)
@@ -180,41 +225,84 @@ MergeSimilarSets <- function(SI, SO, min.sim=0.95, n.cores='default'){
   future::plan(multiprocess, workers=n.cores) #uses multicore if available
   
   #generate pathway x gene matrix
-  PxG <- Matrix::sparseMatrix(i=SO$setID, j=SO$objID, x=1L)
+  
+  # JD: assumption is made that setID and objID are integers, 
+  # which is not always the case (e.g. Ensembl gene IDs)
+  # better to convert to integers 1:N
+  # To avoid errors: set.obj should have setIDs without 'gaps'
+  # otherwise diag will contain zeros and division by diag will give NAs
+  # ===========================================================================
+
+  # JD: using factors
+  SO$setID.f<-as.factor(SO$setID)
+  SO$objID.f<-as.factor(SO$objID)
+  PxG <- Matrix::sparseMatrix(i=as.integer(SO$setID.f), 
+                              j=as.integer(SO$objID.f), x=1L)
+  # done using factors
+  # ===================================================
+  
+  #PxG <- Matrix::sparseMatrix(i=SO$setID, j=SO$objID, x=1L)
   NP <- nrow(PxG)
   
   #compute proportion shared genes
   sim.mat <- tcrossprod(PxG)
+
+  # JD: I got an error with the following line: 'problem too large' 
+  # problem solved when using factors (see above)
   p.mat <- (sim.mat/diag(sim.mat)) > min.sim
   
-  IJ.pairs <- which(triu(t(p.mat)) + triu(p.mat) == 2)
-  set.m <- data.table(P=IJ.pairs %% NP, 
-                      X=ceiling(IJ.pairs / NP))
-  set.m[P==0, P:=NP]
-  set.m <- set.m[P!=X] # remove diagonal
-  cat(paste0("Quantified gene overlap in ", NP, " gene sets\n"))
-
-  #concatenate pathways
-  pc <- list()
-  cc=0
-  for(i in set.m[, unique(P)]){
-    PC <- c(i, set.m[P==i, unique(X)])
-    if(!any(PC %in% unlist(pc, use.names=F))){
-      cc=cc+1
-      pc[[cc]] <- PC
+  # IJ.pairs <- which((triu(t(p.mat)) + triu(p.mat)) == 2)
+  # set.m <- data.table(P=IJ.pairs %% NP, 
+  #                     X=ceiling(IJ.pairs / NP))
+  # set.m[P==0, P:=NP]
+  
+  if (! bfs){
+    # JD: better to use 'arr.ind':
+    set.m<-data.table(which(triu(t(p.mat)) + triu(p.mat) == 2, arr.ind = T))
+    colnames(set.m)<-c("P","X")
+    set.m <- set.m[P!=X] # remove diagonal
+    
+    #concatenate pathways
+    pc <- list()
+    cc=0
+    for(i in set.m[, unique(P)]){
+      PC <- c(i, set.m[P==i, unique(X)])
+      if(!any(PC %in% unlist(pc, use.names=F))){
+        cc=cc+1
+        pc[[cc]] <- PC
+      }
     }
+  } else {
+    #alternative: bfs search
+    adj.mat <- t(p.mat) + p.mat == 2
+    pc <- pc.bfs(adj.mat)
   }
+  cat(paste0("Quantified gene overlap in ", NP, " gene sets\n"))
+  
+  # ============================================
+  # JD: if using factors, convert them back now
+  # 
+  for (i in seq_along(pc)){
+    if (is.numeric(SO$setID)){
+      pc[[i]]<-as.numeric(levels(SO$setID.f)[pc[[i]]])
+    } else {
+      pc[[i]]<-levels(SO$setID.f)[pc[[i]]]
+    }
+  } 
+  #=============================================
   
   if(length(pc)>0){
     so.new <- foreach(i=pc, .combine=rbind,
                       .export=c("SO", "new.setID")) %dopar% {
       so.now <- SO[setID %in% i]
       #rename according to largest set; take first if equivalent sized sets
+      # JD: if we would sort on set size in the beginning taking max would not be 
+      # necessary
       new.setID <- so.now[, .N, by=setID][N==max(N), setID][1]
       data.table(setID=new.setID, objID=so.now[, unique(objID)], 
                  setID.merged=so.now[, paste0(unique(setID), collapse=",")])
     }
-    
+
     SO.out <- rbind(SO[!(setID %in% unlist(pc, use.names=F)), 
                        .(setID, objID, setID.merged=NA)], 
                     so.new)[order(setID, objID)]
@@ -230,7 +318,7 @@ MergeSimilarSets <- function(SI, SO, min.sim=0.95, n.cores='default'){
     SI.merged <- NA
     cat(paste0("No gene sets >", min.sim, "similarity\n"))
   }
-
+  
   return(list(set.obj=SO.out, set.info=SI.out, set.obj.merged=SI.merged))
 }
 
@@ -418,7 +506,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   if(!is.data.table(set.info))
     data.table::setDT(set.obj)
   
-  #add in mandatory column if data is not read in by ReadSetObjTables
+  #add in mandatory column if data is not read in by read.setobj.tables
   if(!("setID.orig" %in% names(set.info))){
     set.info[, setID.orig:=setID]
     set.obj[, setID.orig:=setID]
@@ -638,7 +726,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   }
   
   #Compute permuted scores
-  #NOTE: only a subset of the full permuation matrix is used if pruning step performed
+  #NOTE: only a subset of the full permutation matrix is used if pruning step performed
   if(prune){
     PRM.pos <- list()
     PRM <- list()
@@ -700,7 +788,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   
   if(prune){
     #generate null score matrix (set scores x permutations)
-    score.mat <- matrix((PxG %*% matrix(unlist(PRM, use.names=F), ncol=n.perm.pruning))@x, 
+    score.mat <- matrix((PxG %*% matrix(unlist(PRM, use.names=F), 
+                                        ncol=n.perm.pruning))@x, 
                         ncol=n.perm.pruning)
   
     #determine top gene sets for pruning step
@@ -745,7 +834,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     cat("[STEP 3] Running pruning step (this may take some time)...\n")
     cat(paste("Generating", n.perm.pruning, "null permuations for", 
               n.FDR, "FDR iterations and observed data\n"))
-    cat(paste("The top", n.pruned.sets, "gene sets will be evaluated in each case\n"))
+    cat(paste("The top", n.pruned.sets, 
+              "gene sets will be evaluated in each case\n"))
     
     with_progress({ # allow updating during parallel processing
       prog <- progressor(steps=n.FDR+1)
@@ -769,7 +859,9 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
         #keep track of top sets and their genes
         top.sets.dt <- data.table::data.table(REP=f, RANK=I,
                                               set.info[setID %in% ts.now, 
-                                                       .(setName, setID, setID.orig, N, N.pruned=N)], 
+                                                       .(setName, setID, 
+                                                         setID.orig, N, 
+                                                         N.pruned=N)], 
                                               setScore=m.obs[ts.now, f], 
                                               setScore.pruned=m.obs[ts.now, f],
                                               P.raw=p.vals[ts.now, f], 
@@ -793,10 +885,12 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
           #determine top path and update top set datatable
           p.now <- (rowSums(score.mat.now > m.obs.now@x)+1) / (n.perm.pruning+1)
           p.rank <- rank(p.now, ties.method="average")
-          ts.now <- setdiff(which(p.rank == min(p.rank[-SP$set.out])), SP$set.out)
+          ts.now <- setdiff(which(p.rank == min(p.rank[-SP$set.out])), 
+                            SP$set.out)
           #if more than 1 top set, take largest set
           if(length(ts.now)>1){
-            top.sets.now <- SP$so.now[setID %in% ts.now, .(N=sum(KEEP)), by=setID]
+            top.sets.now <- SP$so.now[setID %in% ts.now, .(N=sum(KEEP)), 
+                                      by=setID]
             ts.now <- top.sets.now[N==max(N), setID][1]
           }
           #update top sets and their genes
@@ -833,13 +927,14 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     cat("Completed pruning step\n")
     cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
   
-    
-    if(n.perm.p > n.perm.pruning){ # only recalculate if higher precision requested
+    # only recalculate if higher precision requested
+    if(n.perm.p > n.perm.pruning){ 
       ##===================================================================##
       # PART 5: calculate high precision p-values
       ##===================================================================##
       
-      cat(paste("[STEP 4] Recalculating p-values using", n.perm.p, "iterations...\n"))
+      cat(paste("[STEP 4] Recalculating p-values using", n.perm.p, 
+                "iterations...\n"))
       
       ##===================================================================##
       # PART 5.1: calculate p-values using all genes in null
@@ -928,8 +1023,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
               sc.m <- PxG.now %*% matrix(PRM, ncol=perm.block.size)
               rowSums(m.obs.now < sc.m)
             }
-            
-            set.info.now[, P.full.null:=(score.mat+1)/(n.perm.p+1)] #input p-values
+            #input p-values
+            set.info.now[, P.full.null:=(score.mat+1)/(n.perm.p+1)] 
             set.info.now[, setID.now:=NULL]
             #set.obj.now[, setID.now:=NULL]
             
@@ -1023,7 +1118,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
                 PRM.pos.temp <- (pos.mat - matrix(rep(perm.mat$ROT-1, npm), 
                                                   nrow=npm, byrow=T)) %% n.genes.remaining
                 PRM.pos.temp[PRM.pos.temp==0] <- n.genes.remaining
-                score.mat <- colSums(matrix(scores.now[PRM.pos.temp], nrow=npm), na.rm=T)
+                score.mat <- colSums(matrix(scores.now[PRM.pos.temp], 
+                                            nrow=npm), na.rm=T)
               }else{ # using standard permutations
                 if(z==1){
                   dqset.seed(perm.mat[1]) # reuse first random seed
@@ -1032,7 +1128,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
                                              size=n.genes.now*n.perm.p) %% 
                                 as.integer(n.genes.remaining)
                 PRM.pos.temp[PRM.pos.temp==0] <- as.integer(n.genes.remaining)
-                score.mat <- colSums(matrix(scores.now[PRM.pos.temp], nrow=n.genes.now))
+                score.mat <- colSums(matrix(scores.now[PRM.pos.temp], 
+                                            nrow=n.genes.now))
               }
               
               #calculate p-values
@@ -1058,7 +1155,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
       
     }else{ 
       # if no. of pruning steps is >= no. steps used for precise p values reuse the p values from the pruning step
-      e.mss1 <- "No. of iterations for p-value recalculation less than iterations used in pruning step\n"
+      e.mss1 <- paste0("No. of iterations for p-value recalculation less than",
+                       "iterations used in pruning step\n")
       e.mss2 <- "q values will be calculated using results from pruning step"
       warning(paste0(e.mss1, e.mss2), immediate.=T)
       p.vals <- foreach(ps.now=pruned.sets, .combine=rbind) %do% {
@@ -1094,8 +1192,9 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     #2. >= 50% of total genes sets are evaluated OR >= 50 genes sets are evaluated
     if(!(n.EXP > 200 & (n.OBS/n.sets >= 0.5 | n.OBS >= 50)) & est.pi0){ 
       est.pi0 <- FALSE
-      e.mss <- paste("Too few FDR realisations to provide reasonable estimate pi0 using histogram method\n",
-                     "Setting pi0 to 1 (equivalent to Holm method)")
+      e.mss <- paste0("Too few FDR realisations to provide reasonable estimate",
+                      " pi0 using histogram method\n", "Setting pi0 to 1 ",
+                      "(equivalent to Holm method)")
       warning(e.mss, immediate.=T)
     }
   
@@ -1103,7 +1202,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     if(precise.p.method %in% c("full", "both") & n.perm.p > n.perm.pruning){
       p.vals.full <- data.table::data.table(p.vals, P=p.vals$P.full.null)
       if(est.pi0){
-        pi0.full <- pi0.estimator(pp=p.vals.full, n.OBS=n.OBS, n.EXP=n.EXP, n.bins=n.bins)
+        pi0.full <- pi0.estimator(pp=p.vals.full, n.OBS=n.OBS, n.EXP=n.EXP, 
+                                  n.bins=n.bins)
       }else{
         pi0.full <- 1
       }
@@ -1117,11 +1217,13 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     if(precise.p.method %in% c("pruned", "both")){
       p.vals.pruned <- data.table::data.table(p.vals, P=p.vals$P.pruned.null)
       if(est.pi0){
-        pi0.pruned <- pi0.estimator(pp=p.vals.pruned, n.OBS=n.OBS, n.EXP=n.EXP, n.bins=n.bins)
+        pi0.pruned <- pi0.estimator(pp=p.vals.pruned, n.OBS=n.OBS, 
+                                    n.EXP=n.EXP, n.bins=n.bins)
       }else{
         pi0.pruned <- 1
       }
-      q2 <- q.estimator(pp=p.vals.pruned, pi0=pi0.pruned, n.OBS=n.OBS, n.EXP=n.EXP)
+      q2 <- q.estimator(pp=p.vals.pruned, pi0=pi0.pruned, n.OBS=n.OBS, 
+                        n.EXP=n.EXP)
       set.info.temp <- data.table::merge.data.table(set.info.temp, 
                                                     q2$q[, .(RANK, Q.pruned.null=Q)], 
                                                     by="RANK")[order(P.pruned.null)]
@@ -1141,10 +1243,12 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     null.out[, setID.orig:=NULL]
     
     #revert IDs back to original
-    OUT <- list(set.info=set.info.temp[, .(setName, setID=setID.orig, N, N.pruned,
-                                           setScore, setScore.pruned, RANK, P.raw, 
-                                           P.raw.pruned, P.full.null, P.pruned.null,
-                                           Q.full.null, Q.pruned.null)], 
+    OUT <- list(set.info=set.info.temp[, .(setName, setID=setID.orig, 
+                                           N, N.pruned, setScore, 
+                                           setScore.pruned, RANK, P.raw, 
+                                           P.raw.pruned, P.full.null, 
+                                           P.pruned.null, Q.full.null, 
+                                           Q.pruned.null)], 
                 set.obj=set.obj.temp[, .(setID=setID.orig, objID=objID.orig)], 
                 pi0.est=data.table::data.table(Test=c("Full", "Pruned"),
                                                pi0=c(pi0.full, pi0.pruned)), 
@@ -1162,20 +1266,27 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   
 
 #===========================================================================
-# Function: polylinkr.wrapper(sin.path="./", population=NA, minsetsize=10, 
-#                             maxsetsize=1000, merge.set.prop=1, n.cores='default',
-#                             set.info, obj.info, set.obj, n.cores="default", linked=T, 
-#                             n.perm.p=100000, perm.block.size=1000, prune=T, n.perm.pruning=5000, 
-#                             n.FDR=100, n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE,
-#                             perm.mat=NULL
+# Function: polylinkr.wrapper(in.path="./", population=NA, minsetsize=10, 
+#                             maxsetsize=1000, merge.set.prop=1, set.info, 
+#                             obj.info, set.obj, n.cores="default", linked=T, 
+#                             n.perm.p=100000, perm.block.size=1000, prune=T, 
+#                             n.perm.pruning=5000, n.FDR=100, n.pruned.sets=50, 
+#                             precise.p.method="both", est.pi0=TRUE, 
+#                             perm.mat=NULL)
 # wrapper function for data input and gene set enrichment testing
 #===========================================================================
 
-polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10, maxsetsize=1000, 
-                              merge.set.prop=1, set.info, obj.info, set.obj, n.cores="default", 
-                              linked=T, n.perm.p=100000, perm.block.size=1000, prune=T, 
-                              n.perm.pruning=5000, n.FDR=100, n.pruned.sets=50, precise.p.method="both", 
-                              est.pi0=TRUE, perm.mat=NULL){
+# JD: set.info, obj.info and set.obj are arguments in this function, but are 
+# not used. Remove or change function to allow for direct obj input instead of
+# reading files?
+
+polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10, 
+                              maxsetsize=1000, merge.set.prop=1, set.info, 
+                              obj.info, set.obj, n.cores="default", linked=T, 
+                              n.perm.p=100000, perm.block.size=1000, prune=T, 
+                              n.perm.pruning=5000, n.FDR=100, n.pruned.sets=50, 
+                              precise.p.method="both", est.pi0=TRUE, 
+                              perm.mat=NULL){
   
   #call in libraries
   library(data.table)
@@ -1186,6 +1297,9 @@ polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10, maxset
   library(qvalue)
   library(Matrix)
   library(progressr)
+  
+  # JD: I see several internal get.time() functions. Maybe better to have
+  # one public function?
   
   # records cumulative run time at specific points
   get.time <- function(t) { # time conversion
@@ -1205,21 +1319,24 @@ polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10, maxset
   startT <- Sys.time() #initiate timer
   cat("[Part 0] Reading Data...\n")
   
-  dd <- ReadSetObjTables(in.path="~/Dropbox/R_projects/PolyLink_code/Example/PolyLink/Input", 
-                         population="Anatolia_EF", minsetsize=10, 
-                         maxsetsize=1000, merge.set.prop=0.95, 
-                         n.cores=4)
+  # JD: removed hardcode path and population name
+  dd <- read.setobj.tables(in.path=in.path, 
+                           population=population, minsetsize=minsetsize, 
+                           maxsetsize=maxsetsize, merge.set.prop=0.95, 
+                           n.cores=n.cores)
   
   cat("Completed data entry\n")
   cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
   
+  #JD: remove line below
   #ex <- fread("~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/Expected_results/Anatolia_EF.setscores.txt")
   
   #pruning, with linkage, fast
-  pl <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, set.obj=dd$set.obj, 
-                  n.cores, linked, minsetsize=dd$minsetsize, n.perm.p, 
-                  perm.block.size, prune, n.perm.pruning, n.FDR, 
-                  n.pruned.sets, precise.p.method, est.pi0, perm.mat, startT=startT)
+  pl <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, 
+                  set.obj=dd$set.obj, n.cores, linked, minsetsize=dd$minsetsize, 
+                  n.perm.p, perm.block.size, prune, n.perm.pruning, n.FDR, 
+                  n.pruned.sets, precise.p.method, est.pi0, perm.mat, 
+                  startT=startT)
   
   #add merged set info to output
   pl$merged.set.info <- dd$set.info.merged
@@ -1242,7 +1359,8 @@ polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10, maxset
 #===========================================================================
 
 cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F, 
-                          recomb.rate.path=NA, fictive.gene.size=1, n.cores="max"){
+                          recomb.rate.path=NA, fictive.gene.size=1, 
+                          n.cores="max"){
   
   #------------------------------------------------------------------#
   ##set up for parallize processing
@@ -1251,7 +1369,8 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
   library(doFuture)
   N.cores <- future::availableCores() 
   
-  if(n.cores %in% c("max", "MAX", "Max", "default", "Default", "DEFAULT") | is.numeric(n.cores)){
+  if(n.cores %in% c("max", "MAX", "Max", "default", "Default", "DEFAULT") | 
+     is.numeric(n.cores)){
     if(n.cores %in% c("max", "MAX", "Max")){
       n.cores <- N.cores
       cat(paste0("Using all available (", N.cores, ") cores\n"))
@@ -1291,11 +1410,13 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
       rr.dt <- data.table::fread(recomb.rate.path)
     }
     unq.chr <- sort(rr.dt[, unique(chr)])
-    gene.map <- foreach::foreach(chr.now=unq.chr, .combine=rbind) %do% { #use genetic distances
+    gene.map <- foreach::foreach(chr.now=unq.chr, .combine=rbind) %do% { 
+      #use genetic distances
       map.now <- rr.dt[chr==chr.now]
       genes.now <- obj.info[chr==chr.now][order(startpos)]
       genes.now[, midpos:=(startpos+endpos)/2]
-      rr <- approx(map.now$pos, map.now$cM, xout=genes.now[, midpos])$y #interpolation
+      
+      rr <- approx(map.now$pos, map.now$cM, xout=genes.now[, midpos])$y 
       
       #correct for non-interpolated regions outside of estimated RR regions
       ends1 <- which(is.na(rr))
@@ -1369,7 +1490,8 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
   
   #return results
   path.fict[, objID.fictive:=paste0(setID, ".", objID.fictive)]
-  set.obj.out <- data.table::merge.data.table(path.fict, set.obj, by=c("setID", "objID"))
+  set.obj.out <- data.table::merge.data.table(path.fict, set.obj, 
+                                              by=c("setID", "objID"))
   set.info.out <- data.table::merge.data.table(set.obj.out[, .(N.fictive=uniqueN(objID.fictive)), 
                                                            by=setID],
                                                set.info, by="setID")
@@ -1392,9 +1514,12 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
 # - q.sig: numeric value determining the q-value significance threshold used in plots; default = 0.05
 #===========================================================================
 
-compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, recomb.rate.path=NA, 
-                               fictive.gene.size=1, n.cores="max", n.perm.p=100000, perm.block.size=1000, 
-                               make.plot=T, n.bins='default', plot.path="./", plot.label=NA, q.sig=0.05){
+compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, 
+                               recomb.rate.path=NA, fictive.gene.size=1, 
+                               n.cores="max", n.perm.p=100000, 
+                               perm.block.size=1000,  make.plot=T, 
+                               n.bins='default', plot.path="./", 
+                               plot.label=NA, q.sig=0.05){
   
   # records cumulative run time at specific points
   get.time <- function(t) { # time conversion
@@ -1420,17 +1545,20 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, r
                         recomb.rate.path=recomb.rate.path, 
                         fictive.gene.size=fictive.gene.size, n.cores=n.cores)
   
-  cat("Completed computing clustering metric for", nrow(set.info), "gene sets\n")
+  cat("Completed computing clustering metric for", nrow(set.info), 
+      "gene sets\n")
   cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
   
   #run polylinkr
   cat("Performing permutation tests using random selected genes...\n")
-  pl.random <- polylinkr(set.info, obj.info, set.obj, n.cores="default", linked=F, 
-                         n.perm.p=100000, perm.block.size=1000, prune=F, startT=startT)
+  pl.random <- polylinkr(set.info, obj.info, set.obj, n.cores="default", 
+                         linked=F, n.perm.p=100000, perm.block.size=1000, 
+                         prune=F, startT=startT)
   
   cat("Performing permutation tests using linked sets of genes...\n")
-  pl.linked <- polylinkr(set.info, obj.info, set.obj, n.cores="default", linked=T, 
-                         n.perm.p=100000, perm.block.size=1000, prune=F, startT=startT) 
+  pl.linked <- polylinkr(set.info, obj.info, set.obj, n.cores="default", 
+                         linked=T, n.perm.p=100000, perm.block.size=1000, 
+                         prune=F, startT=startT) 
   
   ##TESTS
   if(make.plot){
@@ -1458,20 +1586,29 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, r
     cat("Using", n.bins, "bins containing up to", bin.size, "gene sets each\n")
     
     #merge datasets
-    pl <- data.table::merge.data.table(pl.random$set.info[, .(setName, P.random=P, Q.random=Q)], 
-                                       pl.linked$set.info[, .(setName, P.linked=P, Q.linked=Q)], 
+    pl <- data.table::merge.data.table(pl.random$set.info[, .(setName, 
+                                                              P.random=P, 
+                                                              Q.random=Q)], 
+                                       pl.linked$set.info[, .(setName, 
+                                                              P.linked=P, 
+                                                              Q.linked=Q)], 
                                        by="setName")
     pl.cl <- data.table::merge.data.table(pl, cl.g$set.info, by="setName")
     
-    pl.cl[, clust.bin:=cut(setClustering, quantile(setClustering, bin.quants), include.lowest=T)]
+    pl.cl[, clust.bin:=cut(setClustering, quantile(setClustering, bin.quants), 
+                           include.lowest=T)]
     pl.cl[, `Q < 0.05`:="Random not sig.\nLinked not sig."]
-    pl.cl[Q.random<0.05 & Q.linked>=0.05, `Q < 0.05`:="Random sig.\nLinked not sig."]
-    pl.cl[Q.random>=0.05 & Q.linked<0.05, `Q < 0.05`:="Random not sig.\nLinked sig."]
-    pl.cl[Q.random<0.05 & Q.linked<0.05, `Q < 0.05`:="Random sig.\nLinked sig."]
-    pl.cl[, `Q < 0.05`:=factor(`Q < 0.05`, levels=c("Random not sig.\nLinked not sig.",
-                                                    "Random sig.\nLinked not sig.",
-                                                    "Random not sig.\nLinked sig.",
-                                                    "Random sig.\nLinked sig."))]
+    pl.cl[Q.random<0.05 & Q.linked>=0.05,
+          `Q < 0.05`:="Random sig.\nLinked not sig."]
+    pl.cl[Q.random>=0.05 & Q.linked<0.05,
+          `Q < 0.05`:="Random not sig.\nLinked sig."]
+    pl.cl[Q.random<0.05 & Q.linked<0.05,
+          `Q < 0.05`:="Random sig.\nLinked sig."]
+    pl.cl[, `Q < 0.05`:=factor(`Q < 0.05`,
+                               levels=c("Random not sig.\nLinked not sig.",
+                                        "Random sig.\nLinked not sig.",
+                                        "Random not sig.\nLinked sig.",
+                                        "Random sig.\nLinked sig."))]
     min.x.y <- 1/n.perm.p
     
     library(ggplot2)
@@ -1519,7 +1656,7 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F, r
 #===========================================================================
 #===========================================================================
 
-
+#JD: don't forget to remove code below
 
 
 ##-----------------------------------------##
@@ -1535,7 +1672,7 @@ library(qvalue)
 library(Matrix)
 library(progressr)
 
-# dd <- ReadSetObjTables(in.path="~/Dropbox/R_projects/PolyLink_code/Example/PolyLink/Input", 
+# dd <- read.setobj.tables(in.path="~/Dropbox/R_projects/PolyLink_code/Example/PolyLink/Input", 
 #                        population="Anatolia_EF", minsetsize=10, 
 #                        maxsetsize=1000, merge.set.prop=0.95, 
 #                        n.cores=4)
