@@ -1,7 +1,8 @@
-# PolyLinkR
   <!-- badges: start -->
   [![Travis build status](https://travis-ci.org/ACAD-UofA/PolyLinkR.svg?branch=master)](https://travis-ci.org/ACAD-UofA/PolyLinkR)
   <!-- badges: end -->
+  
+# PolyLink: gene-based pathway enrichment <img src="inst/sticker/polylinkr_150px.png" align="right" />
 ## Overview
 PolyLinkR is an R package that performs gene-based pathway enrichment, which can also be used as evidence for polygenic selection in case the software is used with selection signals evidence. The package explicitly also accounts for linkage desiquilibrium between adjacent loci belonging on the same pathway.
 
