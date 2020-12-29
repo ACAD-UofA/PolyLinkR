@@ -1,7 +1,5 @@
   <!-- badges: start -->
   [![Travis build status](https://travis-ci.org/ACAD-UofA/PolyLinkR.svg?branch=master)](https://travis-ci.org/ACAD-UofA/PolyLinkR)
-  <!-- badges: end -->
-  <!-- badges: start -->
   [![CodeFactor](https://www.codefactor.io/repository/github/acad-uofa/polylinkr/badge)](https://www.codefactor.io/repository/github/acad-uofa/polylinkr)
   <!-- badges: end -->
   
