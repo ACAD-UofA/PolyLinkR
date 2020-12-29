@@ -2,8 +2,8 @@
   [![Travis build status](https://travis-ci.org/ACAD-UofA/PolyLinkR.svg?branch=master)](https://travis-ci.org/ACAD-UofA/PolyLinkR)
   <!-- badges: end -->
   <!-- badges: start -->
-[![R build status](https://github.com/ACAD-UofA/PolyLinkR/workflows/R-CMD-check/badge.svg)](https://github.com/ACAD-UofA/PolyLinkR/actions)
-<!-- badges: end -->
+  [![CodeFactor](https://www.codefactor.io/repository/github/acad-uofa/polylinkr/badge)](https://www.codefactor.io/repository/github/acad-uofa/polylinkr)
+  <!-- badges: end -->
   
 # PolyLink: gene-based pathway enrichment <img src="inst/sticker/polylinkr_150px.png" align="right" />
 ## Overview
@@ -12,10 +12,10 @@ PolyLinkR is an R package that performs gene-based pathway enrichment, which can
 PolyLinkR is introduces several improvements, and faster implementations of the popular polygenic selection tool [PolySel](github.com/CMPG/polysel), which builds upon the core file types and summary statistics used in PolySel. The key difference between PolyLinkR and PolySel is the algorithm used to generate the null distribution of pathway scores. PolySel performs a standard permutation to remap gene scores to genes, whereas PolyLinkR uses a permutation algorithm that randomly links all chromosomes/contigs into a single 'circular' genome, and then rotates this circular genome to create a unique mapping between the genes and gene scores. Importantly, this randomisation process preserves the innate linkage structure amongst the genes across the genome, limiting the number of potential false positives that might arise otherwise.
 
 ## Installation
+Install the development version from github:
 
 ```
-Install from GitHub:
-# install.packages("devtools")
+#   install.packages("devtools")
 devtools::install_github("ACAD-UofA/PolyLinkR")
 ```
 
