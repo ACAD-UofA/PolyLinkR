@@ -1,6 +1,9 @@
   <!-- badges: start -->
   [![Travis build status](https://travis-ci.org/ACAD-UofA/PolyLinkR.svg?branch=master)](https://travis-ci.org/ACAD-UofA/PolyLinkR)
   <!-- badges: end -->
+  <!-- badges: start -->
+[![R build status](https://github.com/ACAD-UofA/PolyLinkR/workflows/R-CMD-check/badge.svg)](https://github.com/ACAD-UofA/PolyLinkR/actions)
+<!-- badges: end -->
   
 # PolyLink: gene-based pathway enrichment <img src="inst/sticker/polylinkr_150px.png" align="right" />
 ## Overview
