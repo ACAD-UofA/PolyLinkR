@@ -1,11 +1,23 @@
 Package: PolyLinkR
 Type: Package
 Title: Polygenic Pathway Enrichment Accounting for Genetic Linkage
-Version: 0.3.1
+Version: 0.4.0
 URL: https://github.com/ACAD-UofA/PolyLinkR
 BugReports: https://github.com/ACAD-UofA/PolyLinkR/issues
-Author: Raymond Tobler, Yassine Souilmi, Christian Huber.
-Maintainer: Raymond Tobler <raymond.tobler@adelaide.edu.au>
+Authors@R: c(
+    person(given = "Raymond", 
+          family = "Tobler", 
+          role = c("aut", "cre", , "cph"), 
+          email = "raymond.tobler@adelaide.edu.au"),
+    person(given = "Yassine", 
+          family = "Souilmi", 
+          role = "aut", 
+          email = "yassine.souilmi@adelaide.edu.au"),
+    person(given = "Josephine", 
+          family = "Daub", 
+          role = "aut", 
+          email = "J.T.Daub@prinsesmaximacentrum.nl")
+	)
 Description: Is an R package that performs gene-based pathway enrichment, 
     which can also be used as evidence for polygenic selection in case the
     software is used with selection signals evidence. The package explicitly
@@ -21,6 +33,7 @@ Depends:
 	Matrix,
 	matrixStats,
 	doParallel,
+	doFuture,
 	ggplot2
 RoxygenNote: 7.1.1
 Suggests: 
