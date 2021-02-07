@@ -5,6 +5,11 @@
 # JD: changed function name following naming convention
 # Read in all required gene (object) and gene set (set) tables
 #
+# JD: changed function to allow for input of set.info, obj.info and set.obj
+# instead of reading obj's from files
+# this allows for some proprocessing before calling this function, such
+# as binning obj.stat and rescaling obj.stat
+#
 # - in.path        : path to directory with input files. 
 #                    default = local folder './'
 # - population     : label specifying which dataset to load. Must be specified. 
@@ -33,26 +38,38 @@
 # computation
 #===========================================================================
 
-read.setobj.tables <- function(in.path="./", population=NA, minsetsize=10, 
-                               maxsetsize=1000, merge.set.prop=0.95, 
-                               n.cores='default'){
+read.setobj.tables <- function(in.path="./", set.info=NULL, 
+                               obj.info=NULL, set.obj=NULL,
+                               population=NA, minsetsize=10, 
+                               maxsetsize=1000, merge.set.prop=0.95,
+                               obj.in.set=T, n.cores='default'){
   
-  # Reading in data
-  cat(paste0("Reading data for ", population, "\n"))
-  
-  # Determine input files
-  ll <- list.files(in.path)
-  PF <- ll[grep(population, ll)]
-  
-  if(length(PF)<3){
-    miss.f <- setdiff(1:3, grep(".ObjInfo|.SetInfo|.SetObj", PF))
-    ff <- paste(paste0(population, 
-                       c(".ObjInfo", ".SetInfo", ".SetObj")[miss.f]), 
-                collapse=" & ")
-    stop(paste0(ff, "were not detected. Check path and ensure correct ",
-                "file names are used."))
+
+  if (is.null(set.info)|is.null(obj.info)|is.null(set.obj)){
+    # Reading in data
+    cat(paste0("Reading data for ", population, "\n"))
+    # Determine input files
+    ll <- list.files(in.path)
+    PF <- ll[grep(population, ll)]
+    
+    if(length(PF)<3){
+      miss.f <- setdiff(1:3, grep(".ObjInfo|.SetInfo|.SetObj", PF))
+      ff <- paste(paste0(population, 
+                         c(".ObjInfo", ".SetInfo", ".SetObj")[miss.f]), 
+                  collapse=" & ")
+      stop(paste0(ff, "were not detected. Check path and ensure correct ",
+                  "file names are used."))
+    }
+    # Read in information on gene sets
+    set.info <- data.table::fread(file.path(in.path, PF[grep("SetInfo", PF)]))
+    set.obj <- data.table::fread(file.path(in.path, PF[grep("SetObj", PF)]))
+    obj.info <- data.table::fread(file.path(in.path, PF[grep("ObjInfo", PF)]))
+  } else {
+    if(!is.data.table(set.info)) data.table::setDT(set.info)
+    if(!is.data.table(obj.info)) data.table::setDT(obj.info)
+    if(!is.data.table(set.obj)) data.table::setDT(set.obj)
   }
-  
+ 
   if(merge.set.prop>1 | merge.set.prop<=0){
     merge.set.prop <- min(n.perm, 1)
     warning("WARNING: minimim or maximum (0,1] gene set similarity exceeded",
@@ -60,11 +77,6 @@ read.setobj.tables <- function(in.path="./", population=NA, minsetsize=10,
     warning("merge.set.prop set to 1 (i.e. no merging performed)",
             immediate.=T)
   }
-
-  # Read in information on gene sets
-  set.info <- data.table::fread(file.path(in.path, PF[grep("SetInfo", PF)]))
-  set.obj <- data.table::fread(file.path(in.path, PF[grep("SetObj", PF)]))
-  obj.info <- data.table::fread(file.path(in.path, PF[grep("ObjInfo", PF)]))
 
   # Cleaning data
   # Merge similar sets
@@ -79,15 +91,18 @@ read.setobj.tables <- function(in.path="./", population=NA, minsetsize=10,
     set.obj[, setID.merged:=setID]
   }
   
-  # Remove resized gene sets that have too many/too few genes (and orphan genes)
+  # Remove resized gene sets that have too many/too few genes
   cat(paste("Removing gene sets with <", minsetsize, "or >", 
             maxsetsize, "genes\n"))
   if(!is.na(minsetsize) | !is.na(maxsetsize)){
     setN <- set.obj[, .N, by=setID][N>=minsetsize & N<=maxsetsize, setID]
     set.info <- set.info[setID %in% setN]
     set.obj <- set.obj[setID %in% setN]
-    obj.info <- obj.info[objID %in% set.obj[, objID]]
   }
+  # Removing and orphan genes
+  # JD: better to keep full obj.info list?
+  # added for now parameter obj.in.set (default: T)
+  if (obj.in.set) obj.info <- obj.info[objID %in% set.obj[, objID]]
   
   # Create new field with setName to distinguish sets with the same name
   dups <- set.info[, .N, by=setName][N>1, setName]
@@ -256,27 +271,27 @@ merge.similar.sets <- function(SI, SO, min.sim=0.95, n.cores='default', bfs=T){
   #                     X=ceiling(IJ.pairs / NP))
   # set.m[P==0, P:=NP]
   
-  if (! bfs){
-    # JD: better to use 'arr.ind':
-    set.m<-data.table(which(triu(t(p.mat)) + triu(p.mat) == 2, arr.ind = T))
-    colnames(set.m)<-c("P","X")
-    set.m <- set.m[P!=X] # remove diagonal
-    
-    #concatenate pathways
-    pc <- list()
-    cc=0
-    for(i in set.m[, unique(P)]){
-      PC <- c(i, set.m[P==i, unique(X)])
-      if(!any(PC %in% unlist(pc, use.names=F))){
-        cc=cc+1
-        pc[[cc]] <- PC
-      }
-    }
-  } else {
+  # if (! bfs){
+  #   # JD: better to use 'arr.ind':
+  #   set.m<-data.table(which(triu(t(p.mat)) + triu(p.mat) == 2, arr.ind = T))
+  #   colnames(set.m)<-c("P","X")
+  #   set.m <- set.m[P!=X] # remove diagonal
+  #   
+  #   #concatenate pathways
+  #   pc <- list()
+  #   cc=0
+  #   for(i in set.m[, unique(P)]){
+  #     PC <- c(i, set.m[P==i, unique(X)])
+  #     if(!any(PC %in% unlist(pc, use.names=F))){
+  #       cc=cc+1
+  #       pc[[cc]] <- PC
+  #     }
+  #   }
+  # } else {
     #alternative: bfs search
     adj.mat <- t(p.mat) + p.mat == 2
     pc <- pc.bfs(adj.mat)
-  }
+  #}
   cat(paste0("Quantified gene overlap in ", NP, " gene sets\n"))
   
   # ============================================
@@ -289,6 +304,8 @@ merge.similar.sets <- function(SI, SO, min.sim=0.95, n.cores='default', bfs=T){
       pc[[i]]<-levels(SO$setID.f)[pc[[i]]]
     }
   } 
+  SO$setID.f<-NULL
+  SO$objID.f<-NULL
   #=============================================
   
   if(length(pc)>0){
@@ -328,7 +345,8 @@ merge.similar.sets <- function(SI, SO, min.sim=0.95, n.cores='default', bfs=T){
 #                     minsetsize=10, n.perm.p=1000000, perm.block.size=1000,
 #                     prune=T, n.perm.pruning=10000, n.pruned.sets=100,
 #                     n.FDR=100, FDR.block.size=10, perm.mat=NULL)
-# core function used generate null distribution, perform pruning and calculate corrected p values
+# core function used generate null distribution, perform pruning 
+# and calculate corrected p values
 #
 # - set.info: data.frame or data.table file with fields:
 #                  setID, setName, ...
@@ -336,26 +354,46 @@ merge.similar.sets <- function(SI, SO, min.sim=0.95, n.cores='default', bfs=T){
 #                  setID, objID
 # - obj.info : data.frame or data.table with fields:
 #                  objID, objName, objStat, (objBin), (objSNPcnt), ...
-# - n.cores : character or integer specifying the number of cores to use; options include 'max' = all cores, 'default' = max cores - 1, or integer value; default = 'default'
-# - linked : logical indicating if linkage or non-linkage based permuations should be used to compute the null; default = TRUE
-# - n.perm.p : integer indicating the number of iterations of permatution algorithm to use to compute null used in p-value estimation; default = 100000
-# - perm.block.size : integer defining the number of iterations on which to summarize results during p-value estimation (improves computation speed); default = 1000
-# - prune : logical indicating if pruning step should be used; default = FALSE; if TRUE is selected, tests will be performed on the complete complement of genes for each gene set
-# - n.perm.pruning : if pruning is used, integer defining the number of iterations druing pruning step which to summarize results. if using a limited number of processors (<10), this should be smaller than the amount used to calculate the p-values (i.e. n.perm.p); default = TRUE, ignored if prune == FALSE
-# - n.pruned.sets : if pruning is used, integer specifying the subset of number of gene sets to compute p-values for; default = 100, ignored if prune == FALSE
-# - n.FDR : if pruning is used, number of random pruning steps to run to calculate the FDR-corrected p-values (note that the number of permuated set scores used in the FDR correction is n.FDR * n.pruned.sets); default = 100, ignored if prune == FALSE
-# - precise.p.method : if pruning is used, determines the method to used for null - options: 'full' = all genes, 'pruned' = pruned genes removed, 'both' = both methods used; default = 'both'
-# - perm.mat : optional permuation matrix values provided by user; default = NULL
+# - n.cores : character or integer specifying the number of cores to use; 
+#   options include 'max' = all cores, 'default' = max cores - 1, 
+#   or integer value; default = 'default'
+# - linked : logical indicating if linkage or non-linkage based permutations 
+#   should be used to compute the null; default = TRUE
+# - n.perm.p : integer indicating the number of iterations of permutation 
+#   algorithm to use to compute null used in p-value estimation; default = 100000
+# - perm.block.size : integer defining the number of iterations on which to 
+#   summarize results during p-value estimation (improves computation speed); 
+#   default = 1000
+# - prune : logical indicating if pruning step should be used; default = FALSE; 
+#   if TRUE is selected, tests will be performed on the complete complement of 
+#   genes for each gene set
+# - n.perm.pruning : if pruning is used, integer defining the number of 
+#   iterations during pruning step which to summarize results. if using a 
+#   limited number of processors (<10), this should be smaller than the amount 
+#   used to calculate the p-values (i.e. n.perm.p); default = 10000, ignored if 
+#   prune == FALSE
+# - n.pruned.sets : if pruning is used, integer specifying the subset of 
+#   number of gene sets to compute p-values for; default = 100, 
+#   ignored if prune == FALSE
+# - n.FDR : if pruning is used, number of random pruning steps to run to 
+#   calculate the FDR-corrected p-values (note that the number of permuted 
+#   set scores used in the FDR correction is n.FDR * n.pruned.sets); 
+#   default = 100, ignored if prune == FALSE
+# - precise.p.method : if pruning is used, determines the method to used for 
+#   null - options: 'full' = all genes, 'pruned' = pruned genes removed, 
+#   'both' = both methods used; default = 'both'
+# - perm.mat : optional permutation matrix values provided by user; default = NULL
 #===========================================================================
 
-polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, minsetsize=10, 
-                      n.perm.p=100000, perm.block.size=1000, prune=T, n.perm.pruning=5000, 
-                      n.FDR=100, n.pruned.sets=50, precise.p.method="both", est.pi0=TRUE,
-                      perm.mat=NULL, startT=NA)
+polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
+                      minsetsize=10, n.perm.p=100000, perm.block.size=1000, 
+                      prune=T, n.perm.pruning=5000, n.FDR=100, n.pruned.sets=50, 
+                      precise.p.method="both", est.pi0=TRUE, perm.mat=NULL, 
+                      startT=NA)
 {
   
   ##===================================================================##
-  ##internal functions
+  ## internal functions
   ##===================================================================##
   
   # records cumulative run time at specific points
@@ -378,7 +416,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     return(paste0(H, "h ", M, "m ", S, "s"))
   }
   
-  #unique linked null permutations
+  # unique linked null permutations
   make.perm.mat <- function(n.chr, n.genes, N){
     chr.ord <- c(t(rowRanks(matrix(sample(1:(n.chr*N)), 
                                    ncol=n.chr))))
@@ -386,19 +424,19 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     list(CHR.ORD=chr.ord, ROT=rot)
   }
   
-  #enumerate linked null permutations
+  # enumerate linked null permutations
   permute.data <- function(score.list, rot.list, chr.ord.now, rot.now){
     all.perm.chr <- unlist(score.list[chr.ord.now], use.names=F)
     all.rot <- unlist(rot.list[rot.now], use.names=F)
     all.perm.chr[all.rot]
   }
   
-  #improve runtime by separating iterations into fixed-sized blocks
+  # improve runtime by separating iterations into fixed-sized blocks
   get.blocks <- function(n.perm, block.size, n.chr) {
     if(n.perm < block.size){
        rb <- cbind(1, n.perm)
        cob <- cbind(1, n.perm*n.chr)
-    }else{
+    } else {
        ss <- unique(c(seq(0, n.perm, block.size), n.perm))
        rb <- cbind(ss[1:(length(ss)-1)]+1, ss[2:length(ss)])
        cob  <- cbind(ss[1:(length(ss)-1)]*n.chr+1, 
@@ -407,7 +445,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     return(list(RB=rb, COB=cob, N=nrow(cob)))
   }
   
-  #udpate parameters during pruning step
+  # update parameters during pruning step
   pruning.param <- function(set.obj.now, top.sets.now, 
                             nobj=n.genes, nset=n.sets){
     #get genes from top ranked set
@@ -423,7 +461,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
                 set.out=set.out, obj.out=obj.out))
   }
   
-  #estimate pi0 using histogram method
+  # estimate pi0 using histogram method
   pi0.estimator <- function(pp, n.EXP, n.OBS, n.bins, tolerance=10^-4){
     #create percentile bins
     p.bins <- pp[, seq(min(P), max(P), length.out=n.bins+1)] 
@@ -456,12 +494,16 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     return(pi0)
   }
     
-  #calculate q values
-  q.estimator <- function(pp, pi0, n.EXP, n.OBS){  
-    RP.star <- pp[REP==1, cumsum(table(P))] # cumulative number of rejected hypotheses (account for non-unique p-values)
-    emp.p.bins <- pp[REP==1, c(0, sort(unique(P)))] # bins to evaluate expected number of true nulls
-    VP.star <- cumsum(table(pp[REP!=1, cut(P, emp.p.bins, right=TRUE)])) # count expected true nulls if all nulls are true
-    VP.star.scaled <- pi0*(VP.star/n.EXP)*n.OBS # compute expected true nulls after scaling by pi0 and number of tests
+  # calculate q values
+  q.estimator <- function(pp, pi0, n.EXP, n.OBS){ 
+    # cumulative number of rejected hypotheses (account for non-unique p-values)
+    RP.star <- pp[REP==1, cumsum(table(P))]
+    # bins to evaluate expected number of true nulls
+    emp.p.bins <- pp[REP==1, c(0, sort(unique(P)))] 
+    # count expected true nulls if all nulls are true
+    VP.star <- cumsum(table(pp[REP!=1, cut(P, emp.p.bins, right=TRUE)]))
+    # compute expected true nulls after scaling by pi0 and number of tests
+    VP.star.scaled <- pi0*(VP.star/n.EXP)*n.OBS 
     FDR.vect <- VP.star.scaled / RP.star
     FDR.vect[FDR.vect==0] <- 1/n.EXP # reset values == 0
     FDR.vect[FDR.vect>1] <- 1 # reset values larger than 1
@@ -478,7 +520,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
       q.vect[K:I] <- M
     }
     
-    if(length(q.vect)<n.OBS){ # modify q value vector to include repeated p values
+    # modify q value vector to include repeated p values
+    if(length(q.vect)<n.OBS){ 
       q.it <- pp[REP==1, unname(table(P))]
       q.vect <- unlist(lapply(1:length(q.it), function(x) rep(q.vect[x], q.it[x])))
     }
@@ -499,14 +542,11 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   }
   cat("[STEP 1] Performing data checks...\n")
   
-  if(!is.data.table(set.info))
-    data.table::setDT(set.info)
-  if(!is.data.table(set.info))
-    data.table::setDT(obj.info)
-  if(!is.data.table(set.info))
-    data.table::setDT(set.obj)
+  if(!is.data.table(set.info)) data.table::setDT(set.info)
+  if(!is.data.table(obj.info)) data.table::setDT(obj.info)
+  if(!is.data.table(set.obj)) data.table::setDT(set.obj)
   
-  #add in mandatory column if data is not read in by read.setobj.tables
+  # add in mandatory column if data is not read in by read.setobj.tables
   if(!("setID.orig" %in% names(set.info))){
     set.info[, setID.orig:=setID]
     set.obj[, setID.orig:=setID]
@@ -516,12 +556,12 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     set.obj[, objID.orig:=objID]
   }
   
-  #set scores to integers (reduce memory pressure and speed up calculations)
+  # set scores to integers (reduce memory pressure and speed up calculations)
   if(obj.info[, !is.integer(objStat)]){
     max.sum.int <- .Machine$integer.max
-    max.sum.fl <- sum(obj.info[order(-objStat), 
-                               objStat][1:set.info[, max(N)]])
-    prec <- round(log10(max.sum.int / max.sum.fl), 0)
+    max.sum.fl <- sum(obj.info[order(-objStat),objStat][1:set.info[, max(N)]])
+    #JD: better floor instead of round
+    prec <- floor(log10(max.sum.int / max.sum.fl))
     obj.info[, objStat.orig:=objStat]
     obj.info[, objStat:=as.integer(round(objStat*10^prec), 0)]
   }else{
@@ -533,10 +573,10 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   n.sets <- set.info[, .N]
   
   #---------------------------------#
-  ##check iteration options
+  ## check iteration options
   #---------------------------------#
   
-  #check for violations in parameter settings
+  # check for violations in parameter settings
   n.check <- sapply(list(n.perm.p, n.FDR, perm.block.size, n.perm.pruning,
                          n.pruned.sets), function(x) is.numeric(x) & x>0)
   
@@ -548,40 +588,43 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
                "non-numeric or less than 0. Re-enter or use defaults."))
   }
   
-  #permuation parameters
+  # permutation parameters
   if(prune){ #FDR computation (if selected)
     if(n.perm.pruning > n.perm.p){
       n.perm.pruning <- n.perm.p
-      warning(paste("Number of pruning iterations exceeds null iterations for p-value estimation.", 
-                    "Resetting to", n.perm.pruning, "iterations"), immediate.=T)
+      warning(paste0("Number of pruning iterations exceeds null iterations ",
+                     "for p-value estimation. Resetting to ", n.perm.pruning, 
+                     " iterations"), immediate.=T)
     }
     
     if(n.pruned.sets > n.sets){
       n.pruned.sets <- n.sets
-      warning(paste("Number of gene sets evaluated in pruning step exceeds total number of gene sets.", 
-                    "Resetting to", n.pruned.sets, "iterations"), immediate.=T)
+      warning(paste0("Number of gene sets evaluated in pruning step exceeds ",
+                     "total number of gene sets. Resetting to ", n.pruned.sets,
+                     " iterations"), immediate.=T)
     }
     
-    #in case non-integer values are used
+    # in case non-integer values are used
     n.FDR <- as.integer(n.FDR)
     n.perm.pruning <- as.integer(n.perm.pruning)
     n.pruned.sets <- as.integer(n.pruned.sets)
   }
   
-  if(perm.block.size <= 0 | perm.block.size > n.perm.p | perm.block.size > n.perm.pruning){
+  if(perm.block.size <= 0 | perm.block.size > n.perm.p | 
+     perm.block.size > n.perm.pruning){
     perm.block.size <- min(n.perm.pruning, 1000)
-    warning("null evalution block size incorrectly entered or size exceeds total number of iterations",
-            immediate.=T)
-    warning(paste("initial null evalution set to blocks of", perm.block.size, "iterations"),
-            immediate.=T)
+    warning(paste0("null evalution block size incorrectly entered or ",
+                   "size exceeds total number of iterations"), immediate.=T)
+    warning(paste0("initial null evalution set to blocks of ", perm.block.size,
+                  " iterations"), immediate.=T)
   }
   
-  #in case non-integer values are used
+  # in case non-integer values are used
   n.perm.p <- round(n.perm.p, 0)
   perm.block.size <- round(perm.block.size, 0)
   
   #---------------------------------#
-  ##set up parallel backend
+  ## set up parallel back-end
   #---------------------------------#
   
   if(prune){ # allow parallel processing if pruning used
@@ -590,7 +633,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     #set up permutation block size
     N.cores <- future::availableCores()
 
-    if(n.cores %in% c("max", "MAX", "Max", "default", "Default", "DEFAULT") | is.numeric(n.cores)){
+    if(n.cores %in% c("max", "MAX", "Max", "default", "Default", "DEFAULT") | 
+       is.numeric(n.cores)){
       if(n.cores %in% c("max", "MAX", "Max")){
         n.cores <- N.cores
         cat(paste0("Using all available (", N.cores, ") cores\n"))
@@ -607,22 +651,26 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
           warning(e.mss, immediate.=T)
         }
       }
-    }else{
+    } else {
       n.cores <- N.cores-1
       e.mss <- paste("No. cores misspecified: using", n.cores, "cores")
       warning(e.mss, immediate.=T)
     }
   
     doFuture::registerDoFuture()
-    future::plan(multiprocess, workers=n.cores) #uses multicore if available
-    options(future.globals.maxSize=1000*1024^2) #increase default maximum size of objects exported to functions
+    #uses multicore if available
+    future::plan(multiprocess, workers=n.cores) 
+    #increase default maximum size of objects exported to functions
+    #JD: I propose to increase the maxsize to 1500
+    #options(future.globals.maxSize=1000*1024^2) 
+    options(future.globals.maxSize=1500*1024^2) 
   }
   
   cat("Completed checking data\n")
   cat(paste("Passed", n.sets, "gene sets &", n.genes, "unique genes\n"))
   if(n.genes-set.obj[, uniqueN(objID)]!=0){
-    cat(paste("NOTE:", n.genes-set.obj[, uniqueN(objID)], 
-              "genes are not in any gene set, but will be retained for computing null\n"))
+    cat(paste0("NOTE: ", n.genes-set.obj[, uniqueN(objID)], " genes are not ",
+               "in any gene set, but will be retained for computing null\n"))
   }
   cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
   
@@ -632,12 +680,13 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   ##===================================================================##
   
   if(prune){
-    cat("[STEP 2] Pruning requested: preparing inputs for permutation tests and FDR correction...\n")
+    cat("[STEP 2] Pruning requested: preparing inputs for permutation tests",
+        "and FDR correction...\n")
   }else{
     cat("[STEP 2] Pruning not requested: running enrichment test...\n")
   }
   
-  #generate pathway x gene matrix
+  # generate pathway x gene matrix
   PxG <- Matrix::sparseMatrix(i=set.obj$setID, j=set.obj$objID, 
                               x=1L, dims=c(n.sets, n.genes))
   
@@ -645,18 +694,19 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   ## generate observed and FDR scores (if pruning chosen)
   #----------------------------------------------------------#
 
-  #calculate setscores for observed data and for FDR correction
-  #If no pruning only generate observed scores
-  #If pruning is used compute single matrix of observed and FDR scores
+  # calculate set scores for observed data and for FDR correction
+  # If no pruning only generate observed scores
+  # If pruning is used compute single matrix of observed and FDR scores
   
-  #generate paramters for blocks of null computations
+  # generate parameters for blocks of null computations
   n.chr <- obj.info[, length(unique(chr))]
   run.blocks <- get.blocks(n.perm=ifelse(prune, n.perm.pruning, n.perm.p), 
                            perm.block.size, n.chr)
   
   if(linked){
-    #if using sampling with linked genes
-    #generate list of gene positions and scores by chromosome, and unique gene rotations
+    # if using sampling with linked genes
+    # generate list of gene positions and scores by chromosome, 
+    # and unique gene rotations
     pos.list <- split(obj.info[order(chr, startpos, endpos), objID], 
                         sort(obj.info$chr))
     score.list <- split(obj.info[order(chr, startpos, endpos), objStat], 
@@ -664,17 +714,19 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     rot.list <- append(list(1:n.genes),
                        lapply(2:n.genes, function(x) c(x:n.genes, 1:(x-1))))
     if(prune){
-      fdr.mat <- make.perm.mat(n.chr, n.genes, n.FDR) # create additional perms to account for any reduncancy
+      # create additional perms to account for any redundancy
+      fdr.mat <- make.perm.mat(n.chr, n.genes, n.FDR) 
+      # observed values + randomised values
       obs.fdr.mat <- list(CHR.ORD=c(1:n.chr, fdr.mat$CHR.ORD),
-                          ROT=c(1, fdr.mat$ROT)) # observed values + randomised values
-    }else{
+                          ROT=c(1, fdr.mat$ROT)) 
+    } else {
       obs.fdr.mat <- list(CHR.ORD=1:n.chr, ROT=1)
     }
     PRM <- permute.data(score.list, rot.list,
                         chr.ord.now=obs.fdr.mat$CHR.ORD, 
                         rot.now=obs.fdr.mat$ROT)# permuted gene scores
-  }else{
-    #generate fully random gene score sampling
+  } else {
+    # generate fully random gene score sampling
     library(dqrng)
     dqrng::dqRNGkind("Xoroshiro128+") # fast random sampling
     fdr.mat <- dqrng::dqsample.int(.Machine$integer.max, 1) # set random seed
@@ -684,13 +736,14 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
                        dqrng::dqsample.int(n.genes*n.FDR) %/% 
                        as.integer(n.FDR)) # create additional perms to account for any reduncancy
       obs.fdr.mat[obs.fdr.mat==0] <- as.integer(n.genes) # permuted gene positions
-    }else{
+    } else {
       obs.fdr.mat <- seq.int(1, n.genes) # permuted gene positions
     }
     PRM <- obj.info$objStat[obs.fdr.mat] # permuted gene scores
   }
   
-  #observed set score matrix: 1st entry = observed, remainder for FDR estimation (if pruning used)
+  # observed set score matrix: 1st entry = observed, 
+  # remainder for FDR estimation (if pruning used)
   SS <- matrix(PRM, ncol=ifelse(prune, n.FDR+1, 1))
   m.obs <- matrix(as.integer((PxG %*% SS)@x), 
                   ncol=ifelse(prune, n.FDR+1, 1)) 
@@ -701,37 +754,42 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
   ## generate null scores
   #---------------------------------#
   
-  #generate full permutation matrix for null computations
+  # generate full permutation matrix for null computations
   if(is.null(perm.mat)){ # generate null parameters
     if(linked){
-      cat("Generating null scores using linkage-based permuations\n")
+      cat("Generating null scores using linkage-based permutations\n")
       perm.mat <- make.perm.mat(n.chr, n.genes, N=n.perm.p)
-    }else{
-      cat("Generating null scores using standard permuations (no linkage)\n")
+    } else {
+      cat("Generating null scores using standard permutations (no linkage)\n")
       #keep seed to replicate sampling
       perm.mat <- dqsample.int(.Machine$integer.max, 
                                n.perm.p %/% perm.block.size) 
     }
-  }else{
+  } else {
     cat("Permutations performed using user-specified parameters\n")
     if(linked){ # check that user matrix matches input data
       if(n.perm.p != length(perm.mat$ROT)){
-        stop("Operation halted: user-specified parameters are not compatible with input data\n")
+        stop("Operation halted: user-specified parameters are not compatible",
+             " with input data\n")
       }
-    }else{
+    } else {
       if(n.perm.p %/% perm.block.size != length(perm.mat)){
-        stop("Operation halted: user permuation parameters are not compatible with input data\n")
+        stop("Operation halted: user permutation parameters are not compatible",
+             " with input data\n")
       }
     }
   }
   
-  #Compute permuted scores
-  #NOTE: only a subset of the full permutation matrix is used if pruning step performed
+  # Compute permuted scores
+  # NOTE: only a subset of the full permutation matrix is used if pruning step 
+  # performed
   if(prune){
     PRM.pos <- list()
     PRM <- list()
-  }else{
-    cat(paste("Computing enrichment tests using", n.perm.p, "permuations\n"))
+  } else {
+    cat(paste("Computing enrichment tests using", n.perm.p, "permutations\n"))
+    # JD: maybe a bit faster: initialize failed.test as vector(#tests)?
+    #failed.tests <- integer(n.sets)
     failed.tests <- 0 # counter to collect number of failed tests
   }
   
@@ -739,7 +797,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     prog <- progressr::progressor(steps=run.blocks$N)
     for(l in 1:run.blocks$N){
       prog(sprintf("STEP=%i", l))
-      if(linked){ # linkage-based permuations
+      if(linked){ # linkage-based permutations
         rot.now <- run.blocks$RB[l, ]
         cob.now <- run.blocks$COB[l, ]
         rot.now.i <- perm.mat$ROT[rot.now[1]:rot.now[2]]
@@ -751,14 +809,14 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
           PRM[[l]] <- permute.data(score.list, rot.list,
                                    chr.ord.now=cob.now.i, 
                                    rot.now=rot.now.i)
-        }else{ # estimate p values on the fly
+        } else { # estimate p values on the fly
           score.mat <- PxG %*% matrix(permute.data(score.list, rot.list, 
                                                    chr.ord.now=cob.now.i, 
                                                    rot.now=rot.now.i), 
                                       ncol=perm.block.size)
           failed.tests <- failed.tests + rowSums(score.mat > c(m.obs))
         }
-      }else{ # standard permutations
+      } else { # standard permutations
         dqset.seed(perm.mat[l])
         PRM.pos.temp <- dqsample.int(n.genes*perm.block.size) %/% 
                           as.integer(perm.block.size)
@@ -766,7 +824,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
         if(prune){ # keep gene positions for pruning step
           PRM.pos[[l]] <- PRM.pos.temp
           PRM[[l]] <- obj.info$objStat[PRM.pos.temp]
-        }else{ # estimate p values
+        } else { # estimate p values
           score.mat <- PxG %*% matrix(obj.info$objStat[PRM.pos.temp], 
                                       ncol=perm.block.size)
           failed.tests <- failed.tests + rowSums(score.mat > c(m.obs)) 
@@ -809,16 +867,19 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
       pk
     }
 
-    #convert permuation lists to vectors
+    #convert permutation lists to vectors
     PRM <- unlist(PRM, use.names=F)
     PRM.pos <- unlist(PRM.pos, use.names=F)
     
-  }else{
+  } else {
     p.vect <- (failed.tests + 1) / (n.perm.p + 1)
     q.vect <- qvalue::qvalue(p.vect)
-    sio <- data.table::data.table(set.info[order(setID), .(setName, setID=setID.orig, N)], 
-                                  N.pruned=NA, setScore=c(m.obs)/ifelse(is.na(prec), 1, 10^prec), 
-                                  setScore.pruned=NA, P=p.vect, Q=q.vect$qvalues)[order(P)]
+    sio <- data.table::data.table(set.info[order(setID),
+                                           .(setName, setID=setID.orig, N)], 
+                       N.pruned=NA, 
+                       setScore=c(m.obs)/ifelse(is.na(prec), 1, 10^prec), 
+                       setScore.pruned=NA, P=p.vect, 
+                       Q=q.vect$qvalues)[order(P)]
     OUT <- list(set.info=sio, set.obj=set.obj, pi0.est=q.vect$pi0, 
                 null.set=NA, permutation.mat=perm.mat, 
                 permutation.type=c("random", "linked")[as.numeric(linked)+1])
@@ -832,7 +893,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
     ##===================================================================##
   
     cat("[STEP 3] Running pruning step (this may take some time)...\n")
-    cat(paste("Generating", n.perm.pruning, "null permuations for", 
+    cat(paste("Generating", n.perm.pruning, "null permutations for", 
               n.FDR, "FDR iterations and observed data\n"))
     cat(paste("The top", n.pruned.sets, 
               "gene sets will be evaluated in each case\n"))
@@ -1276,17 +1337,15 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T, 
 # wrapper function for data input and gene set enrichment testing
 #===========================================================================
 
-# JD: set.info, obj.info and set.obj are arguments in this function, but are 
-# not used. Remove or change function to allow for direct obj input instead of
-# reading files?
-
 polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10, 
-                              maxsetsize=1000, merge.set.prop=1, set.info, 
-                              obj.info, set.obj, n.cores="default", linked=T, 
-                              n.perm.p=100000, perm.block.size=1000, prune=T, 
-                              n.perm.pruning=5000, n.FDR=100, n.pruned.sets=50, 
-                              precise.p.method="both", est.pi0=TRUE, 
-                              perm.mat=NULL){
+                              maxsetsize=1000, merge.set.prop=1, obj.in.set=T,
+                              set.info=NULL, obj.info=NULL, set.obj=NULL, 
+                              n.cores="default", linked=T, n.perm.p=100000, 
+                              perm.block.size=1000, prune=T, 
+                              n.perm.pruning=5000, n.FDR=100, 
+                              n.pruned.sets=50, precise.p.method="both", 
+                              est.pi0=TRUE, perm.mat=NULL, save=F,
+                              out.path="./"){
   
   #call in libraries
   library(data.table)
@@ -1297,9 +1356,6 @@ polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10,
   library(qvalue)
   library(Matrix)
   library(progressr)
-  
-  # JD: I see several internal get.time() functions. Maybe better to have
-  # one public function?
   
   # records cumulative run time at specific points
   get.time <- function(t) { # time conversion
@@ -1319,18 +1375,15 @@ polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10,
   startT <- Sys.time() #initiate timer
   cat("[Part 0] Reading Data...\n")
   
-  # JD: removed hardcode path and population name
-  dd <- read.setobj.tables(in.path=in.path, 
+  dd <- read.setobj.tables(in.path=in.path, set.info=set.info, 
+                           obj.info=obj.info, set.obj=set.obj,
                            population=population, minsetsize=minsetsize, 
                            maxsetsize=maxsetsize, merge.set.prop=0.95, 
-                           n.cores=n.cores)
+                           obj.in.set=obj.in.set, n.cores=n.cores)
   
   cat("Completed data entry\n")
   cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
-  
-  #JD: remove line below
-  #ex <- fread("~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/Expected_results/Anatolia_EF.setscores.txt")
-  
+
   #pruning, with linkage, fast
   pl <- polylinkr(set.info=dd$set.info, obj.info=dd$obj.info, 
                   set.obj=dd$set.obj, n.cores, linked, minsetsize=dd$minsetsize, 
@@ -1341,7 +1394,10 @@ polylinkr.wrapper <- function(in.path="./", population=NA, minsetsize=10,
   #add merged set info to output
   pl$merged.set.info <- dd$set.info.merged
   
+  # save to file
+  if (save) save(pl, file=file.path(out.path,"pl.R"))
   return(pl)
+  
 }
   
 
@@ -1399,7 +1455,7 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
   if(use.recomb.rate){
     
     #------------------------------------------------------------------#
-    ##create genetic map for each gene by interplolating gene distance
+    ##create genetic map for each gene by interpolating gene distance
     #------------------------------------------------------------------#
     
     cat("Creating genetic map of gene positions...\n")
@@ -1454,8 +1510,9 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
   paths <- set.info[, unique(setID)]
   progressr::with_progress({ # allow updating during processing
     prog <- progressr::progressor(steps=length(paths))
+    #loop over all paths
     path.fict <- foreach::foreach(p=paths, .combine=rbind,
-                                  .export=c("paths", "gene.map", "set.obj")) %dopar% { #loop over all paths
+                          .export=c("paths", "gene.map", "set.obj")) %dopar% { 
       prog(sprintf("STEP=%i", p))
       set.obj.now <- set.obj[setID==p]
       dd.now <- gene.map[objID %in% set.obj.now$objID]
