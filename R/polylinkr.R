@@ -317,8 +317,8 @@ merge.similar.sets <- function(SI, SO, min.sim=0.95, n.cores='default', bfs=T){
                       .export=c("SO", "new.setID")) %dopar% {
       so.now <- SO[setID %in% i]
       #rename according to largest set; take first if equivalent sized sets
-      # JD: if we would sort on set size in the beginning taking max would not be 
-      # necessary
+      # JD: if we would sort on set size in the beginning taking max would not 
+      # be necessary
       new.setID <- so.now[, .N, by=setID][N==max(N), setID][1]
       data.table(setID=new.setID, objID=so.now[, unique(objID)], 
                  setID.merged=so.now[, paste0(unique(setID), collapse=",")])
@@ -458,7 +458,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
     #update removed gene list
     obj.out<- set.obj.now[KEEP==0, sort(unique(objID))]
     #determine sets with too few genes
-    set.out <- set.obj.now[, .(N=sum(KEEP)), by=setID][N<minsetsize, unique(setID)]
+    set.out <- set.obj.now[, .(N=sum(KEEP)), by=setID][N<minsetsize, 
+                                                       unique(setID)]
     return(list(so.now=set.obj.now, 
                 set.n.remaining=nset-length(set.out),
                 obj.n.remaining=nobj-length(obj.out), 
@@ -476,14 +477,15 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                         keep.rownames=TRUE)
     data.table::setnames(fdr.dt, c("P.bin", "OBS", "EXP"))
     fdr.dt[, EXP.scaled:=(EXP/n.EXP)*n.OBS]
-    obs.excess <- fdr.dt[, which(cumsum(OBS < EXP.scaled)==1)-1][1] # determine obs > exp up to first failure
+    # determine obs > exp up to first failure
+    obs.excess <- fdr.dt[, which(cumsum(OBS < EXP.scaled)==1)-1][1] 
     
     pi0 <- 1 # set initial condition
-    if(obs.excess>0){ # calculate pi0 using histrogram method
+    if(obs.excess>0){ # calculate pi0 using histogram method
       #estimate pi0 using iterative procedure
       track.pi0 <- pi0
       k=0; TT=TRUE
-      while(isTRUE(TT)){ #run to covergence
+      while(isTRUE(TT)){ #run to convergence
         k=k+1
         true.pos <- fdr.dt[1:obs.excess, sum(OBS-EXP.scaled)/n.OBS]
         pi0 <- 1 - true.pos
@@ -527,7 +529,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
     # modify q value vector to include repeated p values
     if(length(q.vect)<n.OBS){ 
       q.it <- pp[REP==1, unname(table(P))]
-      q.vect <- unlist(lapply(1:length(q.it), function(x) rep(q.vect[x], q.it[x])))
+      q.vect <- unlist(lapply(1:length(q.it), 
+                              function(x) rep(q.vect[x], q.it[x])))
     }
     
     #output
@@ -634,7 +637,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
   if(prune){ # allow parallel processing if pruning used
     library(doFuture)
     
-    #set up permutation block size
+    # set up permutation block size
     N.cores <- future::availableCores()
 
     if(n.cores %in% c("max", "MAX", "Max", "default", "Default", "DEFAULT") | 
@@ -726,9 +729,10 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
     } else {
       obs.fdr.mat <- list(CHR.ORD=1:n.chr, ROT=1)
     }
+    # permuted gene scores
     PRM <- permute.data(score.list, rot.list,
                         chr.ord.now=obs.fdr.mat$CHR.ORD, 
-                        rot.now=obs.fdr.mat$ROT)# permuted gene scores
+                        rot.now=obs.fdr.mat$ROT)
   } else {
     # generate fully random gene score sampling
     library(dqrng)
@@ -736,10 +740,13 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
     fdr.mat <- dqrng::dqsample.int(.Machine$integer.max, 1) # set random seed
     dqrng::dqset.seed(fdr.mat)
     if(prune){
-      obs.fdr.mat <- c(seq.int(1, n.genes), # observed values + randomised FDR values
+      # observed values + randomised FDR values
+      # create additional perms to account for any redundancy
+      obs.fdr.mat <- c(seq.int(1, n.genes),
                        dqrng::dqsample.int(n.genes*n.FDR) %/% 
-                       as.integer(n.FDR)) # create additional perms to account for any reduncancy
-      obs.fdr.mat[obs.fdr.mat==0] <- as.integer(n.genes) # permuted gene positions
+                       as.integer(n.FDR)) 
+      # permuted gene positions
+      obs.fdr.mat[obs.fdr.mat==0] <- as.integer(n.genes) 
     } else {
       obs.fdr.mat <- seq.int(1, n.genes) # permuted gene positions
     }
@@ -909,19 +916,19 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                                 "set.obj", "perm.mat", "PRM", 
                                                 "PRM.pos", "SS")) %dopar% {
         
-        #get input datasets
+        # get input datasets
         ts.now <- top.sets[f]
         
-        #set up dataset for pruning 
+        # set up dataset for pruning 
         SP <- pruning.param(set.obj.now=data.table(set.obj, KEEP=1L), 
                             top.sets.now=ts.now)
         
-        #run pruning step until criteria met
-        #i.e. more than 1 path remaining and up to n.pruned.sets iterations
+        # run pruning step until criteria met
+        # i.e. more than 1 path remaining and up to n.pruned.sets iterations
         set.n.remaining <- SP$set.n.remaining
         I=1L
         
-        #keep track of top sets and their genes
+        # keep track of top sets and their genes
         top.sets.dt <- data.table::data.table(REP=f, RANK=I,
                                               set.info[setID %in% ts.now, 
                                                        .(setName, setID, 
@@ -958,21 +965,22 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                       by=setID]
             ts.now <- top.sets.now[N==max(N), setID][1]
           }
-          #update top sets and their genes
+          # update top sets and their genes
           tp.dt.now <- data.table::data.table(REP=f, RANK=I, 
-                                              set.info[setID %in% ts.now, .(setName, setID, setID.orig, N)], 
-                                              N.pruned=SP$so.now[setID %in% ts.now, sum(KEEP)], 
-                                              setScore=m.obs[ts.now, f], 
-                                              setScore.pruned=m.obs.now[ts.now],
-                                              P.raw=p.vals[ts.now, f], 
-                                              P.raw.pruned=p.now[ts.now],
-                                              P.full.null=NA, P.pruned.null=NA)
+                              set.info[setID %in% ts.now, 
+                                       .(setName, setID, setID.orig, N)], 
+                              N.pruned=SP$so.now[setID %in% ts.now, sum(KEEP)], 
+                              setScore=m.obs[ts.now, f], 
+                              setScore.pruned=m.obs.now[ts.now],
+                              P.raw=p.vals[ts.now, f], 
+                              P.raw.pruned=p.now[ts.now],
+                              P.full.null=NA, P.pruned.null=NA)
           top.sets.dt <- rbind(top.sets.dt, tp.dt.now)
           set.obj.dt <- rbind(set.obj.dt,
                               SP$so.now[setID==ts.now & KEEP==1, 
                                         .(setID, objID,  RANK=I)])
           
-          #update loop criteria and parameters
+          # update loop criteria and parameters
           SP <- pruning.param(set.obj.now=SP$so.now, top.sets.now=ts.now)
           set.n.remaining <- SP$set.n.remaining
         }
@@ -1009,25 +1017,29 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
         
         cat(paste("Computing null with all genes\n"))
         
-        #compute multiple iterations in blocks
+        # compute multiple iterations in blocks
         tot.pruned.sets <- (n.FDR+1)*n.pruned.sets
         if(tot.pruned.sets > 1000){
-          block.size <- 1000 %/% n.pruned.sets # compute 1000 gene sets per block
+          # compute 1000 gene sets per block
+          block.size <- 1000 %/% n.pruned.sets 
           block.bins <- cut(1:(n.FDR+1), seq(0, n.FDR+1, by=block.size))
-          block.bins[is.na(block.bins)] <- rev(levels(block.bins))[1] # include unbinned iterations into last bin
+          # include unbinned iterations into last bin
+          block.bins[is.na(block.bins)] <- rev(levels(block.bins))[1] 
           blocks <- split(1:(n.FDR+1), block.bins) # iterations in each block
-        }else{ # compute observed and FDR iterations in a single block
+        } else { # compute observed and FDR iterations in a single block
           blocks <- list(1:(n.FDR+1))
         }
-        run.blocks <- get.blocks(n.perm.p, perm.block.size, n.chr) #set up block computation for high precision p-values
+        # set up block computation for high precision p-values
+        run.blocks <- get.blocks(n.perm.p, perm.block.size, n.chr) 
         
         with_progress({ # allow updating during parallel processing
           prog <- progressor(steps=length(pruned.sets))
-          #calculate p values in blocks
+          # calculate p values in blocks
           p.vals.full <- foreach::foreach(z=blocks, .combine=rbind,
                                           .export=c("pruned.sets", "n.perm.p", 
                                                     "perm.mat", "n.genes", "SS",
-                                                    "score.list", "rot.list")) %dopar% {
+                                                    "score.list", 
+                                                    "rot.list")) %dopar% {
                                         
             pp.now <- pruned.sets[z] # get block of results
             
@@ -1067,7 +1079,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
             ## generate null scores
             #---------------------------------#
             
-            #generate updated set scores -- run on full set of permutations
+            # generate updated set scores -- run on full set of permutations
             score.mat <- foreach(l=1:run.blocks$N, .combine="+") %do% {
               if(linked){
                 rr <- run.blocks$RB[l, ]
@@ -1077,7 +1089,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                 rr.n <- perm.mat$ROT[rr[1]:rr[2]]
                 PRM <- permute.data(score.list, rot.list,
                                     chr.ord.now=cc.n, rot.now=rr.n)
-              }else{
+              } else {
                 dqset.seed(perm.mat[l])
                 perm.mat.now <- dqsample.int(n.genes*perm.block.size) %/%
                                 as.integer(perm.block.size)
@@ -1129,29 +1141,32 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                      .export=c("pruned.sets", "n.perm.p", 
                                                "perm.mat", "n.genes")) %dopar% {
             
-            pp.now <- pruned.sets[[z]] #iterate over observed and FDR ranked sets
+            #iterate over observed and FDR ranked sets                                     
+            pp.now <- pruned.sets[[z]] 
             
-            #enumerate linked null permutations
-            OUT <- foreach(j=1:nrow(pp.now$set.info.pruned)) %do% { #iterate over each set
+            # enumerate linked null permutations
+            # iterate over each set
+            OUT <- foreach(j=1:nrow(pp.now$set.info.pruned)) %do% { 
               so.now <- pp.now$set.obj.pruned[RANK==j]
               si.now <- pp.now$set.info.pruned[j]
   
-              #account for reduced genes after pruning
+              # account for reduced genes after pruning
               if(j==1){
                 n.genes.remaining <- n.genes
                 oi.now <- obj.info[order(chr, startpos, endpos)]
                 scores.now <- obj.info$objStat
-              }else{
+              } else {
                 so.N <- pp.now$set.obj.pruned[RANK %in% 1:(j-1)][, unique(objID)]
                 n.genes.remaining <- n.genes - length(so.N)
                 oi.now <- obj.info[-so.N][order(chr, startpos, endpos)]
                 scores.now <- oi.now$objStat
               }
-              #set specific genes
+              # set specific genes
               n.genes.now <- si.now$N.pruned
               
               if(linked){ # using linkage-based permutations
-                #create gene pos and chrom order lists specific to current gene set
+                # create gene pos and chrom order lists specific to current 
+                # gene set
                 oi.now[, chrI:=1:.N, by=chr]
                 oi.now[, chrL:=max(chrI), by=chr]
                 oi.new <- oi.now[objID %in% so.now$objID]
@@ -1159,17 +1174,19 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                 
                 pos.list.now <- split(oi.new$chrI, oi.new$chr)
                 chr.list.now <- split(oi.new$chrJ, oi.new$chr)
-                if(oi.new[, uniqueN(chr)] < n.chr){ # add back missing chromosomes
+                # add back missing chromosomes
+                if(oi.new[, uniqueN(chr)] < n.chr){ 
                   miss.chr <- oi.now[chr %in% setdiff(1:n.chr, oi.new$chr), 
                                      .(chrL=unique(chrL)), by=chr]
                   for(mm in 1:nrow(miss.chr)){
                     m <- miss.chr[mm, chr]
                     pos.list.now <- append(pos.list.now, list(NA), after=m-1)
-                    chr.list.now <- append(chr.list.now, list(miss.chr[mm, chrL]), after=m-1)
+                    chr.list.now <- append(chr.list.now, 
+                                           list(miss.chr[mm, chrL]), after=m-1)
                   }
                 }
                 
-                #generate random chromosome assemblies
+                # generate random chromosome assemblies
                 pl.now <- unlist(pos.list.now[perm.mat$CHR.ORD], use.names=F)
                 cl.now <- unlist(chr.list.now[perm.mat$CHR.ORD], use.names=F)
                 
@@ -1218,8 +1235,9 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
         cat(paste0(" *** Time elapsed: ", get.time(startT), " *** \n\n"))
       }
       
-    }else{ 
-      # if no. of pruning steps is >= no. steps used for precise p values reuse the p values from the pruning step
+    } else { 
+      # if no. of pruning steps is >= no. steps used for precise p values 
+      # reuse the p values from the pruning step
       e.mss1 <- paste0("No. of iterations for p-value recalculation less than",
                        "iterations used in pruning step\n")
       e.mss2 <- "q values will be calculated using results from pruning step"
@@ -1229,7 +1247,6 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
         OUT[, p.pruned.null:=p.raw.pruned]
       }
     }
-    
     
     ##===================================================================##
     # PART 6: calculate q-values
@@ -1241,20 +1258,23 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
       cat("[STEP 4] Computing q-values and preparing output...\n")
     }
   
-    #create outputs
-    set.obj.temp <- data.table::merge.data.table(pruned.sets[[1]]$set.obj.pruned[, .(setID, objID)],
-                                                 set.obj, by=c("setID", "objID"))
+    # create outputs
+    set.obj.temp <- data.table::merge.data.table(
+      pruned.sets[[1]]$set.obj.pruned[, .(setID, objID)],
+      set.obj, by=c("setID", "objID"))
     set.info.temp <- p.vals[REP==1]
     
-    #n.EXP <- ~ n.FDR * n.pruned.sets # total number of null hypothesis tests
+    # n.EXP <- ~ n.FDR * n.pruned.sets # total number of null hypothesis tests
     n.EXP <- p.vals[REP!=1, .N]
-    #n.OBS <- n.FDR # total number of observed hypothesis tests
+    # n.OBS <- n.FDR # total number of observed hypothesis tests
     n.OBS <- set.info.temp[, .N]
-    n.bins <- min(50, n.OBS) #bin p values; number of tested gene sets up to maximum 50 bins
+    # bin p values; number of tested gene sets up to maximum 50 bins
+    n.bins <- min(50, n.OBS) 
     
     # force pi0 == 1 if any of the following conditions is not observed:
-    #1. the total number of evaluated FDR gene sets exceeds 200
-    #2. >= 50% of total genes sets are evaluated OR >= 50 genes sets are evaluated
+    # 1. the total number of evaluated FDR gene sets exceeds 200
+    # 2. >= 50% of total genes sets are evaluated OR >= 50 genes sets 
+    #   are evaluated
     if(!(n.EXP > 200 & (n.OBS/n.sets >= 0.5 | n.OBS >= 50)) & est.pi0){ 
       est.pi0 <- FALSE
       e.mss <- paste0("Too few FDR realisations to provide reasonable estimate",
@@ -1289,9 +1309,10 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
       }
       q2 <- q.estimator(pp=p.vals.pruned, pi0=pi0.pruned, n.OBS=n.OBS, 
                         n.EXP=n.EXP)
-      set.info.temp <- data.table::merge.data.table(set.info.temp, 
-                                                    q2$q[, .(RANK, Q.pruned.null=Q)], 
-                                                    by="RANK")[order(P.pruned.null)]
+      set.info.temp <- 
+        data.table::merge.data.table(set.info.temp, 
+                                     q2$q[, .(RANK, Q.pruned.null=Q)], 
+                                     by="RANK")[order(P.pruned.null)]
     }else{
       set.info.temp[, Q.pruned.null:=NA]
     }
@@ -1301,13 +1322,13 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
       set.info.temp[, setScore.pruned:=setScore.pruned/10^prec]
     }
     
-    #return runs used to estimate FDR
+    # return runs used to estimate FDR
     null.out <- p.vals[REP!=1]
     null.out[, REP:=REP-1] # rescale replicates from 1 to n.FDR
     null.out[, setID:=setID.orig] #revert to original setIDs
     null.out[, setID.orig:=NULL]
     
-    #revert IDs back to original
+    # revert IDs back to original
     OUT <- list(set.info=set.info.temp[, .(setName, setID=setID.orig, 
                                            N, N.pruned, setScore, 
                                            setScore.pruned, RANK, P.raw, 
