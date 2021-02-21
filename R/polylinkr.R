@@ -129,7 +129,11 @@ read.setobj.tables <- function(in.path="./", set.info=NULL,
   
   # Create unique integer for each chromosome
   obj.info[, chr.orig:=chr]
-  obj.info[, chr:=as.integer(factor(sort(chr)))]
+  # JD: this seems incorrect, genes from same chromosome are
+  # on different chromosomes now
+  #obj.info[, chr:=as.integer(factor(sort(chr)))]
+  # should be:
+  obj.info[order(chr.orig), chr:=as.integer(factor(chr.orig))]
   
   # Reorder gene IDs
   obj.info[, objID.orig:=objID]
