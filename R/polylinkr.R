@@ -877,21 +877,16 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
   
     # determine top gene sets for pruning step
     # JD: set ties.method to "max", is default now but can change in future
-    # JD: find out if numbers are still  correct with ties
-    # or is this not important, because p-vals will be more precise
-    # in next steps?
     rr1 <- matrixStats::rowRanks(-m.obs, ties.method = "max")
     rr2 <- matrixStats::rowRanks(cbind(-m.obs, -score.mat), 
                                  ties.method = "max")[, 1:(n.FDR+1)]
-    # JD: I think this should be:
-    p.vals <- (rr2 - rr1 + 2) / (n.perm.pruning+1)
-    # p.vals <- (rr2 - rr1 + 1) / (n.perm.pruning+1)
+    p.vals <- (rr2 - rr1 + 1) / (n.perm.pruning+1)
     rm(rr1, rr2)
     gc()
     
-    # if equal highest rank, keep pathway with most genes
     
-    # JD I would suggest to keep the smallest pathway to avoid
+    # if equal highest rank, keep pathway with most genes
+    # JD: I would suggest to keep the smallest pathway to avoid
     # removing many genes from next pruning step
     # you want to keep the functional unit that is causing the signal
     # not the large set that contains this unit
