@@ -831,7 +831,11 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                                    chr.ord.now=cob.now.i, 
                                                    rot.now=rot.now.i), 
                                       ncol=perm.block.size)
-          failed.tests <- failed.tests + rowSums(score.mat > c(m.obs))
+          # JD: should be >=
+          # p value: what is the chance to find a value equal or more 
+          # extreme?
+          failed.tests <- failed.tests + rowSums(score.mat >= c(m.obs)) 
+          # failed.tests <- failed.tests + rowSums(score.mat > c(m.obs))
         }
       } else { # standard permutations
         dqset.seed(perm.mat[l])
@@ -844,7 +848,11 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
         } else { # estimate p values
           score.mat <- PxG %*% matrix(obj.info$objStat[PRM.pos.temp], 
                                       ncol=perm.block.size)
-          failed.tests <- failed.tests + rowSums(score.mat > c(m.obs)) 
+          # JD: should be >=
+          # p value: what is the chance to find a value equal or more 
+          # extreme?
+          failed.tests <- failed.tests + rowSums(score.mat >= c(m.obs)) 
+          # failed.tests <- failed.tests + rowSums(score.mat > c(m.obs)) 
         }
         rm(PRM.pos.temp) # clean up
         gc()
@@ -867,14 +875,33 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                         ncol=n.perm.pruning))@x, 
                         ncol=n.perm.pruning)
   
-    #determine top gene sets for pruning step
-    rr1 <- matrixStats::rowRanks(-m.obs)
-    rr2 <- matrixStats::rowRanks(cbind(-m.obs, -score.mat))[, 1:(n.FDR+1)]
-    p.vals <- (rr2 - rr1 + 1) / (n.perm.pruning+1)
+    # determine top gene sets for pruning step
+    # JD: set ties.method to "max", is default now but can change in future
+    # JD: find out if numbers are still  correct with ties
+    # or is this not important, because p-vals will be more precise
+    # in next steps?
+    rr1 <- matrixStats::rowRanks(-m.obs, ties.method = "max")
+    rr2 <- matrixStats::rowRanks(cbind(-m.obs, -score.mat), 
+                                 ties.method = "max")[, 1:(n.FDR+1)]
+    # JD: I think this should be:
+    p.vals <- (rr2 - rr1 + 2) / (n.perm.pruning+1)
+    # p.vals <- (rr2 - rr1 + 1) / (n.perm.pruning+1)
     rm(rr1, rr2)
     gc()
     
-    #if equal highest rank, keep pathway with most genes
+    # if equal highest rank, keep pathway with most genes
+    
+    # JD I would suggest to keep the smallest pathway to avoid
+    # removing many genes from next pruning step
+    # you want to keep the functional unit that is causing the signal
+    # not the large set that contains this unit
+    # Compare to topgo: it starts with the leaves and moves up the parents
+    
+    # JD: ties are very likely with a low value of n.perm.pruning, 
+    # but it matters a lot if a gene set has rank 1 or 2 in an iteration
+    # especially when they have some overlap, because the rank 2 set will
+    # likely score much lower after removing the rank 1 genes
+    
     min.p <- matrixStats::colMins(p.vals)
     top.sets <- foreach(i=1:length(min.p), .combine=c) %do% {
       pk <- which(p.vals[, i] == min.p[i])
@@ -948,20 +975,25 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
         
         set.obj.dt <- SP$so.now[setID==ts.now, .(setID, objID, RANK=1)]
         
-        while(set.n.remaining>1 & I<n.pruned.sets){ # iterate until criteria not met
+        # iterate until criteria not met
+        while(set.n.remaining>1 & I<n.pruned.sets){ 
           I=I+1 # update iteration counter
           
-          #create new PxG matrix removing unused genes
+          # create new PxG matrix removing unused genes
+          # JD: would the following work as well (but slower?)
+          #PxG.now.test <- PxG[,-SP$obj.out]
           PxG.now <- PxG %*% Matrix::Diagonal(n=n.genes, x=1L)[, -SP$obj.out]
-          #create new observed scores
+          # create new observed scores
           m.obs.now <- PxG.now %*% SS[-SP$obj.out, f]
           
-          #generate updated set scores
+          # generate updated set scores
           PRM.now <- PRM[!(PRM.pos %in% SP$obj.out)]
           score.mat.now <- PxG.now %*% matrix(PRM.now, nrow=SP$obj.n.remaining)
           
-          #determine top path and update top set datatable
-          p.now <- (rowSums(score.mat.now > m.obs.now@x)+1) / (n.perm.pruning+1)
+          # determine top path and update top set datatable
+          # JD: must be:
+          p.now <- (rowSums(score.mat.now>=m.obs.now@x)+1) / (n.perm.pruning+1)
+          # p.now <- (rowSums(score.mat.now > m.obs.now@x)+1) / (n.perm.pruning+1)
           p.rank <- rank(p.now, ties.method="average")
           ts.now <- setdiff(which(p.rank == min(p.rank[-SP$set.out])), 
                             SP$set.out)
@@ -1104,12 +1136,14 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
               }
               
               sc.m <- PxG.now %*% matrix(PRM, ncol=perm.block.size)
-              rowSums(m.obs.now < sc.m)
+              # JD: should be:
+              rowSums(m.obs.now <= sc.m)
+              # rowSums(m.obs.now < sc.m)
             }
-            #input p-values
+            # input p-values
             set.info.now[, P.full.null:=(score.mat+1)/(n.perm.p+1)] 
             set.info.now[, setID.now:=NULL]
-            #set.obj.now[, setID.now:=NULL]
+            # set.obj.now[, setID.now:=NULL]
             
             #update user
             prog(sprintf("STEP=%i", z))
@@ -1220,8 +1254,10 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                             nrow=n.genes.now))
               }
               
-              #calculate p-values
-              p.now <- (sum(si.now$setScore.pruned < score.mat)+1) / (n.perm.p+1)
+              # calculate p-values
+              # JD: < should be <=
+              p.now <- (sum(si.now$setScore.pruned<=score.mat)+1) / (n.perm.p+1)
+              # p.now <- (sum(si.now$setScore.pruned<score.mat)+1) / (n.perm.p+1)
               
               #update scores
               si.now[, P.pruned.null:=p.now]
