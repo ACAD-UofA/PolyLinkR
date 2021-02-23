@@ -820,9 +820,10 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
         rot.now.i <- perm.mat$ROT[rot.now[1]:rot.now[2]]
         cob.now.i <- perm.mat$CHR.ORD[cob.now[1]:cob.now[2]]
         if(prune){ # keep gene positions for pruning step
+          # permuted gene positions
           PRM.pos[[l]] <- permute.data(pos.list, rot.list,
                                        chr.ord.now=cob.now.i, 
-                                       rot.now=rot.now.i) # permuted gene positions
+                                       rot.now=rot.now.i) 
           PRM[[l]] <- permute.data(score.list, rot.list,
                                    chr.ord.now=cob.now.i, 
                                    rot.now=rot.now.i)
@@ -975,8 +976,8 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
           I=I+1 # update iteration counter
           
           # create new PxG matrix removing unused genes
-          # JD: would the following work as well (but slower?)
-          #PxG.now.test <- PxG[,-SP$obj.out]
+          # JD: would the following work as well?
+          #PxG.now <- PxG[,-SP$obj.out]
           PxG.now <- PxG %*% Matrix::Diagonal(n=n.genes, x=1L)[, -SP$obj.out]
           # create new observed scores
           m.obs.now <- PxG.now %*% SS[-SP$obj.out, f]
@@ -1245,7 +1246,6 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                                             nrow=npm), na.rm=T)
               } else { 
                 # using standard permutations
-                # JD are the correct genes removed??
                 if(z==1){
                   dqset.seed(perm.mat[1]) # reuse first random seed
                 }
