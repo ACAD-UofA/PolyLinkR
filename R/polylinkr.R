@@ -1106,11 +1106,14 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
             set.info.now[, setID.now:=paste0(REP, ".", RANK)] 
             ord <- set.info.now[order(REP, RANK), unique(setID.now)]
             set.info.now[, setID.now:=as.integer(factor(setID.now, levels=ord))]
-            set.obj.now <- merge(set.obj.now, set.info.now[, .(REP, RANK, setID.now)], 
+            set.obj.now <- merge(set.obj.now, set.info.now[, .(REP, RANK, 
+                                                               setID.now)], 
                                  by=c("REP", "RANK"))
+            # JD: wouldn't n.sets.now <- length(ord) give the same outcome?
             n.sets.now <- set.info.now[, uniqueN(setID.now)]
             
-            PxG.now <- sparseMatrix(i=set.obj.now$setID.now, j=set.obj.now$objID,
+            PxG.now <- sparseMatrix(i=set.obj.now$setID.now, 
+                                    j=set.obj.now$objID,
                                     x=1L, dims=c(n.sets.now, n.genes))
             
             #---------------------------------#
@@ -1235,14 +1238,17 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                 cl.mat <- colCumsums(cl.mat)[-nrow(cl.mat), ]
                 pos.mat <- pl.mat + cl.mat 
                 
-                #generate random rotations
+                # generate random rotations
                 npm <- nrow(pos.mat)
                 PRM.pos.temp <- (pos.mat - matrix(rep(perm.mat$ROT-1, npm), 
-                                                  nrow=npm, byrow=T)) %% n.genes.remaining
+                                                  nrow=npm, 
+                                                  byrow=T)) %% n.genes.remaining
                 PRM.pos.temp[PRM.pos.temp==0] <- n.genes.remaining
                 score.mat <- colSums(matrix(scores.now[PRM.pos.temp], 
                                             nrow=npm), na.rm=T)
-              }else{ # using standard permutations
+              } else { 
+                # using standard permutations
+                # JD are the correct genes removed??
                 if(z==1){
                   dqset.seed(perm.mat[1]) # reuse first random seed
                 }
@@ -1486,7 +1492,7 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
                           n.cores="max"){
   
   #------------------------------------------------------------------#
-  ##set up for parallize processing
+  ## set up for parallelised processing
   #------------------------------------------------------------------#
   
   library(doFuture)
