@@ -133,15 +133,21 @@ read.setobj.tables <- function(in.path="./", set.info=NULL,
   # on different chromosomes now
   #obj.info[, chr:=as.integer(factor(sort(chr)))]
   # should be:
-  obj.info[order(chr.orig), chr:=as.integer(factor(chr.orig))]
+  obj.info[, chr:=as.integer(factor(chr.orig))]
   
   # Reorder gene IDs
   obj.info[, objID.orig:=objID]
   obj.info[order(chr, startpos, endpos, objName), objID:=1:.N]
+  # JD: change objID to integer
+  # necessary when original objID was string
+  obj.info[, objID:=as.integer(objID)]
   
   # Reorder set IDs
   set.info[, setID.orig:=setID]
   set.info[order(setName), setID:=1:.N]
+  # JD: change setID to integer
+  # necessary when original setID was string
+  set.info[, setID:=as.integer(setID)]
   
   # Regenerate set x object table
   set.obj.tmp <- data.table::merge.data.table(set.obj[, .(setID.orig=setID, 
