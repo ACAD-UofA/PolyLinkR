@@ -1488,7 +1488,13 @@ cluster.genes <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
     if(recomb.rate.path=="Bherer2017"){
       load("~/Dropbox/R_projects/PolyLinkR/PolyLink_extension/human_sexavg_RR_Bherer2017.rda") ##NOTE THAT THIS PATH WILL NEED TO BE UPDATED FOR PACKAGE
     }else{
-      rr.dt <- data.table::fread(recomb.rate.path)
+      file.split<-strsplit(recomb.rate.path, "\\.")[[1]]
+      if (file.split[length(file.split)]=="rda") {
+        load(recomb.rate.path)
+      } else {
+        rr.dt <- data.table::fread(recomb.rate.path)
+      }
+      
     }
     unq.chr <- sort(rr.dt[, unique(chr)])
     gene.map <- foreach::foreach(chr.now=unq.chr, .combine=rbind) %do% { 
