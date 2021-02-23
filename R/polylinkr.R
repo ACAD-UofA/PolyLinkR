@@ -1677,16 +1677,21 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
                                        by="setName")
     pl.cl <- data.table::merge.data.table(pl, cl.g$set.info, by="setName")
     
-    pl.cl[, clust.bin:=cut(setClustering, quantile(setClustering, bin.quants), 
+    # JD: added unique, otherwise error when break are not unique
+    pl.cl[, clust.bin:=cut(setClustering, 
+                           unique(quantile(setClustering, bin.quants)), 
                            include.lowest=T)]
-    pl.cl[, `Q < 0.05`:="Random not sig.\nLinked not sig."]
-    pl.cl[Q.random<0.05 & Q.linked>=0.05,
-          `Q < 0.05`:="Random sig.\nLinked not sig."]
-    pl.cl[Q.random>=0.05 & Q.linked<0.05,
-          `Q < 0.05`:="Random not sig.\nLinked sig."]
-    pl.cl[Q.random<0.05 & Q.linked<0.05,
-          `Q < 0.05`:="Random sig.\nLinked sig."]
-    pl.cl[, `Q < 0.05`:=factor(`Q < 0.05`,
+    
+    # JD: added functionality to use q.sig
+    qcolname<-paste0("Q < ", q.sig)
+    pl.cl[, paste0("Q < ", q.sig):="Random not sig.\nLinked not sig."]
+    pl.cl[Q.random<q.sig & Q.linked>=q.sig,
+          (qcolname):="Random sig.\nLinked not sig."]
+    pl.cl[Q.random>=q.sig & Q.linked<q.sig,
+          (qcolname):="Random not sig.\nLinked sig."]
+    pl.cl[Q.random<q.sig & Q.linked<q.sig,
+          (qcolname):="Random sig.\nLinked sig."]
+    pl.cl[, (qcolname):=factor(get(qcolname),
                                levels=c("Random not sig.\nLinked not sig.",
                                         "Random sig.\nLinked not sig.",
                                         "Random not sig.\nLinked sig.",
@@ -1700,7 +1705,7 @@ compare.clustering <- function(set.obj, set.info, obj.info, use.recomb.rate=F,
     
     #scatter plots
     ggplot(pl.cl, aes(x=P.random, y=P.linked)) +
-      geom_point(aes(col=`Q < 0.05`), alpha=0.8) +
+      geom_point(aes(col=.data[[qcolname]]), alpha=0.8) +
       geom_abline(size=0.5) + 
       geom_smooth(size=0.5) +
       scale_y_log10(limits=c(min.x.y, 1)) +
