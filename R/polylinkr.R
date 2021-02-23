@@ -1001,7 +1001,9 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
           if(length(ts.now)>1){
             top.sets.now <- SP$so.now[setID %in% ts.now, .(N=sum(KEEP)), 
                                       by=setID]
-            ts.now <- top.sets.now[N==max(N), setID][1]
+            # JD: I think we should take smallest set
+            ts.now <- top.sets.now[N==min(N), setID][1]
+            # ts.now <- top.sets.now[N==max(N), setID][1]
           }
           # update top sets and their genes
           tp.dt.now <- data.table::data.table(REP=f, RANK=I, 
