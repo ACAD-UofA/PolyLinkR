@@ -473,7 +473,10 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
   }
   
   # estimate pi0 using histogram method
-  pi0.estimator <- function(pp, n.EXP, n.OBS, n.bins, tolerance=10^-4){
+  # JD: added n.OBS.tot parameter, pi0 estimation is calculated 
+  # with OBS-EXP/n.OBS.tot!
+  pi0.estimator <- function(pp, n.EXP, n.OBS, n.bins, n.OBS.tot=n.OBS,
+                            tolerance=10^-4){
     #create percentile bins
     p.bins <- pp[, seq(min(P), max(P), length.out=n.bins+1)] 
     pp[, P.bin:=cut(P, p.bins, include.lowest=T)]
@@ -493,7 +496,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
       k=0; TT=TRUE
       while(isTRUE(TT)){ #run to convergence
         k=k+1
-        true.pos <- fdr.dt[1:obs.excess, sum(OBS-EXP.scaled)/n.OBS]
+        true.pos <- fdr.dt[1:obs.excess, sum(OBS-EXP.scaled)/n.OBS.tot]
         pi0 <- 1 - true.pos
         fdr.dt[, EXP.scaled:=pi0*EXP.scaled]
         obs.excess <- fdr.dt[, which(cumsum(OBS < EXP.scaled)==1)-1][1]
@@ -1314,7 +1317,9 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
     # n.OBS <- n.FDR # total number of observed hypothesis tests
     n.OBS <- set.info.temp[, .N]
     # bin p values; number of tested gene sets up to maximum 50 bins
-    n.bins <- min(50, n.OBS) 
+    # JD: bins should contain enough observed counts
+    n.bins <- min(50, floor(n.OBS/10))
+    #n.bins <- min(50, n.OBS) 
     
     # force pi0 == 1 if any of the following conditions is not observed:
     # 1. the total number of evaluated FDR gene sets exceeds 200
@@ -1327,13 +1332,13 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
                       "(equivalent to Holm method)")
       warning(e.mss, immediate.=T)
     }
-  
+
     pi0.full <- NA; pi0.pruned <- NA
     if(precise.p.method %in% c("full", "both") & n.perm.p > n.perm.pruning){
       p.vals.full <- data.table::data.table(p.vals, P=p.vals$P.full.null)
       if(est.pi0){
-        pi0.full <- pi0.estimator(pp=p.vals.full, n.OBS=n.OBS, n.EXP=n.EXP, 
-                                  n.bins=n.bins)
+        pi0.full <- pi0.estimator(pp=p.vals.full, n.EXP=n.EXP, n.OBS=n.OBS, 
+                                  n.bins=n.bins, n.OBS.tot = n.sets)
       }else{
         pi0.full <- 1
       }
@@ -1348,7 +1353,7 @@ polylinkr <- function(set.info, obj.info, set.obj, n.cores="default", linked=T,
       p.vals.pruned <- data.table::data.table(p.vals, P=p.vals$P.pruned.null)
       if(est.pi0){
         pi0.pruned <- pi0.estimator(pp=p.vals.pruned, n.OBS=n.OBS, 
-                                    n.EXP=n.EXP, n.bins=n.bins)
+                                    n.EXP=n.EXP, n.bins=n.bins, n.OBS.tot = n.sets)
       }else{
         pi0.pruned <- 1
       }
