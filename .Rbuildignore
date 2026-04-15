@@ -10,3 +10,6 @@
 ^README\.Rmd$
 ^\.lintr$
 ^new_code$
+^docs$
+^\.cursorrules$
+^\.travis.yml$
