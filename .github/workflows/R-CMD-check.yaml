@@ -29,6 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # renv/renv.lock trigger embedded-pak bootstrap in setup-r-dependencies, which
+      # compiles curl and often fails on ubuntu-latest; CI installs from DESCRIPTION via RSPM.
+      - name: Omit renv for CI dependency resolution
+        run: rm -rf renv renv.lock
+
       - uses: r-lib/actions/setup-pandoc@v2
 
       - uses: r-lib/actions/setup-r@v2
