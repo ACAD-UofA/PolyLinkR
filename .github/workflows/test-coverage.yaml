@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      RENV_CONFIG_ACTIVE: FALSE  # Disable renv in CI
 
     steps:
       - uses: actions/checkout@v4
