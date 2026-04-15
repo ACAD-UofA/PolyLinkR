@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Remove renv activation for CI
+        shell: bash
         run: rm -f .Rprofile
 
       - uses: r-lib/actions/setup-pandoc@v2
