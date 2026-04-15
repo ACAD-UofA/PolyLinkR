@@ -1,0 +1,3 @@
+setID	objID
+s1	g1
+s1	g2

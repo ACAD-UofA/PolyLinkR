@@ -5,7 +5,7 @@ This file is the **authoritative behaviour contract** for automated contributors
 ## Read first
 
 1. [`CONTRIBUTING.md`](CONTRIBUTING.md) — branches (`dev` as integration), **renv** + **rig**, Australian English, algorithm scope, and **release / versioning** policy (R Packages lifecycle).
-2. [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) — required PR sections and the **“If you are an AI agent”** checklist (same rules as here in short form).
+2. [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) — required PR sections and the **AI contributors / “If you are an AI agent”** checklist (interim standard until the organisation’s verbatim block is pasted there).
 3. [`.hippo/index.json`](.hippo/index.json) — durable coordinator notes and policies (for example **renv + pak** in CI).
 
 ## Operating rules
@@ -19,4 +19,5 @@ This file is the **authoritative behaviour contract** for automated contributors
 ## pkgdown and CRAN
 
 - After changing exports or user-facing documentation, regenerate `NAMESPACE` / `man/` and consider `pkgdown::build_site()` for layout issues.
+- The public site is **[https://acad-uofa.github.io/PolyLinkR/](https://acad-uofa.github.io/PolyLinkR/)**; keep `DESCRIPTION` and `_pkgdown.yml` `url` fields aligned with whatever GitHub Pages serves.
 - Before claiming CRAN readiness, walk the **CRAN extra checks** skill at `.agents/skills/cran-extrachecks/SKILL.md` and update `cran-comments.md` when submitting.

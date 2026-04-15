@@ -1,0 +1,27 @@
+---
+title: "Relationship to legacy PolyLink and PolyLinkR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Relationship to legacy PolyLink and PolyLinkR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Context
+
+Earlier **PolyLink** and **PolyLinkR** releases on GitHub introduced related file types and biological narratives around pathway enrichment and polygenic signals. This **polylinkR** line keeps the scientific idea—gene-set scores with linkage-aware nulls—whilst exposing a modular `plR_*` pipeline and modern packaging (tests, **pkgdown**, **renv**).
+
+## What changed in the public API
+
+Legacy entry points (for example monolithic driver functions) are superseded by `plR_read()`, `plR_permute()`, `plR_rescale()`, and `plR_prune()`. Review `NEWS.md` and GitHub pull requests when porting old scripts.
+
+## References
+
+- PolyLinkR repository: <https://github.com/ACAD-UofA/PolyLinkR>
+- PolyLink repository: <https://github.com/ACAD-UofA/PolyLink>
+
+This vignette is informative only; it does not change algorithmic defaults in the code.

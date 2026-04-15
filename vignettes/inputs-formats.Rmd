@@ -1,0 +1,36 @@
+---
+title: "Input file formats and column conventions"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Input file formats and column conventions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Overview
+
+polylinkR expects three primary tables—**object** (gene-level), **set** (pathway-level), and **set–object** membership—plus optional covariate and recombination-rate files. Column names may use several capitalisation and separator styles; `plR_read()` canonicalises them to `objID`, `setID`, `objStat`, `chr`, `startpos`, `endpos`, and related fields.
+
+## Required columns (summary)
+
+See `?plR_read` for the authoritative list. In short:
+
+- **obj.info**: unique `objID`; gene scores as `objStat` when you are not supplying `var.info`; genomic coordinates (`chr`, `startpos`, `endpos`) when you need positional analyses downstream.
+- **set.info**: unique `setID` for each pathway or gene set.
+- **set.obj**: pairs of `setID` and `objID` linking genes to sets.
+
+## Tiny example on disk
+
+The installed package includes a tab-separated example under `system.file("extdata", "tiny_polylinkR", package = "polylinkR")` suitable for quick checks (two genes, one set).
+
+```{r, eval = FALSE}
+library(polylinkR)
+d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
+plR_read(input.path = d, verbose = FALSE)
+```
+
+This vignette is under active development; cross-check column requirements before publishing analyses.

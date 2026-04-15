@@ -13,3 +13,10 @@
 
 - User-facing prose follows **Australian English** spelling where practical; function names remain stable.
 - **Active development** disclaimers appear in `DESCRIPTION`, the pkgdown home blurb, and the README.
+
+### Documentation and tests (follow-up)
+
+- Added **`inst/extdata/tiny_polylinkR/`** for a fast `plR_read()` smoke test and documented it in the inputs vignette.
+- New tests: `.path_check`, `.par_params`, `.get_quant` (when **tdigest** is available), and `plR_read()` on the tiny fixture.
+- Additional vignettes: input formats, parallel execution and seeds, and relationship to legacy PolyLink / PolyLinkR.
+- pkgdown reference index now groups **S3** print/summary helpers.

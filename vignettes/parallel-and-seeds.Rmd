@@ -1,0 +1,29 @@
+---
+title: "Parallel execution and random seeds"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Parallel execution and random seeds}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Parallel plans
+
+Downstream steps use **future** for parallel work. Arguments such as `n.cores` and `fut.plan` are validated in `plR_permute()`, `plR_rescale()`, and `plR_prune()` (see each help page). On machines without multicore support, polylinkR may fall back from `multicore` to `multisession` with a warning.
+
+## Random seeds
+
+Permutation-based inference depends on reproducible randomness. Use the seed arguments documented on `?plR_permute` (and related pages) and set a **future** plan before running parallel jobs if you need deterministic behaviour across sessions.
+
+```{r, eval = FALSE}
+library(future)
+plan(multisession, workers = 2)
+# library(polylinkR)
+# plR_permute(..., user.seed = 42L)
+```
+
+Heavy permutation settings should be avoided on continuous integration hosts; use `skip_on_ci()` patterns in package tests or reduced `n.perm` only for local experimentation.

@@ -5,7 +5,11 @@ Edit this file before a CRAN submission and keep a copy for the submission email
 ## R CMD check environments
 
 - Local: R release and R devel with `devtools::check()` (or `R CMD check`) after `renv::restore()`.
-- CI: GitHub Actions `R-CMD-check` workflow (Ubuntu, R release and R devel) with `r-lib/actions/setup-renv`.
+- CI: GitHub Actions `R-CMD-check` workflow on Ubuntu — **R release** job uses `r-lib/actions/setup-renv`; **R devel** job uses `setup-r-dependencies` from `DESCRIPTION` (lockfile is pinned to one R series).
+
+## Published documentation
+
+- pkgdown site: <https://acad-uofa.github.io/PolyLinkR/>
 
 ## CRAN policies and extras
 

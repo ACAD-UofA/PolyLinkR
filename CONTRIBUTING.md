@@ -39,7 +39,7 @@ We follow the lifecycle guidance in [**R Packages** (2e), Chapter 21](https://r-
 ## pkgdown
 
 - Local preview: `pkgdown::build_site()`.
-- The site deploys from the **`pkgdown` GitHub Actions workflow** to the `gh-pages` branch once enabled in the repository settings. The canonical site URL is recorded in `DESCRIPTION` and `_pkgdown.yml`.
+- The published manual lives at **[https://acad-uofa.github.io/PolyLinkR/](https://acad-uofa.github.io/PolyLinkR/)** (GitHub Pages from `gh-pages`, built by the **`pkgdown` GitHub Actions workflow**). The same URL is listed in `DESCRIPTION` and `_pkgdown.yml`.
 
 ## Record keeping
 

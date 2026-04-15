@@ -9,19 +9,19 @@
           "id": "WS-A",
           "owner": "main",
           "scope": "NAMESPACE/man via roxygen2; DESCRIPTION tweaks (e.g. pak); R CMD check unblock",
-          "status": "in_progress"
+          "status": "completed"
         },
         {
           "id": "WS-B",
           "owner": "subagent",
           "scope": "tests/testthat + tests/testthat.R — internal helpers and smoke tests",
-          "status": "delegated"
+          "status": "completed"
         },
         {
           "id": "WS-C",
           "owner": "subagent",
           "scope": ".github/workflows (r-lib examples), CONTRIBUTING, AGENTS, _pkgdown.yml stub",
-          "status": "delegated"
+          "status": "completed"
         }
       ],
       "policies": {
@@ -31,7 +31,9 @@
         "git_flow": "Upstream integration branch is dev (not develop). Branch feature/* from dev, open PRs into dev with gh pr create --base dev. Use release/* only when cutting a release to master.",
         "open_pr": "https://github.com/ACAD-UofA/PolyLinkR/pull/2 (feature/cran-modular-plr-on-dev -> dev)",
         "releases": "Version bumps, NEWS entries, and GitHub tags only for notable iterations per CONTRIBUTING (R Packages lifecycle). Day-to-day merges to dev do not require a version change.",
-        "pkgdown_url": "https://acad-uofa.github.io/PolyLinkR/ — update DESCRIPTION URL if organisation changes Pages host."
+        "pkgdown_url": "https://acad-uofa.github.io/PolyLinkR/ — update DESCRIPTION URL if organisation changes Pages host.",
+        "github_pages": "Enabled (2026); site serves from gh-pages per pkgdown workflow.",
+        "agent_followup": "Follow-up: inst/extdata/tiny_polylinkR + expanded tests; vignettes inputs-formats, parallel-and-seeds, legacy-polylinkr; _pkgdown reference S3 group."
       }
     }
   },

@@ -34,9 +34,17 @@ reference:
       - plR_permute
       - plR_rescale
       - plR_prune
+  - title: S3 helpers
+    desc: Inspect `plR` objects
+    contents:
+      - print.plR
+      - summary.plR
 
 articles:
   - title: Guides
     navbar: ~
     contents:
       - polylinkR
+      - inputs-formats
+      - parallel-and-seeds
+      - legacy-polylinkr

@@ -1,5 +1,7 @@
 polylinkR
 PolyLinkR
+PolyLink
+PolySel
 ACAD
 preprocess
 rescale
@@ -8,5 +10,7 @@ covariate
 covariates
 parallelisation
 summarise
+polygenic
 gene set
 gene sets
+Organisation

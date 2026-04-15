@@ -28,7 +28,11 @@
 
 ---
 
-## If you are an AI agent
+## AI contributors
+
+### If you are an AI agent
+
+The checklist below is the **repository interim standard** until the organisation pastes its **canonical verbatim** “If You Are an AI Agent” block here (same heading). When that block exists, it replaces the bullets underneath; until then, follow both this checklist and `AGENTS.md`.
 
 You must not fabricate `R CMD check` results, command output, or continuous integration logs. When you change R code or documentation, run the relevant checks locally or wait for GitHub Actions and report the actual outcome with enough detail for a human to reproduce it.
 
