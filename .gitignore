@@ -8,6 +8,7 @@
 docs/
 pkgdown/
 inst/doc
+
 # renv
 renv/library/
 renv/python/
@@ -18,4 +19,10 @@ renv/staging/
 cran-comments.md.bak
 skills-lock.json
 node_modules/
+package-lock.json
+package.json
+
+# project memory: Hippo
 .hippo/
+.cursorrules
+
