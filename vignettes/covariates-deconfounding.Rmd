@@ -1,0 +1,394 @@
+---
+title: "Controlling for Confounding Variables in Polygenic Linkage Analysis"
+output: 
+  rmarkdown::html_vignette:
+    fig_caption: yes
+vignette: >
+  %\VignetteIndexEntry{Controlling for Confounding Variables in Polygenic Linkage Analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+```{r setup}
+library(polylinkR)
+library(data.table)
+```
+
+## 1. Why Control for Confounders in Polygenic Linkage Analysis
+
+Confounding variables are factors that influence both the genetic architecture and the trait being studied, potentially leading to spurious associations. In polygenic pathway enrichment analysis, common confounders include:
+
+- **Age**: Gene expression and methylation patterns change with age
+- **Sex**: X-chromosome inactivation and sex-specific genetic effects
+- **Ancestry**: Population stratification can create LD patterns unrelated to trait biology
+
+Without accounting for these factors, pathway enrichment tests may:
+
+1. **Inflate false positive rates**: Genes correlated with confounders appear enriched
+2. **Mask true signals**: Real pathway associations may be obscured by confounder-induced noise
+3. **Produce irreproducible results**: Confounder-driven associations rarely replicate
+
+polylinkR addresses this through a **local quadratic regression** approach that:
+
+- Calculates Mahalanobis distances between genes in covariate space
+- Applies kernel weighting to identify genetically proximal genes with similar covariate profiles
+- Regresses out confounder effects while preserving biological signal
+
+## 2. Creating Covariate Dataframes with Sample IDs Matching Genetic Data
+
+The `Anatolia_EF_CLR` dataset contains gene-level statistics but no covariate columns. For this vignette, we'll create synthetic confounders that simulate real-world scenarios.
+
+First, let's examine the structure of the data:
+
+```{r examine-data}
+# Load the example data
+data(Anatolia_EF_CLR)
+
+# Check the structure
+str(Anatolia_EF_CLR)
+head(Anatolia_EF_CLR)
+```
+
+Key columns for covariate integration:
+
+- `objID`: Unique gene identifier (must match between obj.info and covariates)
+- `objStat`: Gene-level test statistic (the score to be deconfounded)
+- `chr`, `startpos`, `endpos`: Genomic coordinates (required for deconfounding)
+
+Now, let's create synthetic covariates that simulate age, sex, and ancestry effects:
+
+```{r create-covariates}
+# Create a copy of the data for modification
+obj_info <- copy(Anatolia_EF_CLR)
+
+# Set seed for reproducibility
+set.seed(42)
+n_genes <- nrow(obj_info)
+
+# Cov1: Age-related methylation proxy
+# Genes on certain chromosomes tend to have age-related expression changes
+obj_info[, Cov1 := rnorm(.N, mean = 0, sd = 1)]
+# Add chromosome-specific patterns (simulating age effects)
+obj_info[chr %in% c(1, 3, 5), Cov1 := Cov1 + 0.5]
+obj_info[chr %in% c(2, 4, 6), Cov1 := Cov1 - 0.3]
+
+# Cov2: Sex chromosome dosage
+# X chromosome genes have different expression patterns
+obj_info[, Cov2 := rnorm(.N, mean = 0, sd = 1)]
+obj_info[chr == 23, Cov2 := Cov2 + 1.5]  # X chromosome enrichment
+obj_info[chr == 24, Cov2 := Cov2 - 1.0]  # Y chromosome depletion
+
+# Cov3: Ancestry principal component proxy
+# Spatial autocorrelation simulating population structure
+obj_info[, gene_mid := (startpos + endpos) / 2]
+obj_info[, Cov3 := rnorm(.N, mean = 0, sd = 1)]
+# Create regional patterns
+for (chrom in unique(obj_info$chr)) {
+  chr_genes <- which(obj_info$chr == chrom)
+  if (length(chr_genes) > 10) {
+    # Smooth spatial pattern
+    positions <- obj_info$gene_mid[chr_genes]
+    sorted_idx <- order(positions)
+    trend <- sin(positions[sorted_idx] / max(positions) * 2 * pi)
+    obj_info$Cov3[chr_genes[sorted_idx]] <- obj_info$Cov3[chr_genes[sorted_idx]] + trend
+  }
+}
+
+# Remove temporary column
+obj_info[, gene_mid := NULL]
+
+# Display the new covariate columns
+head(obj_info[, c("objID", "objName", "Cov1", "Cov2", "Cov3")])
+
+# Summary statistics
+summary(obj_info[, .(Cov1, Cov2, Cov3)])
+```
+
+Now let's simulate how these covariates might confound the gene scores:
+
+```{r simulate-confounding}
+# Add confounding effect to gene scores
+# In real data, these effects are already present in the objStat values
+# Here we demonstrate by adding synthetic confounding
+
+obj_info[, objStat_original := objStat]
+
+# Add covariate effects to simulate confounded data
+obj_info[, objStat := objStat + 
+           0.3 * Cov1 +    # Age effect
+           0.2 * Cov2 +    # Sex effect  
+           0.25 * Cov3]    # Ancestry effect
+
+# Check correlation between covariates and scores
+print("Correlations with confounded scores:")
+cor_matrix <- cor(obj_info[, .(objStat, Cov1, Cov2, Cov3)])
+print(cor_matrix)
+```
+
+## 3. Using the `covar` Parameter in `plR_permute()` and `plR_rescale()`
+
+In polylinkR, covariates are detected automatically from columns with the `Cov` prefix in the `obj.info` file. The deconfounding process happens in `plR_permute()` through these key parameters:
+
+- `md.meth`: Mahalanobis distance method (`"robust"` for rank-based, `"raw"` for Pearson)
+- `kern.bound`: Genomic distance flanking region to exclude from kernel weights
+- `kern.func`: Kernel function (`"normal"`, `"exponential"`, or `"inverse"`)
+- `kern.scale`: Scaling parameter for kernel decay
+- `kern.wt.max`: Maximum weight for any single gene
+
+Let's prepare the polylinkR input with the covariate-enriched `obj.info`:
+
+```{r prepare-input}
+# Load additional required data
+data(PolyLinkR_SetInfo)
+data(PolyLinkR_SetObj)
+
+# Create temporary directory for input files
+temp_dir <- tempfile("polylinkR_covar_demo")
+dir.create(temp_dir, recursive = TRUE)
+
+# Write files with covariate columns
+fwrite(obj_info, file.path(temp_dir, "ObjInfo.txt"), sep = "\t")
+fwrite(PolyLinkR_SetInfo, file.path(temp_dir, "SetInfo.txt"), sep = "\t")
+fwrite(PolyLinkR_SetObj, file.path(temp_dir, "SetObj.txt"), sep = "\t")
+
+# Read the data into polylinkR
+plr_obj <- plR_read(
+  input.path = temp_dir,
+  verbose = TRUE
+)
+
+# Verify the object structure
+print(plr_obj)
+```
+
+## 4. Example with Synthetic Confounders on Anatolia_EF_CLR Data
+
+### 4.1 Running Analysis WITH Covariate Control
+
+```{r run-with-covar, eval=FALSE}
+# Run deconfounding and permutation with covariate control
+# Note: Using reduced permutations for demonstration (normally use 1e5 or more)
+
+plr_with_covar <- plR_permute(
+  plR.input = plr_obj,
+  permute = TRUE,
+  n.perm = 1e4,  # Reduced for demo; use 1e5+ for real analysis
+  n.boot = 10,   # Reduced for demo
+  md.meth = "robust",      # Use rank-based robust method
+  kern.bound = 1e5,        # 100kb flanking region
+  kern.func = "normal",    # Gaussian kernel
+  kern.scale = 2,          # Standard decay
+  kern.wt.max = 0.05,      # Max 5% weight for any gene
+  seed = 42,
+  verbose = TRUE,
+  n.cores = 1
+)
+```
+
+For this vignette, we'll demonstrate the setup:
+
+```{r setup-covar-run}
+# Check that covariates are properly detected
+obj_info_check <- copy(plr_obj$obj.info)
+
+# Identify covariate columns
+cov_names <- grep("^Cov[0-9]+$", names(obj_info_check), value = TRUE)
+cat("Detected covariate columns:", paste(cov_names, collapse = ", "), "\n")
+cat("Number of covariates:", length(cov_names), "\n")
+```
+
+### 4.2 Running Analysis WITHOUT Covariate Control
+
+To run without covariate control, simply exclude the `Cov` columns from `obj.info` or set `permute = FALSE` with covariates removed:
+
+```{r run-without-covar}
+# Create obj.info without covariate columns
+obj_info_no_covar <- obj_info[, .(objID, objStat = objStat_original, objName, 
+                                   GeneLength, chr, startpos, endpos)]
+
+# Write to temporary directory
+temp_dir2 <- tempfile("polylinkR_no_covar")
+dir.create(temp_dir2, recursive = TRUE)
+
+fwrite(obj_info_no_covar, file.path(temp_dir2, "ObjInfo.txt"), sep = "\t")
+fwrite(PolyLinkR_SetInfo, file.path(temp_dir2, "SetInfo.txt"), sep = "\t")
+fwrite(PolyLinkR_SetObj, file.path(temp_dir2, "SetObj.txt"), sep = "\t")
+
+# Read without covariates
+plr_no_covar <- plR_read(
+  input.path = temp_dir2,
+  verbose = TRUE
+)
+
+# Check that no covariates are detected
+cat("Covariate columns in no-covar object:", 
+    length(grep("^Cov[0-9]+$", names(plr_no_covar$obj.info))), "\n")
+```
+
+## 5. Interpreting Results With and Without Covariate Control
+
+When comparing results with and without covariate control, look for these patterns:
+
+### 5.1 Gene Score Changes
+
+After deconfounding, examine how gene scores changed:
+
+```{r compare-scores, eval=FALSE}
+# Extract deconfounded scores (would be available after running plR_permute)
+# deconfounded_scores <- plr_with_covar$obj.info$objStat_dc
+# original_scores <- plr_obj$obj.info$objStat
+
+# Plot comparison
+# plot(original_scores, deconfounded_scores, 
+#      xlab = "Original Scores", ylab = "Deconfounded Scores",
+#      main = "Impact of Covariate Adjustment")
+# abline(0, 1, col = "red", lty = 2)
+```
+
+### 5.2 Key Metrics to Compare
+
+| Metric | Without Covariates | With Covariates | Interpretation |
+|--------|-------------------|-----------------|----------------|
+| Pathway p-values | May be inflated | Generally more conservative | Confounders can create artificial enrichment |
+| Significant pathways | Potentially many false positives | Fewer but more reliable | Covariates reduce spurious associations |
+| Gene score variance | Higher | Reduced (confounder component removed) | Deconfounding removes systematic variation |
+
+### 5.3 Diagnostic Plots
+
+When running with `verbose = TRUE`, polylinkR generates diagnostic information about:
+
+1. **Covariate correlations**: How strongly each covariate correlates with gene scores
+2. **Mahalanobis distances**: Distribution of distances in covariate space
+3. **Kernel weights**: How genes are weighted in the local regression
+4. **Deconfounding statistics**: Model fit and residual patterns
+
+## 6. Best Practices for Selecting Covariates
+
+### 6.1 What to Include
+
+**Essential covariates:**
+- Age (continuous or binned)
+- Sex (binary or factor)
+- Ancestry principal components (typically PC1-PC5)
+- Technical factors (batch, platform, sequencing depth)
+
+**Optional covariates:**
+- Cell type proportions (for bulk tissue)
+- BMI, smoking status (if relevant to trait)
+- Sample collection time/season
+
+### 6.2 What to Avoid
+
+- **The trait of interest itself**: Never include the outcome variable as a covariate
+- **Mediators**: Variables on the causal pathway between genes and trait
+- **Colliders**: Variables influenced by both genes and trait
+- **Too many PCs**: Including >10 ancestry PCs often captures noise rather than structure
+
+### 6.3 Covariate Preprocessing
+
+```{r preprocess-covariates}
+# Example preprocessing pipeline
+preprocess_covariates <- function(cov_data) {
+  
+  # 1. Handle missing values
+  cov_data <- na.omit(cov_data)
+  
+  # 2. Standardize continuous covariates
+  cont_cols <- c("Age", "BMI", "PC1", "PC2", "PC3")
+  for (col in cont_cols) {
+    if (col %in% names(cov_data)) {
+      cov_data[[col]] <- scale(cov_data[[col]])[, 1]
+    }
+  }
+  
+  # 3. Encode categorical variables
+  if ("Sex" %in% names(cov_data)) {
+    cov_data$Sex <- as.numeric(factor(cov_data$Sex)) - 1  # 0/1 encoding
+  }
+  
+  # 4. Remove collinear covariates
+  cor_matrix <- cor(cov_data[, -1])  # Exclude ID column
+  high_cor <- which(abs(cor_matrix) > 0.9 & upper.tri(cor_matrix), arr.ind = TRUE)
+  if (nrow(high_cor) > 0) {
+    cat("Highly correlated covariate pairs detected:\n")
+    for (i in seq_len(nrow(high_cor))) {
+      cat(names(cov_data)[high_cor[i, 1] + 1], "~", 
+          names(cov_data)[high_cor[i, 2] + 1], "\n")
+    }
+  }
+  
+  return(cov_data)
+}
+```
+
+### 6.4 Naming Convention
+
+polylinkR automatically detects covariates using the pattern `Cov[0-9]+`. Ensure your covariate columns follow this naming scheme:
+
+```{r naming-convention}
+# Example: Proper naming for polylinkR
+obj_info_named <- data.table(
+  objID = 1:100,
+  objStat = rnorm(100),
+  Cov1 = rnorm(100),   # Age
+  Cov2 = rbinom(100, 1, 0.5),  # Sex
+  Cov3 = rnorm(100),   # PC1
+  Cov4 = rnorm(100),   # PC2
+  chr = sample(1:22, 100, replace = TRUE),
+  startpos = sample(1e6:1e8, 100),
+  endpos = sample(1e6:1e8, 100)
+)
+
+# Order doesn't matter, but the prefix must be exactly "Cov"
+head(obj_info_named)
+```
+
+### 6.5 Parameter Tuning Guidelines
+
+| Parameter | Default | When to Adjust | Conservative Setting |
+|-----------|---------|----------------|---------------------|
+| `md.meth` | `"robust"` | Use `"raw"` for normal-distributed covariates | `"robust"` (always recommended) |
+| `kern.bound` | 1e5 | Increase for gene-dense regions | 2e5 or higher |
+| `kern.scale` | 2 | Decrease for tighter local regression | 1 |
+| `kern.wt.max` | 0.05 | Decrease to limit influence of single genes | 0.02 or 0.01 |
+
+### 6.6 Validation Checklist
+
+Before trusting deconfounded results:
+
+- [ ] Covariate columns are correctly named (`Cov1`, `Cov2`, ...)
+- [ ] No missing values in covariate columns
+- [ ] Covariates correlate with raw gene scores (confounding exists)
+- [ ] After deconfounding, gene score ~ covariate correlations are reduced
+- [ ] Results are consistent across different random seeds
+- [ ] Biological pathways of interest remain significant (or become more significant)
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+
+# Clean up temporary directories
+unlink(temp_dir, recursive = TRUE)
+unlink(temp_dir2, recursive = TRUE)
+```
+
+## References
+
+1. **Population Stratification**: Price AL, et al. (2006) Principal components analysis corrects for stratification in genome-wide association studies. *Nature Genetics*.
+
+2. **Batch Effects**: Leek JT, et al. (2010) Tackling the widespread and critical impact of batch effects in high-throughput data. *Nature Reviews Genetics*.
+
+3. **Local Regression**: Cleveland WS (1979) Robust locally weighted regression and smoothing scatterplots. *Journal of the American Statistical Association*.
+
+4. **Mahalanobis Distance**: Mahalanobis PC (1936) On the generalised distance in statistics. *Proceedings of the National Institute of Sciences of India*.
