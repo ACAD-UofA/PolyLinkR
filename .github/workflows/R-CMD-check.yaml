@@ -21,33 +21,13 @@ jobs:
         with:
           r-version: 'release'
           use-public-rspm: true
-          
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libxml2-dev \
-            libharfbuzz-dev \
-            libfribidi-dev \
-            libfreetype6-dev \
-            libpng-dev \
-            libtiff5-dev \
-            libjpeg-dev \
-            libicu-dev \
-            libpcre2-dev \
-            libblas-dev \
-            liblapack-dev \
-            libgfortran-13-dev \
-            gfortran
       
-      - name: Install dependencies
-        run: |
-          Rscript -e 'install.packages("remotes")'
-          Rscript -e 'remotes::install_cran("rcmdcheck")'
-          Rscript -e 'remotes::install_deps(dependencies = TRUE)'
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
       
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true
+          error-on: '"error"'

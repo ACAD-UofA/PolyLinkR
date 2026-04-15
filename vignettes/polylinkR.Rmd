@@ -1,0 +1,124 @@
+---
+title: "Getting Started with polylinkR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with polylinkR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = TRUE  # This vignette contains runnable examples
+)
+```
+
+```{r setup}
+library(polylinkR)
+```
+
+## Overview
+
+**polylinkR** is an R package for gene-based pathway enrichment that accounts for linkage disequilibrium among loci. This vignette demonstrates the basic workflow using the included `tiny_polylinkR` example dataset.
+
+## The Four-Step Workflow
+
+The polylinkR workflow follows four sequential steps:
+
+1. **plR_read()** - Read and validate input files
+2. **plR_permute()** - Generate permutation nulls and compute p-values
+3. **plR_rescale()** - Rescale for genetic autocorrelation
+4. **plR_prune()** - Prune gene sets and compute FDR
+
+## Step 1: Read Input Data
+
+First, we read the example data included with the package:
+
+```{r read-data}
+# Locate the example data
+data_path <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
+data_path
+
+# Read the data
+plr_obj <- plR_read(
+  input.path = data_path,
+  verbose = FALSE
+)
+
+# Check the result
+class(plr_obj)
+print(plr_obj)
+```
+
+The `plR_read()` function validates the input files and creates a `plR` class object containing:
+
+- **set.info**: Gene set information
+- **obj.info**: Gene (object) information with scores
+- **set.obj**: Gene-to-set mappings
+
+## Inspecting the plR Object
+
+You can inspect the plR object using standard methods:
+
+```{r inspect}
+# Summary of the object
+summary(plr_obj)
+
+# Structure of the object
+str(plr_obj)
+```
+
+## Input File Formats
+
+polylinkR requires three input files:
+
+### 1. ObjInfo.txt (Gene Information)
+
+Contains gene-level information:
+
+- **objID**: Unique gene identifier
+- **objStat**: Gene-level statistic (e.g., p-value, z-score)
+- Optional columns: chr, startpos, endpos (for coordinate-based analysis)
+
+### 2. SetInfo.txt (Gene Set Information)
+
+Contains gene set definitions:
+
+- **setID**: Unique set identifier
+- **setName**: Human-readable set name
+- **setSource**: Source database (optional)
+
+### 3. SetObj.txt (Gene-Set Mappings)
+
+Contains gene-to-set relationships:
+
+- **setID**: Set identifier (must match SetInfo.txt)
+- **objID**: Gene identifier (must match ObjInfo.txt)
+
+## Important Notes
+
+### Active Development
+
+This package is under active development. Results should be independently validated before use in production or clinical decisions.
+
+### Algorithm Constraints
+
+The core statistical algorithms (permutation nulls, GPD fitting, rescaling, pruning) are frozen and should not be modified without explicit maintainer approval.
+
+## Next Steps
+
+After reading the data, you would typically proceed through the pipeline:
+
+1. **plR_permute()** - Generate permutation-based null distributions
+2. **plR_rescale()** - Account for genetic autocorrelation
+3. **plR_prune()** - Identify significant gene sets
+
+See the function documentation (`?plR_permute`, `?plR_rescale`, `?plR_prune`) for details on subsequent steps.
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+```
