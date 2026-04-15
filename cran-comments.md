@@ -1,4 +1,4 @@
-## CRAN Package Submission Comments
+## CRAN Package Submission Comments for polylinkR 0.5.0
 
 ### R CMD check results
 
@@ -18,12 +18,24 @@ This is a known issue with CI environments and cannot be fixed. It does not affe
 ### Test Environments
 
 - Local macOS (R 4.4.0): 0 errors, 0 warnings, 1 note
-- GitHub Actions Ubuntu (R release + renv): 0 errors
-- GitHub Actions Ubuntu (R devel + DESCRIPTION deps): 0 errors
+- GitHub Actions Ubuntu (R release): 0 errors
+- GitHub Actions Ubuntu (R devel): 0 errors
+- GitHub Actions Ubuntu (R oldrel-1): 0 errors
+- GitHub Actions macOS (R release): 0 errors
+- GitHub Actions Windows (R release): 0 errors
 
 ### Downstream Dependencies
 
-None on CRAN yet (first release).
+None on CRAN.
+
+### Changes in this Version (0.5.0)
+
+* Major documentation enhancement with 5 comprehensive vignettes
+* Removed `tdigest` dependency (not available on CRAN), replaced with base R functions
+* Added pkgdown site configuration for https://acad-uofa.github.io/PolyLinkR/
+* Added GitHub Actions workflows (R-CMD-check, pkgdown, test-coverage)
+* Removed Travis CI configuration
+* Updated package metadata and documentation
 
 ### Method References
 
@@ -37,4 +49,4 @@ There are no published references describing the methods in this package. The pa
 
 ### URL Checks
 
-All URLs use HTTPS protocol. The GitHub URLs will resolve once the package is published.
+All URLs use HTTPS protocol. The GitHub URLs resolve correctly.

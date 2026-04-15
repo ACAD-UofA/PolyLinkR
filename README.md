@@ -75,7 +75,7 @@ If you use polylinkR in your research, please cite:
 
 ```
 Souilmi et al. (2024). polylinkR: An R package for gene-based pathway enrichment 
-accounting for linkage disequilibrium. R package version 0.2.0.
+accounting for linkage disequilibrium. R package version 0.5.0.
 ```
 
 For the latest citation information, use:
