@@ -17,3 +17,5 @@ renv/staging/
 *.Rcheck/
 cran-comments.md.bak
 skills-lock.json
+node_modules/
+.hippo/
