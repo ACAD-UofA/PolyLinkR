@@ -1,6 +1,5 @@
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/R-CMD-check.yaml)
-[![Travis build status](https://app.travis-ci.com/ACAD-UofA/PolyLinkR.svg?branch=master)](https://app.travis-ci.com/ACAD-UofA/PolyLinkR)
 [![CodeFactor](https://www.codefactor.io/repository/github/acad-uofa/polylinkr/badge)](https://www.codefactor.io/repository/github/acad-uofa/polylinkr)
 <!-- badges: end -->
 
