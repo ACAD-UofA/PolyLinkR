@@ -1,20 +1,24 @@
-# polylinkR 0.0.0.9000 (Development Version)
+# polylinkR 0.1.0
 
-## Package Infrastructure
+## Initial CRAN Release
 
-* Initial CRAN submission preparation.
-* Added comprehensive test suite with 72 tests covering core functionality.
-* Added runnable vignette demonstrating basic workflow.
-* Fixed R CMD check issues:
-  - Added missing NAMESPACE imports for stats, utils, methods
-  - Added globalVariables for data.table NSE column references
-  - Fixed data file organization and documentation
-  - Removed stale documentation artifacts
-* Fixed code issues:
-  - Removed false `plot()` method claims from documentation
-  - Fixed missing closing parenthesis in plR_permute.R
-  - Fixed `.create_seed()` to return integer values
+This is the first release of polylinkR to CRAN.
 
-## Notes
+### New Features
 
-This is a development version preparing for initial CRAN release. The package implements gene-based pathway enrichment with linkage-preserving permutation nulls. All core statistical algorithms are frozen and validated against the reference implementation in `new_code/`.
+* **Gene-based pathway enrichment** with linkage-aware permutation nulls
+* Four-step workflow: `plR_read()`, `plR_permute()`, `plR_rescale()`, `plR_prune()`
+* **Linkage-preserving permutation** algorithm that maintains chromosome structure
+* Support for gene score deconfounding and autocorrelation analysis
+* Parallel processing support via `future` framework
+
+### Package Infrastructure
+
+* Comprehensive test suite with 72 tests
+* Runnable vignette with example workflow
+* Full documentation for all exported functions
+* Proper NAMESPACE imports and globalVariables declarations
+
+### Notes
+
+The core statistical algorithms are frozen and validated against the reference implementation in `new_code/`. See the Getting Started vignette for usage examples.

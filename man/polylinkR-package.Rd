@@ -6,7 +6,7 @@
 \alias{polylinkR-package}
 \title{polylinkR: Polygenic Pathway Enrichment with Linkage Structure}
 \description{
-Gene-based pathway enrichment that accounts for linkage disequilibrium amongst loci, using a permutation approach that preserves linkage structure. This version is under active development and must not be used as the sole basis for production or clinical decisions without independent validation.
+Perform gene-based pathway enrichment analysis while accounting for linkage disequilibrium (LD) amongst loci. Uses a permutation approach that preserves linkage structure when generating null distributions of pathway scores. This reduces false positives compared to standard permutation methods. This version is under active development and must not be used as the sole basis for production or clinical decisions without independent validation.
 }
 \seealso{
 Useful links:
