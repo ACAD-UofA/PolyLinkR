@@ -1,37 +1,250 @@
 {
-  "version": 1,
+  "version": 2,
   "entries": {
-    "coordinator-2026-04-15": {
-      "title": "PolyLinkR build — coordinator log",
-      "updated": "2026-04-15",
-      "workstreams": [
-        {
-          "id": "WS-A",
-          "owner": "main",
-          "scope": "NAMESPACE/man via roxygen2; DESCRIPTION tweaks (e.g. pak); R CMD check unblock",
-          "status": "in_progress"
-        },
-        {
-          "id": "WS-B",
-          "owner": "subagent",
-          "scope": "tests/testthat + tests/testthat.R — internal helpers and smoke tests",
-          "status": "delegated"
-        },
-        {
-          "id": "WS-C",
-          "owner": "subagent",
-          "scope": ".github/workflows (r-lib examples), CONTRIBUTING, AGENTS, _pkgdown.yml stub",
-          "status": "delegated"
-        }
+    "mem_04a02e1d3878": {
+      "id": "mem_04a02e1d3878",
+      "file": "episodic/mem_04a02e1d3878.md",
+      "layer": "episodic",
+      "strength": 0.9999999942696166,
+      "tags": [
+        "imported",
+        "cursor"
       ],
-      "policies": {
-        "renv_pak": "Project .Rprofile sets options(renv.config.pak.enabled = TRUE). CI should set RENV_CONFIG_PAK_ENABLED=true when using setup-renv.",
-        "language": "User-facing prose: Australian English; keep API identifiers stable.",
-        "merge_order": "After subagents: reconcile any overlap (e.g. DESCRIPTION only touched by main).",
-        "git_flow": "Upstream integration branch is dev (not develop). Branch feature/* from dev, open PRs into dev with gh pr create --base dev. Use release/* only when cutting a release to master.",
-        "open_pr": "https://github.com/ACAD-UofA/PolyLinkR/pull/2 (feature/cran-modular-plr-on-dev -> dev)"
-      }
+      "created": "2026-04-15T06:04:29.208Z",
+      "last_retrieved": "2026-04-15T06:04:29.208Z",
+      "pinned": false
+    },
+    "mem_a44a05c65db6": {
+      "id": "mem_a44a05c65db6",
+      "file": "episodic/mem_a44a05c65db6.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:04:36.054Z",
+      "last_retrieved": "2026-04-15T06:04:36.054Z",
+      "pinned": false
+    },
+    "mem_dc1e4acc755f": {
+      "id": "mem_dc1e4acc755f",
+      "file": "episodic/mem_dc1e4acc755f.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:04:36.066Z",
+      "last_retrieved": "2026-04-15T06:04:36.066Z",
+      "pinned": false
+    },
+    "mem_f51d5cb58b38": {
+      "id": "mem_f51d5cb58b38",
+      "file": "episodic/mem_f51d5cb58b38.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:04:36.073Z",
+      "last_retrieved": "2026-04-15T06:04:36.073Z",
+      "pinned": false
+    },
+    "mem_f5a7c872d7e8": {
+      "id": "mem_f5a7c872d7e8",
+      "file": "episodic/mem_f5a7c872d7e8.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:04:36.080Z",
+      "last_retrieved": "2026-04-15T06:04:36.080Z",
+      "pinned": false
+    },
+    "mem_6b9addcb2d35": {
+      "id": "mem_6b9addcb2d35",
+      "file": "episodic/mem_6b9addcb2d35.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:04:36.088Z",
+      "last_retrieved": "2026-04-15T06:04:36.088Z",
+      "pinned": false
+    },
+    "mem_565f58fff19e": {
+      "id": "mem_565f58fff19e",
+      "file": "episodic/mem_565f58fff19e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:04:36.095Z",
+      "last_retrieved": "2026-04-15T06:04:36.095Z",
+      "pinned": false
+    },
+    "mem_577e63ebdebb": {
+      "id": "mem_577e63ebdebb",
+      "file": "episodic/mem_577e63ebdebb.md",
+      "layer": "episodic",
+      "strength": 0.9999999908313866,
+      "tags": [
+        "imported"
+      ],
+      "created": "2026-04-15T06:04:58.495Z",
+      "last_retrieved": "2026-04-15T06:04:58.495Z",
+      "pinned": false
+    },
+    "mem_6f9a169fcf5e": {
+      "id": "mem_6f9a169fcf5e",
+      "file": "episodic/mem_6f9a169fcf5e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "imported",
+        "polylink-gene-based-pathway-enrichment-img-src-ins"
+      ],
+      "created": "2026-04-15T06:04:58.519Z",
+      "last_retrieved": "2026-04-15T06:04:58.519Z",
+      "pinned": false
+    },
+    "mem_95404c600f5e": {
+      "id": "mem_95404c600f5e",
+      "file": "episodic/mem_95404c600f5e.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "imported",
+        "polylink-gene-based-pathway-enrichment-img-src-ins"
+      ],
+      "created": "2026-04-15T06:04:58.528Z",
+      "last_retrieved": "2026-04-15T06:04:58.528Z",
+      "pinned": false
+    },
+    "mem_62a7590d74da": {
+      "id": "mem_62a7590d74da",
+      "file": "episodic/mem_62a7590d74da.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "imported",
+        "installation"
+      ],
+      "created": "2026-04-15T06:04:58.547Z",
+      "last_retrieved": "2026-04-15T06:04:58.547Z",
+      "pinned": false
+    },
+    "mem_ac57ca7beec7": {
+      "id": "mem_ac57ca7beec7",
+      "file": "episodic/mem_ac57ca7beec7.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "imported",
+        "install-packages-devtools"
+      ],
+      "created": "2026-04-15T06:04:58.565Z",
+      "last_retrieved": "2026-04-15T06:04:58.565Z",
+      "pinned": false
+    },
+    "mem_269eedd37462": {
+      "id": "mem_269eedd37462",
+      "file": "episodic/mem_269eedd37462.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "imported",
+        "usage"
+      ],
+      "created": "2026-04-15T06:04:58.587Z",
+      "last_retrieved": "2026-04-15T06:04:58.587Z",
+      "pinned": false
+    },
+    "mem_9cdd82b12438": {
+      "id": "mem_9cdd82b12438",
+      "file": "episodic/mem_9cdd82b12438.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "imported",
+        "usage"
+      ],
+      "created": "2026-04-15T06:04:58.597Z",
+      "last_retrieved": "2026-04-15T06:04:58.597Z",
+      "pinned": false
+    },
+    "mem_2311308e928d": {
+      "id": "mem_2311308e928d",
+      "file": "episodic/mem_2311308e928d.md",
+      "layer": "episodic",
+      "strength": 0.9999999988539233,
+      "tags": [
+        "imported",
+        "usage"
+      ],
+      "created": "2026-04-15T06:04:58.608Z",
+      "last_retrieved": "2026-04-15T06:04:58.608Z",
+      "pinned": false
+    },
+    "mem_953b056aab9c": {
+      "id": "mem_953b056aab9c",
+      "file": "episodic/mem_953b056aab9c.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:29:12.834Z",
+      "last_retrieved": "2026-04-15T06:29:12.834Z",
+      "pinned": false
+    },
+    "mem_585b9e9cec30": {
+      "id": "mem_585b9e9cec30",
+      "file": "episodic/mem_585b9e9cec30.md",
+      "layer": "episodic",
+      "strength": 1,
+      "tags": [
+        "error",
+        "git-learned",
+        "path:yassinesouilmi",
+        "path:code",
+        "path:polylinkr"
+      ],
+      "created": "2026-04-15T06:35:08.365Z",
+      "last_retrieved": "2026-04-15T06:35:08.365Z",
+      "pinned": false
     }
   },
-  "last_retrieval_ids": ["coordinator-2026-04-15"]
+  "last_retrieval_ids": []
 }
