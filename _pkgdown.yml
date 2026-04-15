@@ -32,10 +32,13 @@ reference:
     - plR_permute
     - plR_rescale
     - plR_prune
-  - title: Utilities
+  - title: Data
     contents:
-    - starts_with("dist_")
-    - starts_with("plot_")
+    - Anatolia_EF_CLR
+    - PolyLinkR_SetInfo
+    - PolyLinkR_SetObj
+    - human_sexavg_RR_Bherer2017
+    - rr.dt
 
 home:
   sidebar:

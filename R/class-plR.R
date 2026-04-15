@@ -127,6 +127,7 @@
 #'   Additional arguments passed to \code{print}.
 #'
 #' @exportS3Method print plR
+#' @keywords internal
 #'
 #' @import data.table
 #' @importFrom cli boxx col_cyan col_red
@@ -222,6 +223,7 @@ print.plR <- function(x, ...) {
 #'   Additional arguments passed to \code{summary}.
 #'
 #' @exportS3Method summary plR
+#' @keywords internal
 #'
 #' @import data.table
 #' @importFrom cli boxx col_cyan col_red

@@ -31,3 +31,4 @@ summary(my_plR)
 summary(my_plR, sig = 0.01)
 }
 }
+\keyword{internal}
