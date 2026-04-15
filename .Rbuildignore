@@ -12,4 +12,6 @@
 ^new_code$
 ^docs$
 ^\.cursorrules$
-^\.travis.yml$
+^\.travis\.yml$
+^LICENSE\.md$
+^_pkgdown\.yml$
