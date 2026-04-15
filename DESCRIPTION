@@ -1,40 +1,49 @@
-Package: PolyLinkR
-Type: Package
-Title: Polygenic Pathway Enrichment Accounting for Genetic Linkage
-Version: 0.4.0
-URL: https://github.com/ACAD-UofA/PolyLinkR
-BugReports: https://github.com/ACAD-UofA/PolyLinkR/issues
+Package: polylinkR
+Title: Polygenic Pathway Enrichment with Linkage Structure
+Version: 0.0.0.9000
 Authors@R: c(
-    person(given = "Raymond", 
-          family = "Tobler", 
-          role = c("aut", "cre", , "cph"), 
-          email = "raymond.tobler@adelaide.edu.au"),
-    person(given = "Yassine", 
-          family = "Souilmi", 
-          role = "aut", 
-          email = "yassine.souilmi@adelaide.edu.au"),
-    person(given = "Josephine", 
-          family = "Daub", 
-          role = "aut", 
-          email = "J.T.Daub@prinsesmaximacentrum.nl")
-	)
-Description: Is an R package that performs gene-based pathway enrichment, 
-    which can also be used as evidence for polygenic selection in case the
-    software is used with selection signals evidence. The package explicitly
-    also accounts for linkage desiquilibrium between adjacent loci belonging
-    on the same pathway.
+    person("ACAD", "University of Adelaide", role = c("cph", "fnd")),
+    person("PolyLinkR authors", email = "polylinkr@acad.edu.au", role = c("cre", "aut"))
+  )
+Description: Gene-based pathway enrichment that accounts for linkage
+    disequilibrium amongst loci, using a permutation approach that preserves
+    linkage structure. This version is under active development and must not
+    be used as the sole basis for production or clinical decisions without
+    independent validation.
+Language: en-AU
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
-biocViews: GeneSetEnrichment, GO
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
 Depends:
-	data.table,
-	qvalue,
-	Matrix,
-	matrixStats,
-	doParallel,
-	doFuture,
-	ggplot2
-RoxygenNote: 7.1.1
-Suggests: 
-    testthat (>= 2.1.0)
+    R (>= 4.1.0)
+Imports:
+    cli,
+    data.table,
+    distances,
+    doFuture,
+    dqrng,
+    foreach,
+    future,
+    gstat,
+    igraph,
+    ismev,
+    mgcv,
+    methods,
+    progressr,
+    Rfast,
+    rlang,
+    robustbase,
+    stats,
+    tdigest,
+    utils
+Suggests:
+    knitr,
+    rmarkdown,
+    spelling,
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+URL: https://github.com/ACAD-UofA/PolyLinkR
+BugReports: https://github.com/ACAD-UofA/PolyLinkR/issues
