@@ -37,7 +37,6 @@ Imports:
     rlang,
     robustbase,
     stats,
-    tdigest,
     utils
 Suggests:
     knitr,

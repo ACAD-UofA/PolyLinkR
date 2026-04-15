@@ -597,8 +597,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
          ac0 <- ac[, .(A = objID.A, B = objID.B, CV = 2 * rho)] # ensure 2 * covariance
          data.table::setkey(ac0, A, B)
 
-         fopt <- list(packages = c("data.table", "foreach", "dqrng", "tdigest",
-                                   "Rfast"),
+          fopt <- list(packages = c("data.table", "foreach", "dqrng", "Rfast"),
                       globals = c("n.genes", "n.max", "n.tail", "n.sets", "n.th",
                                   "n.block", "x.th", "fpc", "os0", "th0", "inI",
                                   "dqI", "rs0", "ac0", "SS0", ".cmb", ".get_cov0"),
@@ -646,9 +645,9 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
                         }))
                      }
 
-                     e0 <- lapply(csX, FUN = function(csI) { # extract digests
-                        as.list(tdigest::tdigest(csI, compression = 500))
-                     })
+                      e0 <- lapply(csX, FUN = function(csI) { # collect raw values
+                         as.list(csI)
+                      })
 
                      list(g0 = g0, e0 = e0, r0 = rs.mean)
                   }

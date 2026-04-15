@@ -1379,9 +1379,9 @@
 #'  Includes the ECDF `e0` and GDP fits `g0` for evaluated gene set sizes.
 #' @noRd
 .cmb <- function(A, B) {
-   # iteratively add tdigests
+   # iteratively combine raw value lists
    if (is.null(A$e0$qX)) { # list form in parallel inner loop
-      A$e0 <- Map(function(x, y) c(x, list(y)), A$e0, B$e0) # aggregate digest lists
+      A$e0 <- Map(function(x, y) c(x, list(y)), A$e0, B$e0) # aggregate raw value lists
       # aggregate tails
       AB <- cbind(A$g0, B$g0)
       nT <- ncol(AB) / 2
@@ -1431,25 +1431,25 @@
 }
 
 
-#' @title Merge t-digests and extract empirical quantiles
-#' @description Internal function that merges a list of tdigest objects and
-#'  returns requested quantiles with an error band estimated by a small
+#' @title Merge raw values and extract empirical quantiles
+#' @description Internal function that combines a list of raw numeric vectors
+#'  and returns requested quantiles with an error band estimated by a small
 #'  symmetric probability perturbation.
-#' @param tX list; tdigest-compatible objects to merge.
-#' @param eQnt numeric; Vector of probabilities in at which to estimate quantiles.
-#' @importFrom tdigest td_merge td_create as_tdigest tquantile
+#' @param tX list; List of numeric vectors to combine.
+#' @param eQnt numeric; Vector of probabilities at which to estimate quantiles.
+#' @param eps numeric; Small perturbation for error estimation.
 #' @return A list containing a numeric vector of estimated quantiles (`qX`) and
-#'  a numeric vector of error widths computed at 1e-4 distances either side of
+#'  a numeric vector of error widths computed at `eps` distances either side of
 #'  each quantile.
 #' @noRd
 .get_quant <- function (tX, eQnt, eps) {
-   tX <- Reduce(tdigest::td_merge,
-                init = tdigest::td_create(compression = 500),
-                lapply(tX, FUN = tdigest::as_tdigest)) # convert and merge tdigests
-   qX <- tdigest::tquantile(tX, probs = eQnt) # extract quantiles
+   # Combine all raw values into a single vector
+   all_vals <- unlist(tX, use.names = FALSE)
+   # Extract quantiles using base R quantile function
+   qX <- stats::quantile(all_vals, probs = eQnt, names = FALSE)
    # quantify error bounds
-   qL <- tdigest::tquantile(tX, probs = eQnt - eps)
-   qH <- tdigest::tquantile(tX, probs = eQnt + eps)
+   qL <- stats::quantile(all_vals, probs = eQnt - eps, names = FALSE)
+   qH <- stats::quantile(all_vals, probs = eQnt + eps, names = FALSE)
    return(list(qX = qX, qE = qH - qL))
 }
 

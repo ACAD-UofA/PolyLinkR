@@ -1,0 +1,41 @@
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [intro, reference, articles, tutorials, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: Getting Started
+      - text: Basic Workflow with polylinkR
+        href: articles/basic-workflow.html
+      - text: "---"
+      - text: Advanced Topics
+      - text: Controlling for Confounders
+        href: articles/covariates-deconfounding.html
+      - text: Using Recombination Rates
+        href: articles/recombination-rates.html
+      - text: Parallel Processing
+        href: articles/parallel-processing.html
+      - text: "---"
+      - text: Reference
+      - text: Input Formats and Parameters
+        href: articles/input-formats-parameters.html
+
+reference:
+  - title: Core Functions
+    contents:
+    - plR_permute
+    - plR_rescale
+    - read_data_custom
+  - title: Utilities
+    contents:
+    - starts_with("dist_")
+    - starts_with("plot_")
+
+home:
+  sidebar:
+    structure: [links, license, community, citation, authors, dev]

@@ -523,8 +523,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
                        dqrng::generateSeedVectors(n.perm / n.block),
                        simplify = FALSE) # reproducible seeds
 
-      fopt <- list(packages = c("data.table", "foreach", "dqrng", "tdigest",
-                                "Rfast"),
+       fopt <- list(packages = c("data.table", "foreach", "dqrng", "Rfast"),
                    globals = c("n.genes", "n.max", "n.tail", "n.sets", "n.th",
                                "n.block", "x.th", "fpc", "os0", "th0",  "inI",
                                "dqI", ".cmb"),
@@ -562,9 +561,9 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
                      }))
                   }
 
-                  e0 <- lapply(csX, FUN = function(csI) { # extract digests
-                     as.list(tdigest::tdigest(csI, compression = 500))
-                  })
+                   e0 <- lapply(csX, FUN = function(csI) { # collect raw values
+                      as.list(csI)
+                   })
 
                   list(g0 = g0, e0 = e0)
                }
