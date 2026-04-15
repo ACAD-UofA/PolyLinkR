@@ -797,6 +797,7 @@
       }
    } else {
       seed <- sample.int(.Machine$integer.max, 1) * sample(c(-1, 1), 1)
+      seed <- as.integer(seed)
    }
    return(seed)
 }
