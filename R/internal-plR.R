@@ -796,7 +796,9 @@
          }
       }
    } else {
-      seed <- sample.int(.Machine$integer.max, 1) * sample(c(-1, 1), 1)
+      seed <- as.integer(
+         sample.int(.Machine$integer.max, 1L) * sample(c(-1L, 1L), 1L)
+      )
    }
    return(seed)
 }
@@ -1326,7 +1328,7 @@
       }
       mm0[wGT] <- wMax[wGT[, 1]] # insert capped values
    }
-   mm0 <- mm0 / wS # convert to probability weights
+   mm0 <- mm0 / wS # convert to probability weights (relative to original row totals)
    return(mm0)
 }
 
@@ -1436,19 +1438,20 @@
 #'  symmetric probability perturbation.
 #' @param tX list; tdigest-compatible objects to merge.
 #' @param eQnt numeric; Vector of probabilities in at which to estimate quantiles.
-#' @importFrom tdigest td_merge td_create as_tdigest tquantile
+#' @importFrom tdigest td_merge td_create tquantile
 #' @return A list containing a numeric vector of estimated quantiles (`qX`) and
 #'  a numeric vector of error widths computed at 1e-4 distances either side of
 #'  each quantile.
 #' @noRd
 .get_quant <- function (tX, eQnt, eps) {
-   tX <- Reduce(tdigest::td_merge,
-                init = tdigest::td_create(compression = 500),
-                lapply(tX, FUN = tdigest::as_tdigest)) # convert and merge tdigests
-   qX <- tdigest::tquantile(tX, probs = eQnt) # extract quantiles
+   acc <- tdigest::td_create(compression = 500L)
+   for (d in tX) {
+      acc <- tdigest::td_merge(from = d, into = acc)
+   }
+   qX <- tdigest::tquantile(acc, probs = eQnt) # extract quantiles
    # quantify error bounds
-   qL <- tdigest::tquantile(tX, probs = eQnt - eps)
-   qH <- tdigest::tquantile(tX, probs = eQnt + eps)
+   qL <- tdigest::tquantile(acc, probs = eQnt - eps)
+   qH <- tdigest::tquantile(acc, probs = eQnt + eps)
    return(list(qX = qX, qE = qH - qL))
 }
 

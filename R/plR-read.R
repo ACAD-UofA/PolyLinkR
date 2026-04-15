@@ -280,6 +280,12 @@
 #' \code{print()} or by simply typing the object's name.
 #'
 #' @examples
+#' \donttest{
+#' # Minimal example with built-in tiny dataset
+#' d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
+#' my_plr <- plR_read(input.path = d)
+#' print(my_plr)
+#' }
 #' \dontrun{
 #' # Example 1: Read all files from a single folder
 #' my_plr <- plR_read(input.path = "path/to/files")

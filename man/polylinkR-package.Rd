@@ -12,6 +12,7 @@ Gene-based pathway enrichment that accounts for linkage disequilibrium amongst l
 Useful links:
 \itemize{
   \item \url{https://github.com/ACAD-UofA/PolyLinkR}
+  \item \url{https://acad-uofa.github.io/PolyLinkR/}
   \item Report bugs at \url{https://github.com/ACAD-UofA/PolyLinkR/issues}
 }
 
