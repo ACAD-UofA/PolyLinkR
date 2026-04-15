@@ -1,47 +1,57 @@
-# Adapted from https://github.com/r-lib/actions/tree/v2/examples#standard-ci-workflow
+# Additional community examples and optional workflows:
+# https://github.com/r-lib/actions/tree/v2/examples#readme
+#
+# R release uses renv (setup-renv). R devel uses setup-r-dependencies from
+# DESCRIPTION because lockfiles are pinned to a single R minor series; refresh
+# renv.lock when you need strict reproducibility on devel as well.
 on:
   push:
-    branches: [main, master, dev]
+    branches: [dev, master, main]
   pull_request:
-    branches: [main, master, dev]
+    branches: [dev, master, main]
 
 name: R-CMD-check
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
-  R-CMD-check:
-    runs-on: ${{ matrix.config.os }}
-    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
-
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - { os: ubuntu-latest, r: "release" }
-          - { os: ubuntu-latest, r: "devel", http-user-agent: "release" }
-
+  R-CMD-check-renv:
+    name: ubuntu-latest (R release + renv)
+    runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      R_KEEP_PKG_SOURCE: yes
-
+      RENV_CONFIG_PAK_ENABLED: true
     steps:
       - uses: actions/checkout@v4
-
-      # renv/renv.lock trigger embedded-pak bootstrap in setup-r-dependencies, which
-      # compiles curl and often fails on ubuntu-latest; CI installs from DESCRIPTION via RSPM.
-      - name: Omit renv for CI dependency resolution
-        run: rm -rf renv renv.lock
 
       - uses: r-lib/actions/setup-pandoc@v2
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: ${{ matrix.config.r }}
-          http-user-agent: ${{ matrix.config.http-user-agent }}
-          # RSPM (__linux__/noble) metadata omitted tdigest for some R versions; use CRAN.
-          use-public-rspm: false
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-renv@v2
+
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          upload-snapshots: true
+
+  R-CMD-check-devel:
+    name: ubuntu-latest (R devel + DESCRIPTION deps)
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: devel
+          http-user-agent: release
+          use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:

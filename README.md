@@ -1,32 +1,46 @@
 <!-- badges: start -->
-[![Travis build status](https://travis-ci.org/ACAD-UofA/PolyLinkR.svg?branch=master)](https://travis-ci.org/ACAD-UofA/PolyLinkR)
-[![CodeFactor](https://www.codefactor.io/repository/github/acad-uofa/polylinkr/badge)](https://www.codefactor.io/repository/github/acad-uofa/polylinkr)
+[![R-CMD-check](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/R-CMD-check.yaml/badge.svg?branch=dev)](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/R-CMD-check.yaml)
+[![pkgdown](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/pkgdown.yaml/badge.svg?branch=dev)](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/pkgdown.yaml)
 <!-- badges: end -->
 
-# PolyLink: gene-based pathway enrichment <img src="inst/sticker/polylinkr_150px.png" align="right" />
+# polylinkR: gene-based pathway enrichment with linkage structure <img src="https://raw.githubusercontent.com/ACAD-UofA/PolyLinkR/dev/inst/sticker/polylinkr_150px.png" align="right" alt="" />
 
 ## Overview
 
-PolyLinkR is an R package that performs gene-based pathway enrichment, which can also be used as evidence for polygenic selection in case the software is used with selection signals evidence. The package explicitly also accounts for linkage disequilibrium between adjacent loci belonging on the same pathway.
+**polylinkR** performs gene-based pathway enrichment whilst accounting for linkage disequilibrium amongst loci. The package uses a permutation scheme that preserves linkage structure when building null distributions for gene-set scores, which limits false positives relative to unstructured permutations.
 
-PolyLinkR introduces several improvements, and faster implementations of the popular polygenic selection tool [PolySel](https://github.com/CMPG/polysel), which builds upon the core file types and summary statistics used in PolySel. The key difference between PolyLinkR and PolySel is the algorithm used to generate the null distribution of pathway scores. PolySel performs a standard permutation to remap gene scores to genes, whereas PolyLinkR uses a permutation algorithm that randomly links all chromosomes/contigs into a single "circular" genome, and then rotates this circular genome to create a unique mapping between the genes and gene scores. Importantly, this randomisation process preserves the innate linkage structure amongst the genes across the genome, limiting the number of potential false positives that might arise otherwise.
+The public workflow is modular: `plR_read()`, `plR_permute()`, `plR_rescale()`, and `plR_prune()`. Start with `?plR_read` for required tables and column conventions.
 
-The package exposes a modular pipeline: `plR_read()`, `plR_permute()`, `plR_rescale()`, and `plR_prune()`. Start with `?plR_read` for required inputs (object, set, and mapping tables).
+**Active development:** this version is under active development. Do not rely on it as the sole basis for production or clinical decisions without independent validation.
+
+## Documentation site
+
+Function reference, articles, and changelog: <https://acad-uofa.github.io/PolyLinkR/>
 
 ## Installation
 
-Install the development version from GitHub:
-
-```
-# install.packages("devtools")
-devtools::install_github("ACAD-UofA/PolyLinkR")
-```
-
-## Usage
-
-To run pathway or gene set enrichment you need gene-level scores with genomic coordinates, plus tables defining gene sets and gene-to-set membership. The `plR_read()` step assembles these into an internal `plR` object for downstream permutation and rescaling; see the function help pages for argument details and the bundled `data/` objects for small examples.
+Until the package is on CRAN, install the development version from GitHub:
 
 ```r
-library(polylinkR)
-# ?plR_read
+# install.packages("pak")
+pak::pak("ACAD-UofA/PolyLinkR")
 ```
+
+Alternatively:
+
+```r
+# install.packages("remotes")
+remotes::install_github("ACAD-UofA/PolyLinkR")
+```
+
+## Local development
+
+- Install [**rig**](https://github.com/r-lib/rig) (optional) for side-by-side **R release** and **R devel** binaries.
+- Use [**renv**](https://rstudio.github.io/renv/): from the package root, run `renv::restore()` after cloning. Pak-accelerated installs are enabled in `.Rprofile`; CI sets `RENV_CONFIG_PAK_ENABLED=true` as well.
+- Run `devtools::check()` before opening a pull request.
+
+See [`CONTRIBUTING.md`](https://github.com/ACAD-UofA/PolyLinkR/blob/dev/CONTRIBUTING.md) for branch conventions (**`dev`** is the integration branch), release policy, and CRAN preparation notes.
+
+## Related work
+
+The implementation modernises ideas from legacy **PolyLinkR** / **PolyLink** tooling; see the pkgdown article *Getting started with polylinkR* for context and citations.

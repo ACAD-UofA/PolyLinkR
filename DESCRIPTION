@@ -39,11 +39,13 @@ Imports:
     utils
 Suggests:
     knitr,
+    pkgdown,
     rmarkdown,
     spelling,
     testthat (>= 3.0.0),
     withr
 Config/testthat/edition: 3
+Config/Needs/website: pkgdown
 VignetteBuilder: knitr
-URL: https://github.com/ACAD-UofA/PolyLinkR
+URL: https://github.com/ACAD-UofA/PolyLinkR, https://acad-uofa.github.io/PolyLinkR/
 BugReports: https://github.com/ACAD-UofA/PolyLinkR/issues

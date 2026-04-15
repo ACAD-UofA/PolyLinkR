@@ -1,0 +1,42 @@
+url: https://acad-uofa.github.io/PolyLinkR/
+
+template:
+  bootstrap: 5
+
+home:
+  title: polylinkR
+  description: >
+    Gene-based pathway enrichment with linkage-preserving permutation nulls.
+    This site documents the modular `plR_*` workflow. The package is under
+    active development; validate results independently before relying on them
+    for production or clinical decisions.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    intro:
+      text: Get started
+      href: articles/polylinkR.html
+    news:
+      text: Changelog
+      href: news/index.html
+    github:
+      icon: fa-github
+      href: https://github.com/ACAD-UofA/PolyLinkR
+
+reference:
+  - title: Workflow
+    desc: Core analysis steps
+    contents:
+      - plR_read
+      - plR_permute
+      - plR_rescale
+      - plR_prune
+
+articles:
+  - title: Guides
+    navbar: ~
+    contents:
+      - polylinkR

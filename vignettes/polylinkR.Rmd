@@ -1,0 +1,34 @@
+---
+title: "Getting started with polylinkR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with polylinkR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+**polylinkR** implements gene-set analyses that respect linkage disequilibrium amongst markers by building a permutation null that preserves linkage structure. The public workflow is sequential: `plR_read()`, `plR_permute()`, `plR_rescale()`, and `plR_prune()`.
+
+This package is **under active development**. Treat outputs as exploratory until you have reproduced them and validated them against independent evidence.
+
+## Inputs
+
+You supply tabular inputs describing objects (typically genes), gene sets, and membership. See `?plR_read` for required columns, optional covariate and recombination-rate files, and filtering options. Small example tables ship in `inst/extdata/` (when present) or `data/` for local experimentation.
+
+## Next steps
+
+```{r, eval = FALSE}
+library(polylinkR)
+# plR_read(input.path = "path/to/tables", verbose = TRUE)
+```
+
+Consult the function reference (`plR_read`, `plR_permute`, `plR_rescale`, `plR_prune`) for argument details, parallel execution via **future**, and random-seed behaviour.
