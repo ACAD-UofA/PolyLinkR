@@ -76,10 +76,6 @@
 #'   \item{\code{plr.args}}{
 #'     Argument settings used in the function.
 #'   }
-#'   \item{\code{plr.summary}}{
-#'     Model fitting results and associated data used in diagnostics and the
-#'     \code{plot} method.
-#'   }
 #'   \item{\code{plr.session}}{
 #'     R session information and function run time.
 #'   }
@@ -100,9 +96,7 @@
 #' \code{attributes(X)$plR.args$read.args}.
 #'
 #' The primary data structure of the \code{plR} object can be accessed using
-#' \code{print()} or by simply typing the object's name. Diagnostic plots of
-#' the various data transformations and enrichment results are available via
-#' the \code{plot()} method.
+#' \code{print()} or by simply typing the object's name.
 #'
 #' @examples
 #' \dontrun{
