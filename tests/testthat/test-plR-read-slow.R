@@ -3,9 +3,9 @@ test_that("plR_read succeeds on a small HumanPops extract", {
   testthat::skip_on_ci()
   testthat::skip_on_cran()
 
-  oi_full <- system.file("data", "HumanPops_ObjInfo.txt", package = "polylinkR")
-  si_full <- system.file("data", "HumanPops_SetInfo.txt", package = "polylinkR")
-  so_full <- system.file("data", "HumanPops_SetObj.txt", package = "polylinkR")
+  oi_full <- system.file("testthat", "humanpops_extract", "HumanPops_ObjInfo.txt", package = "polylinkR")
+  si_full <- system.file("testthat", "humanpops_extract", "HumanPops_SetInfo.txt", package = "polylinkR")
+  so_full <- system.file("testthat", "humanpops_extract", "HumanPops_SetObj.txt", package = "polylinkR")
   skip_if(oi_full == "", "Bundled HumanPops extract missing")
 
   d <- withr::local_tempdir()
