@@ -28,7 +28,8 @@
         "renv_pak": "Project .Rprofile sets options(renv.config.pak.enabled = TRUE). CI should set RENV_CONFIG_PAK_ENABLED=true when using setup-renv.",
         "language": "User-facing prose: Australian English; keep API identifiers stable.",
         "merge_order": "After subagents: reconcile any overlap (e.g. DESCRIPTION only touched by main).",
-        "git_flow": "Upstream integration branch is dev (not develop). Branch feature/* from dev, open PRs into dev with gh pr create --base dev. Use release/* only when cutting a release to master."
+        "git_flow": "Upstream integration branch is dev (not develop). Branch feature/* from dev, open PRs into dev with gh pr create --base dev. Use release/* only when cutting a release to master.",
+        "open_pr": "https://github.com/ACAD-UofA/PolyLinkR/pull/2 (feature/cran-modular-plr-on-dev -> dev)"
       }
     }
   },
