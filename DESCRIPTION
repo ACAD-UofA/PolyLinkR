@@ -47,5 +47,7 @@ Suggests:
 Config/testthat/edition: 3
 Config/Needs/website: pkgdown
 VignetteBuilder: knitr
+Remotes:
+    hrbrmstr/tdigest
 URL: https://github.com/ACAD-UofA/PolyLinkR, https://acad-uofa.github.io/PolyLinkR/
 BugReports: https://github.com/ACAD-UofA/PolyLinkR/issues

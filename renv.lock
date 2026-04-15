@@ -313,6 +313,17 @@
       "Author": "Lionel Henry [aut, cre], Hadley Wickham [aut], mikefc [cph] (Hash implementation based on Mike's xxhashlite), Yann Collet [cph] (Author of the embedded xxHash library), Posit, PBC [cph, fnd]",
       "Maintainer": "Lionel Henry <lionel@posit.co>",
       "Repository": "CRAN"
+    },
+    "tdigest": {
+      "Package": "tdigest",
+      "Version": "0.4.2",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteUsername": "hrbrmstr",
+      "RemoteRepo": "tdigest",
+      "RemoteRef": "e52b7460075afd1ba0885ef3b18878d8fbe1b080",
+      "RemoteSha": "e52b7460075afd1ba0885ef3b18878d8fbe1b080"
     }
   }
 }
