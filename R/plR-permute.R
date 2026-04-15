@@ -141,10 +141,6 @@
 #'   \item{\code{plr.args}}{
 #'     Argument settings used in the function.
 #'   }
-#'   \item{\code{plr.summary}}{
-#'     Model fitting results and associated data used in diagnostics and the
-#'     \code{plot} method.
-#'   }
 #'   \item{\code{plr.session}}{
 #'     R session information and function run time.
 #'   }
@@ -165,9 +161,7 @@
 #' \code{attributes(X)$plR.args$read.args}.
 #'
 #' The primary data structure of the \code{plR} object can be accessed using
-#' \code{print()} or by simply typing the object's name. Diagnostic plots of
-#' the various data transformations and enrichment results are available via
-#' the \code{plot()} method.
+#' \code{print()} or by simply typing the object's name.
 #'
 #' @examples
 #' \dontrun{
@@ -749,7 +743,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
    permute.args <-  mget(setdiff(args0, "plR.input"), envir = environment()) # collect arguments
    plr.args$permute.args <- permute.args
 
-   if (("permute.summary" %in% names(plr.summary))) { # update ecdf and gpd estimation summaries
+   if ("permute.summary" %in% names(plr.summary)) { # update ecdf and gpd estimation summaries
       plr.summary$permute.summary$gpd.std.summary <- gSumm
       plr.summary$permute.summary$ecdf.std.summary <- eSumm
    } else {
