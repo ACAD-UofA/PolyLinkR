@@ -1,18 +1,23 @@
-<h1>
-  polylinkR <img src="man/figures/logo.png" align="right" width="200" />
-</h1>
-
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ACAD-UofA/PolyLinkR/actions/workflows/R-CMD-check.yaml)
 [![Travis build status](https://app.travis-ci.com/ACAD-UofA/PolyLinkR.svg?branch=master)](https://app.travis-ci.com/ACAD-UofA/PolyLinkR)
 [![CodeFactor](https://www.codefactor.io/repository/github/acad-uofa/polylinkr/badge)](https://www.codefactor.io/repository/github/acad-uofa/polylinkr)
 <!-- badges: end -->
 
+# PolyLinkR <img src="man/figures/logo.png" align="right" width="200" />
+
 ## Overview
 
 PolyLinkR is an R package that performs gene-based pathway enrichment, which can also be used as evidence for polygenic selection in case the software is used with selection signals evidence. The package explicitly also accounts for linkage disequilibrium between adjacent loci belonging on the same pathway.
 
 PolyLinkR introduces several improvements and faster implementations of the popular polygenic selection tool [PolySel](https://github.com/CMPG/polysel), which builds upon the core file types and summary statistics used in PolySel. The key difference between PolyLinkR and PolySel is the algorithm used to generate the null distribution of pathway scores. PolySel performs a standard permutation to remap gene scores to genes, whereas PolyLinkR uses a permutation algorithm that randomly links all chromosomes/contigs into a single 'circular' genome, and then rotates this circular genome to create a unique mapping between the genes and gene scores. Importantly, this randomisation process preserves the innate linkage structure amongst the genes across the genome, limiting the number of potential false positives that might arise otherwise.
+
+PolyLinkR uses a four-step workflow:
+
+1. **Read data** with `plR_read()`
+2. **Generate permutation nulls** with `plR_permute()`
+3. **Rescale for autocorrelation** with `plR_rescale()`
+4. **Prune and identify significant sets** with `plR_prune()`
 
 ## Installation
 
@@ -30,13 +35,6 @@ devtools::install_github("ACAD-UofA/PolyLinkR")
 ```
 
 ## Usage
-
-PolyLinkR uses a four-step workflow:
-
-1. **Read data** with `plR_read()`
-2. **Generate permutation nulls** with `plR_permute()`
-3. **Rescale for autocorrelation** with `plR_rescale()`
-4. **Prune and identify significant sets** with `plR_prune()`
 
 For example:
 
@@ -78,7 +76,7 @@ If you use polylinkR in your research, please cite:
 
 ```
 Souilmi et al. (2024). polylinkR: An R package for gene-based pathway enrichment 
-accounting for linkage disequilibrium. R package version X.X.X.
+accounting for linkage disequilibrium. R package version 0.2.0.
 ```
 
 For the latest citation information, use:
@@ -86,5 +84,3 @@ For the latest citation information, use:
 ```r
 citation("polylinkR")
 ```
-
-See the [Getting Started vignette](https://acad-uofa.github.io/PolyLinkR/articles/polylinkR.html) for a complete example using the included `tiny_polylinkR` dataset.
