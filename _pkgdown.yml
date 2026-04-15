@@ -28,9 +28,10 @@ navbar:
 reference:
   - title: Core Functions
     contents:
+    - plR_read
     - plR_permute
     - plR_rescale
-    - read_data_custom
+    - plR_prune
   - title: Utilities
     contents:
     - starts_with("dist_")
