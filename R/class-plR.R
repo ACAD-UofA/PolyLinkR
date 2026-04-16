@@ -95,9 +95,9 @@
       if (is.null(pT)) {
          stop("plr_input = ", plr, " is not a plr class object", call. = FALSE)
       } else {
-         pT.all <- .get_processing_history()
-         f0 <- paste0("plr_", f)
-         req.track <- unlist(strsplit(pT.all[FUNCTION == f0]$INPUT, "; "))
+      pT.all <- .get_processing_history()
+          f0 <- paste0("plR_", f)  # Use old naming convention for compatibility with .plR_track()
+          req.track <- unlist(strsplit(pT.all[FUNCTION == f0]$INPUT, "; "))
          if (pT %in% req.track) { # return output to parent environment
             plr_track <- pT
             assign(x = "plr_track",
