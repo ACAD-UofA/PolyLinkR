@@ -24,7 +24,7 @@ test_that("plR_rescale has correct function signature", {
 test_that("plR_rescale requires plR object input", {
   expect_error(
     plR_rescale(plR.input = "not_a_plR_object"),
-    regexp = "plR"
+    regexp = "not a plr class object"
   )
 })
 
