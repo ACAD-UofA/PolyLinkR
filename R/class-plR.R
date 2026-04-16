@@ -36,20 +36,19 @@
                      plR.summary = NULL, plR.seed = NULL, plR.session = NULL) {
    if (all(c("set.info", "obj.info", "set.obj") %in% names(BASE))) {
       plr.track <- c(0, 0, 0)
-      # diagnose input file structure
-      if (!is.null(plR.args$permute_args)) {
-         permute <- plR.args$permute_args$permute
-         no_deconf <- plR.data$permute_data$no_deconf
-         plr.track[1] <- ifelse(permute, ifelse(no_deconf, 3, 2), 1)
+      if (!is.null(plR.args$permute.args)) {
+         permute <- plR.args$permute.args$permute
+         no.deconf <- plR.data$permute.data$no.deconf
+         plr.track[1] <- ifelse(permute, ifelse(no.deconf, 3, 2), 1)
       }
 
-      if (!is.null(plR.args$rescale_args)) {
-         rescale <- plR.args$rescale_args$rescale
-         user_ac <- plR.data$rescale_data$user_ac
-         plr.track[2] <- ifelse(rescale, ifelse(user_ac, 3, 2), 1)
+      if (!is.null(plR.args$rescale.args)) {
+         rescale <- plR.args$rescale.args$rescale
+         user.ac <- plR.data$rescale.data$user.ac
+         plr.track[2] <- ifelse(rescale, ifelse(user.ac, 3, 2), 1)
       }
 
-      if (!is.null(plR.args$prune_args)) {
+      if (!is.null(plR.args$prune.args)) {
          plr.track[3] <- 1
       }
 
@@ -59,7 +58,7 @@
    }
    structure(.Data = BASE, plR.data = plR.data, plR.args = plR.args,
              plR.summary = plR.summary, plR.seed = plR.seed,
-             plR.session = plR.session, plr.track = plr.track, class = "plR")
+             plR.session = plR.session, plR.track = plr.track, class = "plR")
 }
 
 
@@ -89,14 +88,14 @@
 .plR_check <- function(f, ENV) {
    plr <- deparse(substitute(plR.input, env = ENV))
    if (plr == "") {
-      stop("plR.input is empty; please provide valid plr input", call. = FALSE)
+      stop("plR.input is empty; please provide valid plR input", call. = FALSE)
    } else {
-      pT <- attributes(get("plR.input", envir = ENV))$plr.track
+      pT <- attributes(get("plR.input", envir = ENV))$plR.track
       if (is.null(pT)) {
-         stop("plR.input = ", plr, " is not a plr class object", call. = FALSE)
+         stop("plR.input = ", plr, " is not a plR class object", call. = FALSE)
       } else {
          pT.all <- .get_processing_history()
-         f0 <- paste0("plr_", f)
+         f0 <- paste0("plR_", f)
          req.track <- unlist(strsplit(pT.all[FUNCTION == f0]$INPUT, "; "))
          if (pT %in% req.track) { # return output to parent environment
             plr.track <- pT
@@ -104,7 +103,7 @@
                    value = as.numeric(unlist(strsplit(pT, split = ""))),
                    envir = ENV)
          } else {
-            stop("plR.input = ", plr, " is not valid input for plr_",
+            stop("plR.input = ", plr, " is not valid input for plR_",
                  f, "\nCheck header of print(", plr, ") for valid usage options",
                  call. = FALSE)
          }
@@ -284,4 +283,3 @@ summary.plR <- function(object, sig = 0.05, ...) {
       }
    }
 }
-
