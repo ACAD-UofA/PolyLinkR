@@ -12,6 +12,33 @@
 }
 
 
+#' @title Report accumulated messages and warnings
+#' @description Centralized reporting of info/warning messages collected
+#' during argument validation. Reads from the calling environment.
+#' @noRd
+.report_messages <- function() {
+   .verbose_msg("\n")
+
+   # Report warnings
+   if (!is.null(warning.messages)) {
+      warning(warning.messages, immediate. = TRUE, call. = FALSE)
+   }
+   if (!is.null(param.warnings)) {
+      warning(param.warnings, immediate. = TRUE, call. = FALSE)
+   }
+
+   # Report info messages
+   if (!is.null(info.messages)) {
+      .verbose_msg(paste0("\n", info.messages, "\n"))
+   }
+   if (!is.null(param.messages)) {
+      .verbose_msg(paste0("\n", param.messages, "\n"))
+   }
+
+   .verbose_msg("\n")
+}
+
+
 #' @title Internal file path checker
 #' @description An internal function to check for correct file paths for
 #'  the required input files. User can either provide path to folder with all
