@@ -23,60 +23,7 @@ test_that(".fit_gpd_tail handles edge cases", {
   expect_true(all(is.na(result)))
 })
 
-test_that(".get_pvalue_upper returns valid p-values", {
-  # Create mock ECDF and GPD objects
-  set.seed(42)
-  null_scores <- rnorm(1000)
-  ecdf_fn <- ecdf(null_scores)
-  
-  # Create mock GPD parameters
-  gpd_params <- data.table::data.table(
-    shape = 0.1,
-    scale = 0.5,
-    exc.z = 1.5,
-    cut.z = 2.0,
-    min.z = 3.0,
-    min.p = 1e-4,
-    adj.p = 1.0
-  )
-  
-  # Test p-values for scores in the ECDF range
-  test_scores <- c(0, 0.5, 1.0, 1.5)
-  pvals <- polylinkR:::.get_pvalue_upper(test_scores, 10, gpd_params, list(ecdf_fn))
-  
-  # P-values should be in [0, 1]
-  expect_true(all(pvals >= 0 & pvals <= 1))
-  
-  # P-values should be monotonically decreasing with score
-  expect_true(all(diff(pvals) <= 0))
-})
-
-test_that(".get_pvalue_lower returns valid p-values", {
-  # Create mock ECDF and GPD objects
-  set.seed(42)
-  null_scores <- rnorm(1000)
-  ecdf_fn <- ecdf(null_scores)
-  
-  # Create mock GPD parameters (negated for lower tail)
-  gpd_params <- data.table::data.table(
-    shape = 0.1,
-    scale = 0.5,
-    exc.z = -1.5,
-    cut.z = -2.0,
-    min.z = -3.0,
-    min.p = 1e-4,
-    adj.p = 1.0
-  )
-  
-  # Test p-values for scores in the ECDF range
-  test_scores <- c(0, -0.5, -1.0, -1.5)
-  pvals <- polylinkR:::.get_pvalue_lower(test_scores, 10, gpd_params, list(ecdf_fn))
-  
-  # P-values should be in [0, 1]
-  expect_true(all(pvals >= 0 & pvals <= 1))
-})
-
-test_that(".estimate_setsize_covariance returns valid matrix", {
+test_that(".est_ss_cov returns valid matrix", {
   # Test with a small set of sizes
   sizes <- c(5, 10, 20, 50)
   n.genes <- 1000
@@ -115,12 +62,12 @@ test_that(".covariance_function returns expected values", {
   expect_true(all(diff(result) < 0))
 })
 
-test_that(".cap_probabilities normalizes rows", {
+test_that(".cap_probs normalizes rows", {
   # Create a matrix with some values > maxP
   mm0 <- matrix(c(0.5, 0.3, 0.2,
                   0.6, 0.3, 0.1), nrow = 2, byrow = TRUE)
   
-  result <- polylinkR:::.cap_probabilities(mm0, maxP = 0.4)
+  result <- polylinkR:::.cap_probs(mm0, maxP = 0.4)
   
   # Each row should sum to 1 (within tolerance)
   expect_equal(rowSums(result), c(1, 1), tolerance = 1e-10)

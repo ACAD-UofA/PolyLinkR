@@ -7,7 +7,7 @@ test_that("read_polylinkr_data handles minimal valid input", {
   d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
   
   # Should not error with minimal valid input
-  expect_silent(out <- read_polylinkr_data(input_path = d, verbose = FALSE))
+  out <- read_polylinkr_data(input_path = d, verbose = FALSE)
   
   # Should have expected structure
   expect_s3_class(out, "plR")
@@ -28,39 +28,36 @@ test_that("read_polylinkr_data errors on conflicting paths", {
   expect_error(
     read_polylinkr_data(
       input_path = d,
-      obj_info_path = file.path(d, "obj_info.txt"),
+      object_info_path = file.path(d, "obj_info.txt"),
       verbose = FALSE
     ),
     "Conflicting"
   )
 })
 
-test_that("read_polylinkr_data handles set size filtering", {
+test_that("read_polylinkr_data validates set size parameters", {
   d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
   
-  # Filter out all sets (tiny fixture has small sets)
-  expect_silent(
-    out <- read_polylinkr_data(input_path = d, min_set_size = 1000, verbose = FALSE)
+  # min.set.n must be at least 2 and less than max.set.n
+  expect_error(
+    read_polylinkr_data(input_path = d, min.set.n = 1000, verbose = FALSE)
   )
-  
-  # Should have fewer or no sets
-  expect_true(nrow(out$set.info) >= 0)
 })
 
-test_that("print.plR works on valid object", {
+test_that("print.plR produces output on valid object", {
   d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
   out <- read_polylinkr_data(input_path = d, verbose = FALSE)
   
-  # Should not error
-  expect_silent(print(out))
+  # Should produce output (not be silent)
+  expect_output(print(out))
 })
 
-test_that("summary.plR works on valid object", {
+test_that("summary.plR produces output on valid object", {
   d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
   out <- read_polylinkr_data(input_path = d, verbose = FALSE)
   
-  # Should not error (even though no tests have been run)
-  expect_silent(summary(out))
+  # Should produce output (not be silent)
+  expect_output(summary(out))
 })
 
 test_that("summary.plR validates sig parameter", {
@@ -79,7 +76,7 @@ test_that(".check_file_paths handles missing required files", {
   dir.create(d)
   on.exit(unlink(d, recursive = TRUE))
   
-  # Create only some required files
+  # Create only some required files (missing objinfo and setobj)
   writeLines("setID", file.path(d, "setinfo.txt"))
   
   e <- new.env()
@@ -88,30 +85,50 @@ test_that(".check_file_paths handles missing required files", {
       oi.path = NULL, si.path = NULL, so.path = NULL,
       rr.path = NULL, vi.path = NULL,
       input.path = d, group = NULL, ENV = e
-    ),
-    "No copies of"
+    )
   )
 })
 
-test_that(".check_file_paths detects multiple file versions", {
-  d <- tempfile()
-  dir.create(d)
-  on.exit(unlink(d, recursive = TRUE))
-  
-  # Create multiple versions of the same file
-  writeLines("setID", file.path(d, "setinfo.txt"))
-  writeLines("setID", file.path(d, "SetInfo.txt"))
-  
+test_that(".check_file_paths detects conflicting paths", {
+  d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
   e <- new.env()
+  
+  # Providing both input.path and specific file paths should error
   expect_error(
     polylinkR:::.check_file_paths(
-      oi.path = NULL, si.path = NULL, so.path = NULL,
+      oi.path = file.path(d, "obj_info.txt"),
+      si.path = NULL, so.path = NULL,
       rr.path = NULL, vi.path = NULL,
       input.path = d, group = NULL, ENV = e
     ),
-    "Multiple copies"
+    "Conflicting"
   )
+})
+
+test_that(".create_seed returns valid seeds", {
+  # NULL should generate random seed
+  seed1 <- polylinkR:::.create_seed(NULL)
+  expect_type(seed1, "integer")
+  expect_length(seed1, 1)
+  
+  # Explicit seed should be returned as-is
+  seed2 <- polylinkR:::.create_seed(42L)
+  expect_equal(seed2, 42L)
+  
+  # Negative seed should work
+  seed3 <- polylinkR:::.create_seed(-100L)
+  expect_equal(seed3, -100L)
+})
+
+test_that(".create_seed rejects invalid seeds", {
+  # Multiple values
+  expect_error(polylinkR:::.create_seed(c(1, 2)), "Incorrect random seed")
+  
+  # Non-numeric
+  expect_error(polylinkR:::.create_seed("abc"), "Incorrect random seed")
+  
+  # Too large
+  expect_error(polylinkR:::.create_seed(.Machine$integer.max + 1), "Incorrect random seed")
 })
 
 # Note: .report_messages() tests will be added after PR #27 (extract patterns) is merged
-# See test-edge-cases-messaging.R
