@@ -244,7 +244,7 @@ permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5
    set.seed(seed)
 
    # ensure contiguous IDs for genes and sets
-   .file_set(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info,
+   .set.files(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info,
              ENV = environment())
 
    # set up for parallel back end and reporting
@@ -359,7 +359,7 @@ permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5
                    globals = c("M0", "kern.bound",  "kern.scale", "kern.func",
                                "kern.wt.max", "n.cov", "n.genes", "os0", "ov0",
                                "cv.val", "cv.var", "prog", ".fit_lqr",
-                               ".cap_probs", ".md2p"), seed = seed)
+                               ".cap.probabilities", ".md2p"), seed = seed)
 
       progressr::with_progress({
          prog <- progressr::progressor(steps = n.ch)
@@ -391,7 +391,7 @@ permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5
 
                # calculate probability weights
                if (kern.wt.max < 1) { # apply probability cap
-                  wt.i <- .cap_probs(mm0 = wt.i, maxP = kern.wt.max)
+                  wt.i <- .cap.probabilities(mm0 = wt.i, maxP = kern.wt.max)
                } else {
                   wt.i <- wt.i / Rfast::rowsums(wt.i)
                }
@@ -613,7 +613,7 @@ permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5
          .verbose_msg(paste("Smoothing empirical CDF and GPD parameter estimates",
                     "and interpolating missing values\n"))
 
-         K <- .est_ss_cov(x = th0, n.genes = n.genes) # covariance matrix
+         K <- .estimate.setsize.covariance(x = th0, n.genes = n.genes) # covariance matrix
          sm.k <- min(max(10, round(n.th / 4)), 40) # deterministic basis for gam smoother
          sm0 <- mgcv::smoothCon(mgcv::s(x, k = sm.k, bs = "ps"),
                                 data = data.frame(x = log(th0)))[[1]] # get inner smoothing function
@@ -781,7 +781,7 @@ permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5
    plr.session$permute.session <- permute.session
 
    # set s3 class and create attributes
-   .file_reset(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
+   .reset.files(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
    OUT <- list(set.info = set.info, obj.info = obj.info, set.obj = set.obj)
    plr.out <- .new_plr(BASE = OUT, plr_data = plr.data, plr_args = plr.args,
                        plr_summary = plr.summary, plr_seed = plr.seed,

@@ -150,7 +150,7 @@ prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
    set.seed(seed) # reinstate seed from plR_permute
 
    # ensure contiguous IDs for genes and sets
-   .file_set(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info,
+   .set.files(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info,
              ENV = environment())
 
    # set up for parallel back end and reporting
@@ -229,7 +229,7 @@ prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
 
       FDR.pr[[4]] <- foreach::foreach(f.i = fdr.perm, F.i = FDR, .combine = c) %do% {
          ss.i <- soi[, .(sID, oID = f.i[oID])]
-          cov.i <- .get_covariance(SSi = ss.i, autocov_data = ac0)
+          cov.i <- .get.covariance(SSi = ss.i, autocov_data = ac0)
          sN0 <- sN[cov.i$sID]
          c.i[cov.i$sID] <- cov.i$CV
          F.i / sqrt((sN + c.i) * fpc[sN])
@@ -470,7 +470,7 @@ prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
    plr.session$prune.session <- list(session = sessionInfo(), run.time = r0[[2]])
 
    # set s3 class and create attributes
-   .file_reset(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
+   .reset.files(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
    OUT <- list(set.info = set.info, obj.info = obj.info, set.obj = set.obj)
    plr.out <- .new_plr(BASE = OUT, plr_data = plr.data, plr_args = plr.args,
                        plr_summary = plr.summary, plr_seed = plr.seed,
