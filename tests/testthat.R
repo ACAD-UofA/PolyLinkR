@@ -1,4 +1,1 @@
-library(testthat)
-library(PolyLinkR)
-
-test_check("PolyLinkR")
+testthat::test_check("polylinkR")
