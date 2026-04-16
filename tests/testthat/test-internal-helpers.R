@@ -56,7 +56,7 @@ test_that("read_polylinkr_data validates min_set_size and max_set_size", {
   # max_set_size too small (internally still uses max.set.n in error messages)
   expect_error(
     read_polylinkr_data(input_path = d, max_set_size = 1),
-    regexp = "max\.set\.n"
+    regexp = "max.set.n"
   )
 })
 
@@ -66,10 +66,10 @@ test_that("read_polylinkr_data merge_threshold parameter validation", {
   # merge_threshold must be in (0, 1] (internally still uses set.merge in error messages)
   expect_error(
     read_polylinkr_data(input_path = d, merge_threshold = 0),
-    regexp = "set\.merge"
+    regexp = "set.merge"
   )
   expect_error(
     read_polylinkr_data(input_path = d, merge_threshold = 1.1),
-    regexp = "set\.merge"
+    regexp = "set.merge"
   )
 })
