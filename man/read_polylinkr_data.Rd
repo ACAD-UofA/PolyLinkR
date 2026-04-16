@@ -164,9 +164,9 @@ Each attribute can be accessed using \code{attr()} or \code{attributes()}.
 The first four attribute classes aggregate information over successive
 functions. For example, to access the \code{plr.data} attribute for the
 \code{plR} object output after running \code{plR_permute}, use
-\code{attributes(X)$plR.data$permute.data}, where \code{X} is the object
+\code{attributes(X)$plr_data$permute.data}, where \code{X} is the object
 name. Similarly, the arguments used in \code{plR_read} are in
-\code{attributes(X)$plR.args$read.args}.
+\code{attributes(X)$plr_args$read.args}.
 
 The primary data structure of the \code{plR} object can be accessed using
 \code{print()} or by simply typing the object's name.
