@@ -144,13 +144,13 @@
 #' my_plR
 #' }
 print.plR <- function(x, ...) {
-   pT <- attributes(x)$plR.track # plR track info
+   pT <- attributes(x)$plr_track # plR track info
     if (pT == "INVALID") { # check if empty plR object
        cat(cli::col_red("Empty plR object\n"))
     } else {
        # unpack input file information
-       list2env(attributes(x)$plR.data$read.data, envir = environment())
-       pT.all <- .plR_track()
+       list2env(attributes(x)$plr_data$read_data, envir = environment())
+       pT.all <- .get_processing_history()
        # check information
       pI <- sapply(lapply(strsplit(pT.all$INPUT, "; "), '%in%', pT), any)
       pO <- sapply(lapply(strsplit(pT.all$OUTPUT, "; "), '%in%', pT), any)
@@ -244,7 +244,7 @@ summary.plR <- function(object, sig = 0.05, ...) {
       stop("significance value (sig argument) must be between 0 and 1",
            call. = FALSE)
    } else {
-       pT <- attributes(object)$plR.track # plR track info
+       pT <- attributes(object)$plr_track # plR track info
        if (pT == "INVALID") { # check if empty plR object
           cat(cli::col_red("Empty plR object\n"))
        } else {
