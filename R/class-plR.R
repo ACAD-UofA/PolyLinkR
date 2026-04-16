@@ -55,7 +55,7 @@
 
       plr.track <- paste(plr.track, collapse = "")
    } else { # core data missing, not a proper plR object
-      plr.track <- "XXX"
+      plr.track <- "INVALID"
    }
    structure(.Data = BASE, plR.data = plR.data, plR.args = plR.args,
              plR.summary = plR.summary, plR.seed = plR.seed,
@@ -145,13 +145,13 @@
 #' }
 print.plR <- function(x, ...) {
    pT <- attributes(x)$plR.track # plR track info
-   if (pT == "XXX") { # check if empty plR object
-      cat(cli::col_red("Empty plR object\n"))
-   } else {
-      # unpack input file information
-      list2env(attributes(x)$plR.data$read.data, envir = environment())
-      pT.all <- .plR_track()
-      # check information
+    if (pT == "INVALID") { # check if empty plR object
+       cat(cli::col_red("Empty plR object\n"))
+    } else {
+       # unpack input file information
+       list2env(attributes(x)$plR.data$read.data, envir = environment())
+       pT.all <- .plR_track()
+       # check information
       pI <- sapply(lapply(strsplit(pT.all$INPUT, "; "), '%in%', pT), any)
       pO <- sapply(lapply(strsplit(pT.all$OUTPUT, "; "), '%in%', pT), any)
       path <- c("plR_read", "plR_permute", "plR_rescale", "plR_prune")
@@ -244,11 +244,11 @@ summary.plR <- function(object, sig = 0.05, ...) {
       stop("significance value (sig argument) must be between 0 and 1",
            call. = FALSE)
    } else {
-      pT <- attributes(object)$plR.track # plR track info
-      if (pT == "XXX") { # check if empty plR object
-         cat(cli::col_red("Empty plR object\n"))
-      } else {
-         acN <- colnames(object$set.info)
+       pT <- attributes(object)$plR.track # plR track info
+       if (pT == "INVALID") { # check if empty plR object
+          cat(cli::col_red("Empty plR object\n"))
+       } else {
+          acN <- colnames(object$set.info)
          gM <- grep("setScore", acN)
          if (length(gM) == 0) {
             cat(cli::col_red("No tests performed. Nothing to summarise\n"))
