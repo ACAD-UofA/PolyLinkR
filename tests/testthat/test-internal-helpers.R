@@ -38,38 +38,38 @@ test_that(".plR_track defines valid input/output transitions", {
 test_that("plR_read returns valid plR object structure", {
   # Use tiny fixture
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
-  out <- plR_read(input.path = d, verbose = FALSE)
+  out <- read_polylinkr_data(input_path = d, verbose = FALSE)
 
   expect_s3_class(out, "plR")
   expect_true("set.info" %in% names(out))
   expect_true("obj.info" %in% names(out))
   expect_true("set.obj" %in% names(out))
 
-  # Check required attributes
-  expect_true("plR.track" %in% names(attributes(out)))
-  expect_equal(attr(out, "plR.track"), "000")
+  # Check required attributes (new snake_case attribute names)
+  expect_true("plr_track" %in% names(attributes(out)))
+  expect_equal(attr(out, "plr_track"), "000")
 })
 
-test_that("plR_read validates min.set.n and max.set.n", {
+test_that("plR_read validates min.set.n and max_set_size", {
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
 
-  # max.set.n too small
+  # max_set_size too small
   expect_error(
-    plR_read(input.path = d, max.set.n = 1),
-    regexp = "max.set.n"
+    read_polylinkr_data(input_path = d, max_set_size = 1),
+    regexp = "max_set_size"
   )
 })
 
-test_that("plR_read set.merge parameter validation", {
+test_that("plR_read merge_threshold parameter validation", {
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
 
-  # set.merge must be in (0, 1]
+  # merge_threshold must be in (0, 1]
   expect_error(
-    plR_read(input.path = d, set.merge = 0),
-    regexp = "set.merge"
+    read_polylinkr_data(input_path = d, merge_threshold = 0),
+    regexp = "merge_threshold"
   )
   expect_error(
-    plR_read(input.path = d, set.merge = 1.1),
-    regexp = "set.merge"
+    read_polylinkr_data(input_path = d, merge_threshold = 1.1),
+    regexp = "merge_threshold"
   )
 })
