@@ -861,7 +861,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
                      "|overlap|`\n"))
 
          # generate maximum scores in each gene interval
-         os0 <- .get_obj_stat(OI = obj.info, VI = var.info,
+         os0 <- .get.object.stats(OI = obj.info, VI = var.info,
                               FUN = obj.stat.fun, binN = bin.size)
          obj.info[os0[[1]], on = .(objID), objStat := objMax.res]
          obj.stat.param <- os0[[2]]
@@ -968,7 +968,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
       }
 
       # run merging function
-      .merge_sim_sets(SI = data.table::copy(set.info),
+      .merge.similar.sets(SI = data.table::copy(set.info),
                       SO = data.table::copy(set.obj),
                       min.sim = set.merge, ENV = environment())
 

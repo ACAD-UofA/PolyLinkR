@@ -973,7 +973,7 @@ if (f == "plot") { # check plotting arguments
 #' @return No return value. Instead, the function returns standardized
 #'   data frames and a vector of unique genes to the specified environment.
 #' @noRd
-.file_set <- function(OI, SI, SO, pos.info, ENV) {
+.set.files <- function(OI, SI, SO, pos.info, ENV) {
    # copy files to avoid overwriting
    OI <- data.table::copy(OI)
    SI <- data.table::copy(SI)
@@ -1025,7 +1025,7 @@ if (f == "plot") { # check plotting arguments
 #' @return No return value. Instead, the function transforms data.tables
 #'   within specified environment.
 #' @noRd
-.file_reset <- function(OI, SI, SO, pos.info) {
+.reset.files <- function(OI, SI, SO, pos.info) {
    # remove keys
    data.table::setkey(OI, NULL)
    data.table::setkey(SI, NULL)
@@ -1069,7 +1069,7 @@ if (f == "plot") { # check plotting arguments
 #' @return list containing data.table with gene scores and separate data.table
 #'  with raw maximum scores and model parameters as an attribute.
 #' @noRd
-.get_obj_stat <- function(OI, VI, FUN, binN) {
+.get.object.stats <- function(OI, VI, FUN, binN) {
    # overlap gene bins and SNPs
    oiX <- data.table::copy(OI)[, .(chr, objID, startpos, endpos)] # avoid overwriting obj.info
    oiX <- oiX[VI, on = .(chr = chr, startpos <= pos, endpos >= pos), nomatch = 0]
@@ -1174,7 +1174,7 @@ if (f == "plot") { # check plotting arguments
 #' @return A data.table with two columns, `setID` (the original set ID) and
 #'  `setID.new` (the final set ID).
 #' @noRd
-.final_merge <- function(I, J) {
+.merge.final <- function(I, J) {
    # find sets that have been merged multiple times
    mgm <- merge(I, J, by.x = "setID.new", by.y = "setID", all.y = TRUE)
    K <- mgm[, .(setID = ifelse(is.na(setID), setID.new, setID),
@@ -1196,7 +1196,7 @@ if (f == "plot") { # check plotting arguments
 #' @return An `integer` vector where each value represents the subnetwork ID for
 #'  each gene set.
 #' @noRd
-.get_subnetworks <- function(SO, min.sim) {
+.get.subnetworks <- function(SO, min.sim) {
    # no. of shared genes between sets
    SxG <- SO[SO, on = .(objID = objID),
              allow.cartesian = TRUE][, .N, keyby = .(setID, i.setID)]
@@ -1234,11 +1234,11 @@ if (f == "plot") { # check plotting arguments
 #'  provided environment (`ENV`) by adding the updated `set.info` and `set.obj`
 #'  tables, as well as generating an object tracking the merged sets.
 #' @noRd
-.merge_sim_sets <- function(SI, SO, min.sim, ENV) {
+.merge.similar.sets <- function(SI, SO, min.sim, ENV) {
    SI[, setN := SO[, .N, keyby = setID]$N] # get gene set size
 
    # identify subnetworks of gene sets with shared genes
-   SI0 <- .get_subnetworks(SO = SO, min.sim = min.sim)
+   SI0 <- .get.subnetworks(SO = SO, min.sim = min.sim)
    merged.sets <- list()
    R <- 0
 
@@ -1260,14 +1260,14 @@ if (f == "plot") { # check plotting arguments
       SI[, setN := SO[, .N, keyby = setID]$N] # update set sizes
 
       # check that new sets fulfill merging requirements
-      SI0 <- .get_subnetworks(SO = SO, min.sim = min.sim)
+      SI0 <- .get.subnetworks(SO = SO, min.sim = min.sim)
    }
 
    # prepare output
    if (R == 0) {
       SO.xx <- NULL
    } else { # compile final merged sets
-      SO.xx <- Reduce(.final_merge, merged.sets)
+      SO.xx <- Reduce(.merge.final, merged.sets)
       if ("setName" %in% names(SI)) {
          SI[SO.xx, on = .(setID = setID.new), setName := paste0(setName, "!")]
       }
@@ -1317,7 +1317,7 @@ if (f == "plot") { # check plotting arguments
 #' @return A matrix where all probabilities are at or below `maxP` and each
 #'  row sums to 1.
 #' @noRd
-.cap_probs <- function(mm0, maxP) {
+.cap.probabilities <- function(mm0, maxP) {
    wS <- Rfast::rowsums(mm0) # get row weight sums
    wMax <- maxP * wS # maximum weight in each row
    wGT0 <- which(mm0 > wMax, arr.ind = TRUE) # check that capping is required
@@ -1584,7 +1584,7 @@ if (f == "plot") { # check plotting arguments
 #' @param n.genes integer; Number of genes used in permutations.
 #' @return Numeric matrix `K` of size length(x) by length(x) with unit diagonal.
 #' @noRd
-.est_ss_cov <- function(x, n.genes) {
+.estimate.setsize.covariance <- function(x, n.genes) {
    denom <- tcrossprod(sqrt(x * (n.genes - x)))
    num_min <- outer(x, x, pmin) # min(i,j)
    num_max <- outer(x, x, pmax) # max(i,j)
@@ -1741,7 +1741,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #'  small genomic distances—where autocovariance structure is strongest—while
 #'  maintaining statistical stability at larger lags.
 #' @noRd
-.get_cgm_bins <- function (maxL, minL, cgm.bin, OI) {
+.get.correlogram.bins <- function (maxL, minL, cgm.bin, OI) {
    n.chr <- length(OI)
    min.log <- log10(1e5 * minL) # minimum possible lag range
    max.log <- log10(5e7 * minL) # maximum possible lag range
@@ -2002,7 +2002,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #' @return A data.table of autocovariances (`C`) for each null gene set (`sID`)
 #'   and by successive set sizes (`sN`)
 #' @noRd
-.get_covariance_null <- function(csj, rsX, set_scores, autocov_data) {
+.get.null.covariance <- function(csj, rsX, set_scores, autocov_data) {
    SSi <- set_scores[, oID := c(csj)]
    ACx <- autocov_data[SSi, on = .(A = oID), nomatch = 0, allow.cartesian = TRUE]
    ACxx <- ACx[SSi, on = .(B = oID, sID = sID), nomatch = 0]
@@ -2022,7 +2022,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #' @import data.table
 #' @return A data.table of autocovariances (`C`) for each null gene set (`sID`)
 #' @noRd
-.get_covariance <- function(SSi, autocov_data) {
+.get.covariance <- function(SSi, autocov_data) {
    # extract covariances
    ACx <- autocov_data[SSi, on = .(A = oID), nomatch = 0, allow.cartesian = TRUE]
    ACxx <- ACx[SSi, on = .(B = oID, sID = sID), nomatch = 0]
@@ -2059,7 +2059,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
    rescaled <- !is.null(acX)
    if (rescaled) { # track autocovariance
       cX <- rep(0, n.set.rem)
-      cx0 <- .get_covariance(SSi = PI[A == B, .(sID = A, oID = X)], autocov_data = acX)
+      cx0 <- .get.covariance(SSi = PI[A == B, .(sID = A, oID = X)], autocov_data = acX)
       cX[cx0$sID] <- cx0$CV
    }
 
@@ -2352,14 +2352,14 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #' @keywords internal
 #' @noRd
 .get_cov0 <- function(...) {
-   .get_covariance_null(...)
+   .get.null.covariance(...)
 }
 
 #' @rdname get_covariance
 #' @keywords internal
 #' @noRd
 .get_cov <- function(...) {
-   .get_covariance(...)
+   .get.covariance(...)
 }
 
 #' @rdname prune_gene_sets

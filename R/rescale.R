@@ -213,7 +213,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
    set.seed(seed) # reinstate seed from plR_permute
 
    # ensure contiguous IDs for genes and sets
-   .file_set(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info,
+   .set.files(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info,
              ENV = environment())
 
    # set up for parallel back end and reporting
@@ -291,7 +291,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
 
       oi0 <- oi0[order(startpos, endpos)]
       oi0 <- split(oi0, oi0$chr)
-      cBins <- .get_cgm_bins(maxL = maxL, minL = minL,
+      cBins <- .get.correlogram.bins(maxL = maxL, minL = minL,
                              cgm.bin = cgm.bin, OI = oi0)
       nBins <- length(cBins) - 1
 
@@ -366,7 +366,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
       if (cgm.wt.max < cgm.wt.min) cgm.wt.max <- cgm.wt.min
 
       cN[, lag.wts := (N / bin.size), by = chr] # gene density
-      cN[, lag.wts := .cap_probs(matrix(lag.wts, nrow = 1),
+      cN[, lag.wts := .cap.probabilities(matrix(lag.wts, nrow = 1),
                                         maxP = cgm.wt.max), by = chr] # avoid too much emphasis on smallest category
       cN[, bin := match(bin, bin) - 1] # set 0-lag bin index to 0
 
@@ -621,7 +621,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
                      dqrng::dqset.seed(x)
                      csX <- replicate(n.block,
                                       dqrng::dqsample.int(n.genes, n.max)) # faster than dqsample::dqsample
-                      rsX <- .get_covariance_null(csj = csX, rsX = rs0, set_scores = SS0, autocov_data = ac0) # get covariances
+                      rsX <- .get.null.covariance(csj = csX, rsX = rs0, set_scores = SS0, autocov_data = ac0) # get covariances
                      csX <- matrix(os0[csX], nrow = n.max, ncol = n.block) # get gene scores
 
                      if (n.sets == 1) { # only take final entry
@@ -700,7 +700,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
             .verbose_msg(paste("Smoothing empirical CDF and GPD parameter estimates",
                        "and interpolating missing values\n"))
 
-            K <- .est_ss_cov(x = th0, n.genes = n.genes) # covariance matrix
+            K <- .estimate.setsize.covariance(x = th0, n.genes = n.genes) # covariance matrix
             sm.k <- min(max(10, round(n.th / 4)), 40) # deterministic basis for gam smoother
             sm0 <- mgcv::smoothCon(mgcv::s(x, k = sm.k, bs = "ps"),
                                    data = data.frame(x = log(th0)))[[1]] # get inner smoothing function
@@ -837,7 +837,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
       ac0 <- ac[, .(A = objID.A, B = objID.B, CV = 2 * rho)]
 
       obs.cov <- rep(0, n.sets)
-       oc0 <- .get_covariance(SSi = SSI, autocov_data = ac0)
+       oc0 <- .get.covariance(SSi = SSI, autocov_data = ac0)
       obs.cov[oc0$sID] <- oc0$CV
 
       # calculate observed rescaled set scores
@@ -904,7 +904,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
    plr.session$rescale.session <- rescale.session
 
    # set s3 class and create attributes
-   .file_reset(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
+   .reset.files(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
    OUT <- list(set.info = set.info, obj.info = obj.info, set.obj = set.obj)
    plr.out <- .new_plr(BASE = OUT, plr_data = plr.data, plr_args = plr.args,
                        plr_summary = plr.summary, plr_seed = plr.seed,
