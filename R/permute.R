@@ -282,10 +282,10 @@ permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5
 
    # report collated warnings and messages
    .verbose_msg("\n")
-   if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
-   if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
+   if (!is.null(warning.messages)) warning(warning.messages, immediate. = T, call. = F)
+   if (!is.null(info.messages)) .verbose_msg(paste0("\n", info.messages, "\n"))
+   if (!is.null(param.warnings)) warning(param.warnings, immediate. = T, call. = F)
+   if (!is.null(param.messages)) .verbose_msg(paste0("\n", param.messages, "\n"))
    .verbose_msg("\n")
 
    ##=========================================================================##

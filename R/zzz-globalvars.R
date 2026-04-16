@@ -11,8 +11,8 @@ utils::globalVariables(c(
   ".", "A", "ARG", "B", "C", "CV", "EP.bp", "EP.cM", "EXP", "EXP.orig",
 
   "EXP.scaled", "F.i", "FDR.bin", "FDR.rep", "FUNCTION", "ID", "J", "MAD",
-  "MSS", "N", "N.ovlp", "N.tot", "Nm", "OBS", "R", "RP", "Rank", "SE",
-  "SP.bp", "SP.cM", "TEMP", "V1", "VP", "WMSS", "WT", "X",
+  "info.messages", "N", "N.ovlp", "N.tot", "Nm", "OBS", "R", "RP", "Rank", "SE",
+  "SP.bp", "SP.cM", "TEMP", "V1", "VP", "warning.messages", "WT", "X",
 
   # plR object and attribute variables
   "ac", "adj.p", "alt", "bin", "bin.max", "bin.min", "bin.size", "bootN",
@@ -44,7 +44,7 @@ utils::globalVariables(c(
   "objMax", "objMax.res", "objMed", "objMed.res", "objStat", "objStat.res",
   "objStat.std", "osI", "osJ", "output.path",
 
-  "p.i", "p0", "p1", "p2", "p3", "pMSS", "pWMSS", "par", "perm.path",
+  "p.i", "p0", "p1", "p2", "p3", "param.messages", "param.warnings", "par", "perm.path",
   "permute", "pg.wt", "plot.all", "plot.name", "plr.seed", "pos", "pos.info",
   "pos.lag", "prog.hand",
 
