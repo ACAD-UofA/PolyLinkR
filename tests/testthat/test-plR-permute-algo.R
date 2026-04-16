@@ -17,7 +17,7 @@ test_that("plR_permute has correct function signature", {
 test_that("plR_permute validates alt parameter", {
   # Use tiny fixture for valid plR object
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
-  plr_obj <- plR_read(input.path = d, verbose = FALSE)
+  plr_obj <- read_polylinkr_data(input_path = d, verbose = FALSE)
 
   # Invalid alt should error
   expect_error(
@@ -35,7 +35,7 @@ test_that("plR_permute requires plR object input", {
 
 test_that("plR_permute n.perm validation", {
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
-  plr_obj <- plR_read(input.path = d, verbose = FALSE)
+  plr_obj <- read_polylinkr_data(input.path = d, verbose = FALSE)
 
   # n.perm must be >= 1e5 and divisible by 1e5
   expect_error(
