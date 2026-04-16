@@ -4,12 +4,70 @@
 \alias{plR_read}
 \title{Read and validate required files for polylinkR (deprecated)}
 \usage{
-plR_read(...)
+plR_read(
+  input.path = NULL,
+  obj.info.path = NULL,
+  set.info.path = NULL,
+  set.obj.path = NULL,
+  var.info.path = NULL,
+  rec.rate.path = NULL,
+  min.set.n = 2L,
+  max.set.n = Inf,
+  group = NULL,
+  map.fun = "kosambi",
+  obj.buffer = "auto",
+  obj.stat.fun = "non.param",
+  bin.size = 250L,
+  obj.in = NULL,
+  obj.out = NULL,
+  set.in = NULL,
+  set.out = NULL,
+  set.merge = 0.95,
+  rem.genes = FALSE,
+  verbose = TRUE
+)
 }
 \arguments{
-\item{...}{All arguments passed to \code{read_polylinkr_data()}.}
+\item{input.path}{Deprecated. Use \code{input_path}.}
+
+\item{obj.info.path}{Deprecated. Use \code{object_info_path}.}
+
+\item{set.info.path}{Deprecated. Use \code{gene_set_info_path}.}
+
+\item{set.obj.path}{Deprecated. Use \code{gene_set_mapping_path}.}
+
+\item{var.info.path}{Deprecated. Use \code{variant_info_path}.}
+
+\item{rec.rate.path}{Deprecated. Use \code{recombination_rate_path}.}
+
+\item{min.set.n}{Deprecated. Use \code{min_set_size}.}
+
+\item{max.set.n}{Deprecated. Use \code{max_set_size}.}
+
+\item{group}{Deprecated. Use \code{group_label}.}
+
+\item{map.fun}{Deprecated. Use \code{mapping_function}.}
+
+\item{obj.buffer}{Deprecated. Use \code{object_buffer}.}
+
+\item{obj.stat.fun}{Deprecated. Use \code{object_statistic_function}.}
+
+\item{bin.size}{Deprecated. Use \code{bin_size}.}
+
+\item{obj.in}{Deprecated. Use \code{objects_to_include}.}
+
+\item{obj.out}{Deprecated. Use \code{objects_to_exclude}.}
+
+\item{set.in}{Deprecated. Use \code{sets_to_include}.}
+
+\item{set.out}{Deprecated. Use \code{sets_to_exclude}.}
+
+\item{set.merge}{Deprecated. Use \code{merge_threshold}.}
+
+\item{rem.genes}{Deprecated. Use \code{remove_duplicate_genes}.}
+
+\item{verbose}{Deprecated. Use \code{verbose}.}
 }
 \description{
 This function is deprecated. Please use \code{read_polylinkr_data()} instead.
 }
-\keyword{internal}
