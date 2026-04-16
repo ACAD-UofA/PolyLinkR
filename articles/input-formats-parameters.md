@@ -1,0 +1,1002 @@
+# Input Formats and Parameters Reference
+
+``` r
+library(polylinkR)
+```
+
+## Overview
+
+This vignette serves as the comprehensive reference guide for
+**polylinkR** input formats and function parameters. Use this document
+as your go-to resource when preparing data or configuring analysis
+parameters.
+
+------------------------------------------------------------------------
+
+## 1. Input Data Formats
+
+### 1.1 Required Files
+
+polylinkR requires three core input files that define genes, gene sets,
+and their relationships:
+
+#### ObjInfo File (Gene Information)
+
+The gene information file contains one row per gene with the following
+columns:
+
+| Column            | Type              | Required    | Description                                                    |
+|-------------------|-------------------|-------------|----------------------------------------------------------------|
+| `objID`           | character/numeric | Yes         | Unique gene identifier                                         |
+| `objStat`         | numeric           | Conditional | Gene score/statistic (required if no `var.info`)               |
+| `chr`             | character/numeric | Conditional | Chromosome/contig label (required for deconfounding/rescaling) |
+| `startpos`        | numeric           | Conditional | Gene start position in base pairs                              |
+| `endpos`          | numeric           | Conditional | Gene end position in base pairs                                |
+| `startpos.base`   | numeric           | Conditional | Original gene start (without buffer)                           |
+| `endpos.base`     | numeric           | Conditional | Original gene end (without buffer)                             |
+| `Cov1`, `Cov2`, … | numeric           | No          | Covariate columns for deconfounding                            |
+
+**Example ObjInfo file:**
+
+``` r
+# Example obj.info data structure
+objID    chr   startpos   endpos    objStat   Cov1   Cov2
+GENE001  1     1000000    1050000   2.34      0.5    1.2
+GENE002  1     2050000    2100000   -1.87     0.3    0.8
+GENE003  2     1500000    1600000   3.12      0.9    1.5
+```
+
+#### SetInfo File (Gene Set Information)
+
+The gene set information file contains one row per gene set:
+
+| Column  | Type              | Required | Description                |
+|---------|-------------------|----------|----------------------------|
+| `setID` | character/numeric | Yes      | Unique gene set identifier |
+
+Optional columns (preserved but not required): - `setName`:
+Human-readable set name - `setSource`: Source database or annotation -
+Any additional metadata columns
+
+**Example SetInfo file:**
+
+``` r
+# Example set.info data structure
+setID      setName               setSource
+SET001     Cell_cycle_genes      Reactome
+SET002     DNA_repair_pathway    KEGG
+SET003     Apoptosis_genes       GO_BP
+```
+
+#### SetObj File (Gene-to-Set Mappings)
+
+The mapping file defines which genes belong to which sets:
+
+| Column  | Type              | Required | Description                              |
+|---------|-------------------|----------|------------------------------------------|
+| `setID` | character/numeric | Yes      | Gene set identifier (must match SetInfo) |
+| `objID` | character/numeric | Yes      | Gene identifier (must match ObjInfo)     |
+
+**Example SetObj file:**
+
+``` r
+# Example set.obj data structure
+setID    objID
+SET001   GENE001
+SET001   GENE002
+SET002   GENE001
+SET002   GENE003
+SET003   GENE002
+SET003   GENE003
+```
+
+### 1.2 Optional Files
+
+#### VarInfo File (Variant/SNP Information)
+
+Used to generate gene scores from variant-level data:
+
+| Column  | Type              | Required | Description                                  |
+|---------|-------------------|----------|----------------------------------------------|
+| `chr`   | character/numeric | Yes      | Chromosome/contig label                      |
+| `pos`   | numeric           | Yes      | Variant position                             |
+| `value` | numeric           | Yes      | Statistical value (e.g., -log10(p), z-score) |
+
+**Example VarInfo file:**
+
+``` r
+# Example var.info data structure
+chr   pos        value
+1     1000023    3.45
+1     1023456    2.78
+1     2056789    4.12
+2     1500123    1.98
+```
+
+#### RecRate File (Recombination Rate)
+
+Used to convert physical (bp) to genetic (cM) coordinates:
+
+| Column | Type              | Required | Description                                              |
+|--------|-------------------|----------|----------------------------------------------------------|
+| `chr`  | character/numeric | Yes      | Chromosome label                                         |
+| `pos`  | numeric           | Yes      | Position in base pairs                                   |
+| `rate` | numeric           | Yes      | Recombination rate (cM/Mb or cM/bp)                      |
+| `map`  | numeric           | No       | Genetic map position (cM) - will be calculated if absent |
+
+**Format note:** Uses HapMap-style format. See examples at
+[Zenodo](https://zenodo.org/records/11437540).
+
+### 1.3 File Format Flexibility
+
+polylinkR accepts both comma-separated (.csv) and tab-separated
+(.tsv/.txt) files. Column names are case-insensitive and support
+multiple naming conventions:
+
+- `objID`, `obj_ID`, `ObjID`, `obj.id`, `Obj_Id`
+- `setID`, `set_ID`, `SetID`, `set.id`, `Set_Id`
+- `startpos`, `start_pos`, `StartPos`, `start`
+- `endpos`, `end_pos`, `EndPos`, `end`
+
+### 1.4 Data Encoding
+
+#### Gene Score Encoding
+
+Gene scores (`objStat`) can be encoded as:
+
+- **Z-scores**: Standardized effect sizes (recommended)
+- **-log10(p-values)**: Transformed p-values
+- **CLR (Centered Log-Ratio)**: For compositional data
+
+The encoding choice affects interpretation but the permutation framework
+is robust to the scale.
+
+#### Genotype Encoding (for variant data)
+
+When using `var.info` to generate gene scores:
+
+| Encoding       | Description                       | Use Case                    |
+|----------------|-----------------------------------|-----------------------------|
+| `-log10(p)`    | Negative log-transformed p-values | Standard GWAS summary stats |
+| Z-scores       | Standardized effect sizes         | Effect direction matters    |
+| Raw statistics | Original test statistics          | Custom analyses             |
+
+------------------------------------------------------------------------
+
+## 2. Data Loading Reference
+
+### 2.1 `plR_read()` Function
+
+The [`plR_read()`](../reference/plR_read.md) function is the entry point
+for loading and validating data.
+
+#### File Path Parameters
+
+| Parameter       | Type      | Default | Description                              |
+|-----------------|-----------|---------|------------------------------------------|
+| `input.path`    | character | `NULL`  | Directory containing all input files     |
+| `obj.info.path` | character | `NULL`  | Direct path to obj.info file             |
+| `set.info.path` | character | `NULL`  | Direct path to set.info file             |
+| `set.obj.path`  | character | `NULL`  | Direct path to set.obj file              |
+| `var.info.path` | character | `NULL`  | Direct path to var.info file             |
+| `rec.rate.path` | character | `NULL`  | Direct path to rec.rate file             |
+| `group`         | character | `NULL`  | Label to identify files within directory |
+
+#### Filtering Parameters
+
+| Parameter   | Type              | Default | Description                                      |
+|-------------|-------------------|---------|--------------------------------------------------|
+| `min.set.n` | integer           | `2`     | Minimum gene set size to retain                  |
+| `max.set.n` | numeric           | `Inf`   | Maximum gene set size to retain                  |
+| `obj.in`    | character/numeric | `NULL`  | Gene IDs to explicitly retain                    |
+| `obj.out`   | character/numeric | `NULL`  | Gene IDs to explicitly remove                    |
+| `set.in`    | character/numeric | `NULL`  | Set IDs to explicitly retain                     |
+| `set.out`   | character/numeric | `NULL`  | Set IDs to explicitly remove                     |
+| `set.merge` | numeric           | `0.95`  | Minimum proportion of shared genes to merge sets |
+| `rem.genes` | logical           | `FALSE` | Remove genes with identical genomic positions    |
+
+#### Gene Score Generation Parameters
+
+| Parameter      | Type      | Default       | Description                                                      |
+|----------------|-----------|---------------|------------------------------------------------------------------|
+| `obj.stat.fun` | character | `"non.param"` | Function for gene score correction: `"non.param"` or `"lm.logN"` |
+| `obj.buffer`   | numeric   | `"auto"`      | Buffer around genes (bp) for variant assignment                  |
+| `bin.size`     | integer   | `250`         | Bin size for non-parametric correction                           |
+
+#### Coordinate Conversion Parameters
+
+| Parameter | Type      | Default     | Description                                                                 |
+|-----------|-----------|-------------|-----------------------------------------------------------------------------|
+| `map.fun` | character | `"kosambi"` | Mapping function: `"Haldane"`, `"Kosambi"`, `"Carter-Falconer"`, `"Morgan"` |
+
+#### General Parameters
+
+| Parameter | Type    | Default | Description             |
+|-----------|---------|---------|-------------------------|
+| `verbose` | logical | `TRUE`  | Print progress messages |
+
+### 2.2 Validation Checks
+
+[`plR_read()`](../reference/plR_read.md) performs comprehensive
+validation:
+
+1.  **Column presence**: Ensures required columns exist with flexible
+    naming
+2.  **Data completeness**: Removes rows with missing required values
+3.  **ID consistency**: Checks that IDs match across files
+4.  **Chromosome compatibility**: Validates chromosome labels in
+    auxiliary files
+5.  **Duplicate removal**: Identifies and removes duplicate genes/sets
+6.  **Set merging**: Merges highly similar gene sets based on
+    `set.merge`
+7.  **Size filtering**: Enforces `min.set.n` and `max.set.n` constraints
+
+### 2.3 Loading Examples
+
+#### Example 1: Load from directory
+
+``` r
+# Load all files from a single directory
+plr_obj <- plR_read(
+  input.path = "path/to/data",
+  verbose = TRUE
+)
+```
+
+#### Example 2: Load with specific file paths
+
+``` r
+# Specify individual file paths
+plr_obj <- plR_read(
+  obj.info.path = "data/genes.tsv",
+  set.info.path = "data/sets.csv",
+  set.obj.path = "data/mappings.txt",
+  verbose = TRUE
+)
+```
+
+#### Example 3: Load with filtering
+
+``` r
+# Load with gene set size constraints and merging
+plr_obj <- plR_read(
+  input.path = "path/to/data",
+  min.set.n = 5,
+  max.set.n = 500,
+  set.merge = 0.85,
+  rem.genes = TRUE
+)
+```
+
+#### Example 4: Generate gene scores from variant data
+
+``` r
+# Generate gene scores from variant-level data
+plr_obj <- plR_read(
+  input.path = "path/to/data",
+  var.info.path = "data/gwas_summary.tsv",
+  obj.stat.fun = "non.param",
+  obj.buffer = 50000,  # 50kb buffer
+  bin.size = 250
+)
+```
+
+#### Example 5: Convert coordinates to genetic distance
+
+``` r
+# Convert physical to genetic coordinates
+plr_obj <- plR_read(
+  input.path = "path/to/data",
+  rec.rate.path = "data/recombination.tsv",
+  map.fun = "kosambi"
+)
+```
+
+------------------------------------------------------------------------
+
+## 3. Function Parameters Reference Tables
+
+### 3.1 `plR_permute()` Parameters
+
+Gene set enrichment testing with confounder correction.
+
+| Parameter     | Type              | Default       | Range                                                                  | Description                                         |
+|---------------|-------------------|---------------|------------------------------------------------------------------------|-----------------------------------------------------|
+| `plR.input`   | plR object        | Required      | \-                                                                     | Input from [`plR_read()`](../reference/plR_read.md) |
+| `permute`     | logical           | `TRUE`        | \-                                                                     | Perform permutation testing                         |
+| `n.perm`      | integer           | `500000`      | `[50000, Inf)`                                                         | Number of permutations (divisible by 10000)         |
+| `n.boot`      | integer           | `30`          | `[5, Inf)`                                                             | Bootstrap replicates for null inference             |
+| `alt`         | character         | `"upper"`     | `"upper"`, `"lower"`                                                   | Alternative hypothesis direction                    |
+| `md.meth`     | character         | `"robust"`    | `"robust"`, `"raw"`                                                    | Mahalanobis distance method                         |
+| `kern.bound`  | numeric           | `"auto"`      | `(0, Inf]`                                                             | Flanking region for gene exclusion                  |
+| `kern.func`   | character         | `"normal"`    | `"normal"`, `"exponential"`, `"inverse"`                               | Kernel function                                     |
+| `kern.scale`  | numeric           | `"auto"`      | `(0, Inf]`                                                             | Kernel scaling parameter                            |
+| `kern.wt.max` | numeric           | `0.05`        | `(1/(n-1), 1]`                                                         | Maximum probability weight                          |
+| `gpd.cutoff`  | numeric           | `5000/n.perm` | `[max(1e-4, 500/n.perm), 0.05]`                                        | GPD tail fitting threshold                          |
+| `seed`        | integer           | `NULL`        | `[-.Machine$integer.max, .Machine$integer.max]`                        | Random seed                                         |
+| `verbose`     | logical           | `TRUE`        | \-                                                                     | Print progress messages                             |
+| `n.cores`     | integer/character | `"auto"`      | `[1, max_cores]` or `"auto"`                                           | Number of cores                                     |
+| `fut.plan`    | character         | `"auto"`      | `"multisession"`, `"multicore"`, `"cluster"`, `"sequential"`, `"auto"` | Parallel backend                                    |
+
+#### Parameter Details
+
+**`n.perm`** - Higher values increase precision of small p-values but
+increase computation time. Default 500,000 provides good precision down
+to ~1e-5.
+
+**`n.boot`** - More bootstrap replicates improve estimation of the null
+distribution quantiles.
+
+**`alt`** - Use `"upper"` for testing enrichment in genes with high
+scores (e.g., positive selection), `"lower"` for low scores (e.g.,
+purifying selection).
+
+**`md.meth`** - `"robust"` converts covariates to ranks before computing
+Mahalanobis distances (recommended for non-normal covariates). `"raw"`
+uses original values.
+
+**`kern.bound`** - Defines a buffer region around each gene where
+overlapping genes receive reduced weights. `"auto"` sets 0.1 Mbp or 0.1
+cM.
+
+**`kern.func`** - Determines how distance-to-weight conversion occurs: -
+`"normal"`: Gaussian decay - `"exponential"`: Exponential decay -
+`"inverse"`: Inverse distance weighting
+
+### 3.2 `plR_rescale()` Parameters
+
+Rescale gene set scores for genetic autocorrelation.
+
+| Parameter    | Type                  | Default  | Range                                                                  | Description                                               |
+|--------------|-----------------------|----------|------------------------------------------------------------------------|-----------------------------------------------------------|
+| `plR.input`  | plR object            | Required | \-                                                                     | Input from [`plR_permute()`](../reference/plR_permute.md) |
+| `rescale`    | logical               | `TRUE`   | \-                                                                     | Perform rescaling step                                    |
+| `fast`       | logical               | `TRUE`   | \-                                                                     | Use fast analytical rescaling                             |
+| `ac`         | data.table/data.frame | `NULL`   | \-                                                                     | User-provided autocovariance object                       |
+| `cgm.range`  | numeric/character     | `"auto"` | `[1e5, 5e7]` bp or `[0.1, 50]` cM                                      | Maximum inter-gene lag for autocovariance                 |
+| `cgm.bin`    | numeric               | `30`     | `[10, 1000]`                                                           | Minimum gene pairs per lag bin                            |
+| `cgm.wt.max` | numeric               | `0.05`   | `[2/(nBins-1), 1]`                                                     | Maximum probability weight for lag windows                |
+| `emp.bayes`  | character             | `"auto"` | `"auto"`, `"full"`, `"reduced"`                                        | Empirical Bayes framework                                 |
+| `min.rho`    | numeric               | `1e-5`   | `(0, 0.01]`                                                            | Minimum correlation threshold                             |
+| `verbose`    | logical               | `TRUE`   | \-                                                                     | Print progress messages                                   |
+| `n.cores`    | integer/character     | `"auto"` | `[1, max_cores]` or `"auto"`                                           | Number of cores                                           |
+| `fut.plan`   | character             | `"auto"` | `"multisession"`, `"multicore"`, `"cluster"`, `"sequential"`, `"auto"` | Parallel backend                                          |
+
+#### Parameter Details
+
+**`fast`** - When `TRUE`, uses analytical rescaling (much faster). When
+`FALSE`, performs full empirical rescaling (more accurate but
+computationally intensive).
+
+**`cgm.range`** - Defines the maximum distance for computing empirical
+autocovariance. `"auto"` sets 3 Mbp or 3 cM.
+
+**`cgm.bin`** - Controls binning of empirical covariances. Larger values
+create smoother correlograms but may miss local structure.
+
+**`emp.bayes`** - Framework for regularizing chromosome-level
+parameters: - `"full"`: Correlated random effects (requires ≥15
+chromosomes) - `"reduced"`: Independent random effects - `"auto"`:
+Chooses based on chromosome count
+
+**`min.rho`** - Correlations below this threshold are set to zero,
+reducing noise in the covariance matrix.
+
+### 3.3 `plR_prune()` Parameters
+
+Prune gene sets and compute FDR-corrected p-values.
+
+| Parameter   | Type              | Default  | Range                                                                  | Description                                                                                                 |
+|-------------|-------------------|----------|------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `plR.input` | plR object        | Required | \-                                                                     | Input from [`plR_permute()`](../reference/plR_permute.md) or [`plR_rescale()`](../reference/plR_rescale.md) |
+| `n.fdr`     | integer           | `300`    | `[100, Inf)`, divisible by 100                                         | Pruning replicates for FDR                                                                                  |
+| `est.pi0`   | logical           | `TRUE`   | \-                                                                     | Estimate proportion of true nulls                                                                           |
+| `tolerance` | numeric           | `0.001`  | `(0, 0.01]`                                                            | Convergence tolerance for pi0                                                                               |
+| `verbose`   | logical           | `TRUE`   | \-                                                                     | Print progress messages                                                                                     |
+| `n.cores`   | integer/character | `"auto"` | `[1, max_cores]` or `"auto"`                                           | Number of cores                                                                                             |
+| `fut.plan`  | character         | `"auto"` | `"multisession"`, `"multicore"`, `"cluster"`, `"sequential"`, `"auto"` | Parallel backend                                                                                            |
+
+#### Parameter Details
+
+**`n.fdr`** - Number of permuted gene set replicates used to estimate
+the null distribution for FDR. More replicates improve q-value
+precision.
+
+**`est.pi0`** - When `TRUE`, estimates the proportion of true null
+hypotheses (pi0). When `FALSE`, assumes pi0 = 1 (conservative).
+
+**`tolerance`** - Controls when pi0 estimation stops. Smaller values
+require more iterations for convergence.
+
+### 3.4 Distance Calculation Methods
+
+#### Mahalanobis Distance (`md.meth`)
+
+Used in confounder correction
+([`plR_permute()`](../reference/plR_permute.md)):
+
+| Method     | Description                                           | When to Use                             |
+|------------|-------------------------------------------------------|-----------------------------------------|
+| `"robust"` | Ranks converted to normal scores, Spearman covariance | Non-normal covariates, outliers present |
+| `"raw"`    | Original values, Pearson covariance                   | Normal covariates, no extreme outliers  |
+
+#### Distance Metrics (implicit)
+
+For genetic coordinate systems:
+
+| System   | Units             | Use Case                                          |
+|----------|-------------------|---------------------------------------------------|
+| Physical | Base pairs (bp)   | Fine-scale analyses, species without genetic maps |
+| Genetic  | CentiMorgans (cM) | Cross-species comparisons, LD-aware analyses      |
+
+------------------------------------------------------------------------
+
+## 4. Output Format Specifications
+
+### 4.1 plR Object Structure
+
+All polylinkR functions return S3 objects of class `plR` containing
+three data.tables:
+
+#### `obj.info` - Gene Information
+
+| Column            | Description                                       |
+|-------------------|---------------------------------------------------|
+| `objID`           | Gene identifier                                   |
+| `objID.orig`      | Original gene identifier                          |
+| `chr`             | Chromosome                                        |
+| `startpos`        | Start position (including buffer)                 |
+| `endpos`          | End position (including buffer)                   |
+| `startpos.base`   | Original start position                           |
+| `endpos.base`     | Original end position                             |
+| `midpos`          | Midpoint position                                 |
+| `objStat`         | Original gene score                               |
+| `objStat.res`     | Residual gene score (after prognostic correction) |
+| `objStat.std`     | Standardized gene score (mean=0, sd=1)            |
+| `Cov1`, `Cov2`, … | Covariate values (if provided)                    |
+
+#### `set.info` - Gene Set Information
+
+| Column           | Description                                                                  |
+|------------------|------------------------------------------------------------------------------|
+| `setID`          | Gene set identifier                                                          |
+| `setID.orig`     | Original set identifier                                                      |
+| `setN`           | Number of genes in set                                                       |
+| `setScore.std`   | Standardized set score (from [`plR_permute()`](../reference/plR_permute.md)) |
+| `setScore.std.p` | P-value for standardized score                                               |
+| `setScore.rs`    | Rescaled set score (from [`plR_rescale()`](../reference/plR_rescale.md))     |
+| `setScore.rs.p`  | P-value for rescaled score                                                   |
+| `setScore.pr`    | Pruned set score (from [`plR_prune()`](../reference/plR_prune.md))           |
+| `setScore.pr.p`  | Pruned p-value                                                               |
+| `setScore.pr.q`  | FDR-corrected q-value                                                        |
+| `Rank`           | Pruning rank                                                                 |
+| `Tot.obj.rem`    | Total genes removed during pruning                                           |
+| `Tot.set.rem`    | Total sets removed during pruning                                            |
+
+#### `set.obj` - Gene-to-Set Mappings
+
+| Column  | Description         |
+|---------|---------------------|
+| `setID` | Gene set identifier |
+| `objID` | Gene identifier     |
+
+### 4.2 Object Attributes
+
+Access using `attributes(plr_obj)$attribute_name`:
+
+| Attribute     | Description                      | Access Example                                |
+|---------------|----------------------------------|-----------------------------------------------|
+| `plR.data`    | Reusable datasets and parameters | `attributes(plr)$plR.data$permute.data`       |
+| `plR.args`    | Argument settings used           | `attributes(plr)$plR.args$read.args`          |
+| `plR.summary` | Summary statistics               | `attributes(plr)$plR.summary$permute.summary` |
+| `plR.session` | R session info and run times     | `attributes(plr)$plR.session$read.session`    |
+| `plR.seed`    | Random seeds used                | `attributes(plr)$plR.seed$seed`               |
+| `class`       | S3 class identifier              | Always `"plR"`                                |
+
+### 4.3 Results Interpretation
+
+#### P-value Columns
+
+| Column           | When Significant | Interpretation                                 |
+|------------------|------------------|------------------------------------------------|
+| `setScore.std.p` | \< 0.05          | Gene set shows enrichment before LD correction |
+| `setScore.rs.p`  | \< 0.05          | Gene set shows enrichment after LD correction  |
+| `setScore.pr.p`  | \< 0.05          | Gene set significant after pruning             |
+| `setScore.pr.q`  | \< 0.05          | Gene set significant after FDR correction      |
+
+#### Score Columns
+
+| Column         | Meaning                                                   |
+|----------------|-----------------------------------------------------------|
+| `setScore.std` | Mean of standardized gene scores × sqrt(set size)         |
+| `setScore.rs`  | Rescaled score accounting for gene correlations           |
+| `setScore.pr`  | Score after removing shared genes with higher-ranked sets |
+
+**Important:** For final interpretation, use `setScore.pr.q`
+(FDR-corrected q-values from the pruning step). This accounts for both
+LD structure and shared genes between pathways.
+
+------------------------------------------------------------------------
+
+## 5. Troubleshooting Common Input Issues
+
+### 5.1 Mismatched Sample IDs
+
+#### Problem
+
+Gene IDs in `set.obj` don’t match those in `obj.info`.
+
+#### Error Message
+
+    Some set.obj genes [objID] were not found in obj.info
+
+#### Solutions
+
+1.  **Check ID formats**: Ensure consistent naming (case-sensitive):
+
+    ``` r
+    # Check overlap between files
+    obj_ids <- obj.info$objID
+    set_obj_ids <- unique(set.obj$objID)
+
+    # Find mismatches
+    missing_in_obj <- setdiff(set_obj_ids, obj_ids)
+    missing_in_set <- setdiff(obj_ids, set_obj_ids)
+
+    print(missing_in_obj)
+    ```
+
+2.  **Standardize IDs**: Convert all IDs to the same case/format:
+
+    ``` r
+    # Make all IDs uppercase
+    obj.info$objID <- toupper(obj.info$objID)
+    set.obj$objID <- toupper(set.obj$objID)
+    ```
+
+3.  **Use ID mapping**: Create a translation table if IDs differ
+    systematically.
+
+### 5.2 Missing Data Handling
+
+#### Problem
+
+Rows with missing values are being removed.
+
+#### Warning Message
+
+    5 incomplete rows detected and removed from obj.info
+
+#### Solutions
+
+1.  **Identify missing data**:
+
+    ``` r
+    # Find rows with missing values
+    incomplete <- !complete.cases(obj.info)
+    print(obj.info[incomplete, ])
+    ```
+
+2.  **Impute or fill**: For optional columns, add placeholder values:
+
+    ``` r
+    # Fill missing covariates with 0
+    obj.info$Cov1[is.na(obj.info$Cov1)] <- 0
+    ```
+
+3.  **Check file format**: Ensure proper delimiter handling:
+
+    ``` r
+    # For tab-separated files
+    obj.info <- data.table::fread("data.tsv", sep = "\t")
+    ```
+
+### 5.3 Memory Errors with Large Datasets
+
+#### Problem
+
+R runs out of memory during analysis.
+
+#### Error Message
+
+    Error: cannot allocate vector of size ...
+
+#### Solutions
+
+1.  **Reduce permutations**: Start with fewer permutations:
+
+    ``` r
+    plr_perm <- plR_permute(
+      plR.input = plr_obj,
+      n.perm = 100000,  # Reduced from 500000
+      n.boot = 10       # Reduced from 30
+    )
+    ```
+
+2.  **Use fewer cores**: Reduce parallel overhead:
+
+    ``` r
+    plr_perm <- plR_permute(
+      plR.input = plr_obj,
+      n.cores = 2  # Limit parallel cores
+    )
+    ```
+
+3.  **Process chromosomes separately**: Split by chromosome if
+    appropriate.
+
+4.  **Increase system memory**: Use a machine with more RAM or use
+    memory-mapped files.
+
+### 5.4 Format Conversion Examples
+
+#### Converting from PLINK/association output
+
+``` r
+# PLINK .assoc output to var.info format
+plink_output <- read.table("plink.assoc", header = TRUE)
+
+var.info <- data.frame(
+  chr = plink_output$CHR,
+  pos = plink_output$BP,
+  value = -log10(plink_output$P)  # Convert p-value to -log10
+)
+
+write.table(var.info, "var_info.tsv", sep = "\t", row.names = FALSE)
+```
+
+#### Converting from VCF/GWAS catalog
+
+``` r
+# Standard GWAS summary statistics
+# Columns: SNP, CHR, BP, P, BETA, SE
+
+gwas <- read.table("gwas_summary.tsv", header = TRUE)
+
+# Option 1: Use -log10 p-values
+var.info <- data.frame(
+  chr = gwas$CHR,
+  pos = gwas$BP,
+  value = -log10(gwas$P)
+)
+
+# Option 2: Use Z-scores (if BETA and SE available)
+var.info <- data.frame(
+  chr = gwas$CHR,
+  pos = gwas$BP,
+  value = gwas$BETA / gwas$SE
+)
+```
+
+#### Converting gene annotation formats
+
+``` r
+# From GTF/GFF to obj.info
+# Example using rtracklayer (not run)
+# library(rtracklayer)
+# gtf <- import("genes.gtf")
+# 
+# obj.info <- data.frame(
+#   objID = gtf$gene_id,
+#   chr = seqnames(gtf),
+#   startpos = start(gtf),
+#   endpos = end(gtf)
+# )
+```
+
+#### Converting from MSigDB/other pathway databases
+
+``` r
+# From MSigDB GMT format to polylinkR format
+
+# Read GMT file
+gmt_lines <- readLines("h.all.v7.2.symbols.gmt")
+
+# Parse to set.info and set.obj
+set_info_list <- list()
+set_obj_list <- list()
+
+for (line in gmt_lines) {
+  parts <- strsplit(line, "\t")[[1]]
+  set_id <- parts[1]
+  set_desc <- parts[2]
+  genes <- parts[-(1:2)]
+  
+  # Add to set.info
+  set_info_list[[length(set_info_list) + 1]] <- data.frame(
+    setID = set_id,
+    setName = set_desc
+  )
+  
+  # Add to set.obj
+  set_obj_list[[length(set_obj_list) + 1]] <- data.frame(
+    setID = set_id,
+    objID = genes
+  )
+}
+
+set.info <- do.call(rbind, set_info_list)
+set.obj <- do.call(rbind, set_obj_list)
+```
+
+### 5.5 Common Warnings and Their Meanings
+
+| Warning                                             | Meaning                                         | Action                                        |
+|-----------------------------------------------------|-------------------------------------------------|-----------------------------------------------|
+| “GPD fitting failed for \>50% of nulls”             | Extreme value distribution fitting unsuccessful | Try different `gpd.cutoff` or reduce `n.perm` |
+| “Some obj.info chromosomes not present in rec.rate” | Missing recombination data for some chromosomes | Check chromosome naming consistency           |
+| “Short chromosome lengths detected”                 | Coordinates may already be in cM                | Verify coordinate system                      |
+| “Covariate matrix is singular”                      | Redundant covariates detected                   | Remove correlated covariates or reduce number |
+| “Correlogram function fitting did not converge”     | Autocovariance model fitting failed             | Adjust `cgm.bin` or `cgm.range`               |
+
+------------------------------------------------------------------------
+
+## 6. Quick Reference Card
+
+### One-Page Parameter Summary
+
+#### Essential Parameters by Analysis Stage
+
+##### Stage 1: Data Loading (`plR_read()`)
+
+| Parameter    | Default | When to Change                                                 |
+|--------------|---------|----------------------------------------------------------------|
+| `min.set.n`  | 2       | Increase to focus on larger pathways (e.g., 10 for robustness) |
+| `max.set.n`  | Inf     | Decrease to exclude very large pathways (e.g., 1000)           |
+| `set.merge`  | 0.95    | Decrease to merge more similar sets (e.g., 0.85)               |
+| `rem.genes`  | FALSE   | Set TRUE if duplicate gene positions expected                  |
+| `obj.buffer` | auto    | Increase for broader variant capture (e.g., 50e3 for 50kb)     |
+
+##### Stage 2: Permutation (`plR_permute()`)
+
+| Parameter     | Default     | When to Change                                          |
+|---------------|-------------|---------------------------------------------------------|
+| `n.perm`      | 500000      | Increase for more precise small p-values (e.g., 1e6)    |
+| `n.boot`      | 30          | Increase for smoother null distribution (e.g., 100)     |
+| `alt`         | “upper”     | Use “lower” for testing depletion                       |
+| `md.meth`     | “robust”    | Use “raw” if covariates are normally distributed        |
+| `kern.bound`  | auto        | Increase to exclude larger regions (e.g., 1e6 for 1Mbp) |
+| `kern.wt.max` | 0.05        | Increase if single genes should have more influence     |
+| `gpd.cutoff`  | 5000/n.perm | Decrease for more conservative tail estimation          |
+| `n.cores`     | auto        | Set to specific value for reproducible parallelization  |
+
+##### Stage 3: Rescaling (`plR_rescale()`)
+
+| Parameter   | Default | When to Change                                            |
+|-------------|---------|-----------------------------------------------------------|
+| `rescale`   | TRUE    | Set FALSE to skip (compute autocovariance only)           |
+| `fast`      | TRUE    | Set FALSE for empirical rescaling (slower, more accurate) |
+| `cgm.range` | auto    | Increase for longer-range LD (e.g., 5e6 for 5Mbp)         |
+| `cgm.bin`   | 30      | Increase for smoother correlogram (e.g., 100)             |
+| `emp.bayes` | auto    | Use “reduced” for few chromosomes (\<15)                  |
+| `min.rho`   | 1e-5    | Increase to filter weak correlations (e.g., 1e-4)         |
+
+##### Stage 4: Pruning (`plR_prune()`)
+
+| Parameter   | Default | When to Change                                  |
+|-------------|---------|-------------------------------------------------|
+| `n.fdr`     | 300     | Increase for more precise q-values (e.g., 1000) |
+| `est.pi0`   | TRUE    | Set FALSE for conservative q-values (pi0 = 1)   |
+| `tolerance` | 0.001   | Decrease for stricter pi0 convergence           |
+
+### Recommended Defaults by Analysis Type
+
+#### Quick GWAS Pathway Analysis
+
+For a standard human GWAS with ~20,000 genes and ~100 pathways:
+
+``` r
+# Load data
+plr <- plR_read(
+  input.path = "path/to/gwas_data",
+  min.set.n = 10,
+  set.merge = 0.90,
+  verbose = TRUE
+)
+
+# Quick permutation (reduced precision)
+plr <- plR_permute(
+  plR.input = plr,
+  n.perm = 100000,
+  n.boot = 10,
+  n.cores = 4
+)
+
+# Rescale for LD
+plr <- plR_rescale(
+  plR.input = plr,
+  fast = TRUE,
+  n.cores = 4
+)
+
+# Prune and get q-values
+plr <- plR_prune(
+  plR.input = plr,
+  n.fdr = 300,
+  n.cores = 4
+)
+```
+
+#### High-Precision Discovery Analysis
+
+For publication-quality results with precise small p-values:
+
+``` r
+# Load with stringent filtering
+plr <- plR_read(
+  input.path = "path/to/data",
+  min.set.n = 5,
+  max.set.n = 500,
+  set.merge = 0.95,
+  rem.genes = TRUE
+)
+
+# Extensive permutations
+plr <- plR_permute(
+  plR.input = plr,
+  n.perm = 1000000,   # 1 million permutations
+  n.boot = 100,       # 100 bootstrap replicates
+  gpd.cutoff = 0.001  # Conservative GPD threshold
+)
+
+# Empirical rescaling
+plr <- plR_rescale(
+  plR.input = plr,
+  fast = FALSE,       # Full empirical rescaling
+  cgm.bin = 100       # Finer correlogram bins
+)
+
+# Extensive FDR
+plr <- plR_prune(
+  plR.input = plr,
+  n.fdr = 1000        # Many replicates for precise q-values
+)
+```
+
+#### Non-Human Species / No LD Map
+
+For species without recombination maps or when physical distance is
+preferred:
+
+``` r
+# Load without coordinate conversion
+# Use physical distances (bp) only
+plr <- plR_read(
+  input.path = "path/to/data",
+  verbose = TRUE
+)
+
+# Standard permutation
+plr <- plR_permute(plR.input = plr)
+
+# Rescale with physical distance
+# cgm.range will be in base pairs
+plr <- plR_rescale(
+  plR.input = plr,
+  cgm.range = 2e6  # 2 Mbp range
+)
+
+plr <- plR_prune(plR.input = plr)
+```
+
+#### Covariate-Aware Analysis
+
+When including confounders (e.g., gene length, GC content):
+
+``` r
+# Ensure covariate columns are in obj.info
+# obj.info should contain: Cov1, Cov2, etc.
+
+# Load data
+plr <- plR_read(input.path = "path/to/data")
+
+# Permutation with robust covariate handling
+plr <- plR_permute(
+  plR.input = plr,
+  md.meth = "robust",      # Robust Mahalanobis distances
+  kern.bound = 1e6,        # 1 Mbp exclusion zone
+  kern.wt.max = 0.10,      # Allow higher single-gene weights
+  kern.func = "normal"     # Gaussian kernel
+)
+
+# Continue with rescale and prune
+plr <- plR_rescale(plR.input = plr)
+plr <- plR_prune(plR.input = plr)
+```
+
+### Parameter Cross-Reference
+
+| Goal                      | Parameter               | Function                                       |
+|---------------------------|-------------------------|------------------------------------------------|
+| More precise p-values     | `n.perm`, `n.boot`      | [`plR_permute()`](../reference/plR_permute.md) |
+| Conservative tail fitting | `gpd.cutoff`            | [`plR_permute()`](../reference/plR_permute.md) |
+| Better covariate handling | `md.meth`, `kern.*`     | [`plR_permute()`](../reference/plR_permute.md) |
+| Faster computation        | `fast = TRUE`           | [`plR_rescale()`](../reference/plR_rescale.md) |
+| Better LD correction      | `fast = FALSE`, `cgm.*` | [`plR_rescale()`](../reference/plR_rescale.md) |
+| Precise q-values          | `n.fdr`                 | [`plR_prune()`](../reference/plR_prune.md)     |
+| Conservative FDR          | `est.pi0 = FALSE`       | [`plR_prune()`](../reference/plR_prune.md)     |
+| Faster parallelization    | `n.cores`, `fut.plan`   | All functions                                  |
+
+### File Format Checklist
+
+Before running analysis, verify:
+
+`objID` values match between `obj.info` and `set.obj`
+
+`setID` values match between `set.info` and `set.obj`
+
+Chromosome labels are consistent across all files
+
+Position columns are numeric (not factor/character)
+
+Gene scores (`objStat`) are present or `var.info` provided
+
+Covariate columns follow `Cov1`, `Cov2`, … naming
+
+File delimiters are consistent (.csv or .tsv)
+
+No trailing whitespace in ID columns
+
+No duplicate `objID` or `setID` rows
+
+### Output Column Quick Guide
+
+| Result Type           | Column Name      | From Function                                  |
+|-----------------------|------------------|------------------------------------------------|
+| Raw set scores        | `setScore.std`   | [`plR_permute()`](../reference/plR_permute.md) |
+| Raw p-values          | `setScore.std.p` | [`plR_permute()`](../reference/plR_permute.md) |
+| LD-corrected scores   | `setScore.rs`    | [`plR_rescale()`](../reference/plR_rescale.md) |
+| LD-corrected p-values | `setScore.rs.p`  | [`plR_rescale()`](../reference/plR_rescale.md) |
+| Pruned scores         | `setScore.pr`    | [`plR_prune()`](../reference/plR_prune.md)     |
+| Pruned p-values       | `setScore.pr.p`  | [`plR_prune()`](../reference/plR_prune.md)     |
+| Final q-values        | `setScore.pr.q`  | [`plR_prune()`](../reference/plR_prune.md)     |
+
+**For final results, always use `setScore.pr.q` (FDR-corrected
+q-values).**
+
+------------------------------------------------------------------------
+
+## Cross-Reference with Other Vignettes
+
+- **Getting Started with polylinkR**: Basic workflow and runnable
+  examples
+- **Function Documentation**: [`?plR_read`](../reference/plR_read.md),
+  [`?plR_permute`](../reference/plR_permute.md),
+  [`?plR_rescale`](../reference/plR_rescale.md),
+  [`?plR_prune`](../reference/plR_prune.md)
+
+------------------------------------------------------------------------
+
+## Session Information
+
+``` r
+sessionInfo()
+#> R version 4.5.3 (2026-03-11)
+#> Platform: x86_64-pc-linux-gnu
+#> Running under: Ubuntu 24.04.4 LTS
+#> 
+#> Matrix products: default
+#> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3 
+#> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
+#> 
+#> locale:
+#>  [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
+#>  [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
+#>  [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
+#> [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+#> 
+#> time zone: UTC
+#> tzcode source: system (glibc)
+#> 
+#> attached base packages:
+#> [1] stats     graphics  grDevices utils     datasets  methods   base     
+#> 
+#> loaded via a namespace (and not attached):
+#>  [1] digest_0.6.39     desc_1.4.3        R6_2.6.1          fastmap_1.2.0    
+#>  [5] xfun_0.57         cachem_1.1.0      knitr_1.51        htmltools_0.5.9  
+#>  [9] rmarkdown_2.31    lifecycle_1.0.5   cli_3.6.6         sass_0.4.10      
+#> [13] pkgdown_2.2.0     textshaping_1.0.5 jquerylib_0.1.4   systemfonts_1.3.2
+#> [17] compiler_4.5.3    tools_4.5.3       ragg_1.5.2        evaluate_1.0.5   
+#> [21] bslib_0.10.0      yaml_2.3.12       jsonlite_2.0.0    rlang_1.2.0      
+#> [25] fs_2.0.1
+```

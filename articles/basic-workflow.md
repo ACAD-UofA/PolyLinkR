@@ -1,0 +1,649 @@
+# Basic Workflow with polylinkR
+
+``` r
+library(polylinkR)
+library(data.table)
+library(ggplot2)
+```
+
+## Introduction
+
+**polylinkR** performs gene-based pathway enrichment analysis while
+explicitly accounting for linkage disequilibrium (LD) between adjacent
+loci. Unlike standard pathway enrichment tools that treat genes as
+independent, polylinkR preserves the innate linkage structure among
+genes across the genome. This reduces false positives that arise when
+genes in the same pathway are physically close and share correlated
+signals.
+
+The package implements a novel circular permutation algorithm that: 1.
+Links all chromosomes into a single “circular” genome 2. Rotates this
+circular genome to create unique gene-to-score mappings 3. Preserves the
+correlation structure among genes 4. Generates accurate null
+distributions for pathway enrichment testing
+
+## Prerequisites
+
+### Required Packages
+
+polylinkR requires the following R packages:
+
+- `data.table` - Fast data manipulation
+- `foreach` - Parallel iteration support  
+- `doFuture` - Parallel backend
+- `future` - Parallel processing framework
+- `dqrng` - Fast random number generation
+- `Rfast` - Fast statistical functions
+- `mgcv` - Generalized additive models
+- `distances` - Distance matrix calculations
+- `tdigest` - Approximate quantile estimation
+- `cli` - Command line interface formatting
+
+These dependencies are automatically installed when you install
+polylinkR from CRAN or GitHub.
+
+### Input Data Format
+
+polylinkR requires three core input files:
+
+1.  **obj.info** - Gene-level information with columns:
+    - `objID`: Unique gene identifier
+    - `objStat`: Gene-level statistic (e.g., selection score, p-value)
+    - `chr`, `startpos`, `endpos`: Genomic coordinates (optional but
+      recommended)
+2.  **set.info** - Gene set information with columns:
+    - `setID`: Unique pathway/set identifier
+    - Additional optional metadata columns
+3.  **set.obj** - Gene-to-set mappings with columns:
+    - `setID`: Set identifier (must match set.info)
+    - `objID`: Gene identifier (must match obj.info)
+
+Optional files include: - **var.info** - SNP-level statistics for
+computing gene scores - **rec.rate** - Recombination rates for
+converting physical to genetic distances
+
+## Loading Data
+
+### The Anatolia_EF_CLR Dataset
+
+This vignette uses the `Anatolia_EF_CLR` dataset included with
+polylinkR. This dataset contains gene-level statistics from a population
+genetics study of the Anatolia population, with selection signals
+computed using Eigenstrat format data.
+
+Let’s examine the structure of the included data:
+
+``` r
+# Load the example datasets
+data("Anatolia_EF_CLR")
+data("PolyLinkR_SetInfo")
+data("PolyLinkR_SetObj")
+data("rr.dt")
+
+# Examine the gene information
+head(Anatolia_EF_CLR)
+str(Anatolia_EF_CLR)
+
+# Check the number of genes
+cat("Number of genes:", nrow(Anatolia_EF_CLR), "\n")
+cat("Number of chromosomes:", length(unique(Anatolia_EF_CLR$chr)), "\n")
+```
+
+The `Anatolia_EF_CLR` object contains: - **objID**: Gene identifiers -
+**objStat**: Gene selection statistics (higher values indicate stronger
+signals) - **objName**: Gene symbols (e.g., A1BG, A2M) - **chr**:
+Chromosome numbers - **startpos/endpos**: Genomic positions in base
+pairs - **GeneLength**: Gene length in base pairs
+
+Let’s also examine the gene sets:
+
+``` r
+# Gene set information
+head(PolyLinkR_SetInfo)
+cat("Number of gene sets:", nrow(PolyLinkR_SetInfo), "\n")
+
+# Gene-to-set mappings
+head(PolyLinkR_SetObj)
+cat("Number of gene-set associations:", nrow(PolyLinkR_SetObj), "\n")
+
+# Check how many genes are in each set (sample)
+set_counts <- table(PolyLinkR_SetObj$setID)
+summary(as.vector(set_counts))
+```
+
+### Data Format Summary
+
+The Eigenstrat format typically includes: - **.snp** files: SNP
+positions and allele information - **.geno** files: Genotype data
+encoded in CLR (Complete Linkage Representation) - **.ind** files:
+Individual/sample information
+
+For polylinkR, we work with derived gene-level statistics that summarize
+these data, where each gene has an associated selection signal
+(`objStat`) and genomic coordinates.
+
+## Basic Analysis Walkthrough
+
+### Step 1: Reading Data with `plR_read()`
+
+The [`plR_read()`](../reference/plR_read.md) function is the entry point
+for polylinkR analysis. It validates input files, performs quality
+checks, and creates a `plR` class object that subsequent functions
+operate on.
+
+#### Parameter Explanations
+
+Key parameters when reading data:
+
+- **`input.path`**: Directory containing all input files (alternative:
+  specify individual file paths)
+- **`obj.info.path`**, **`set.info.path`**, **`set.obj.path`**:
+  Individual file paths
+- **`rec.rate.path`**: Optional recombination rate file for coordinate
+  conversion
+- **`min.set.n`**: Minimum gene set size (default: 2, must be ≥ 2)
+- **`max.set.n`**: Maximum gene set size (default: Inf)
+- **`set.merge`**: Threshold for merging similar gene sets (default:
+  0.95 = 95% similarity)
+- **`rem.genes`**: Whether to remove genes with identical positions
+  (default: FALSE)
+
+Since we have data loaded in R already, let’s save it to temporary files
+and demonstrate the reading process:
+
+``` r
+# Create temporary directory for demonstration
+temp_dir <- tempdir()
+
+# Write data to files
+data.table::fwrite(as.data.table(Anatolia_EF_CLR), 
+                   file.path(temp_dir, "obj.info.tsv"), sep = "\t")
+data.table::fwrite(as.data.table(PolyLinkR_SetInfo), 
+                   file.path(temp_dir, "set.info.tsv"), sep = "\t")
+data.table::fwrite(as.data.table(PolyLinkR_SetObj), 
+                   file.path(temp_dir, "set.obj.tsv"), sep = "\t")
+data.table::fwrite(as.data.table(rr.dt), 
+                   file.path(temp_dir, "rec.rate.tsv"), sep = "\t")
+
+# List the files
+cat("Files prepared in:", temp_dir, "\n")
+list.files(temp_dir, pattern = "\\.tsv$")
+```
+
+Now read the data into polylinkR:
+
+``` r
+# Read the prepared data
+plr_obj <- plR_read(
+  input.path = temp_dir,
+  min.set.n = 5,      # Only include gene sets with 5+ genes
+  set.merge = 0.95,   # Merge gene sets with ≥95% overlap
+  verbose = TRUE
+)
+
+# Check the result
+class(plr_obj)
+print(plr_obj)
+```
+
+The [`plR_read()`](../reference/plR_read.md) function returns a `plR` S3
+object containing three data.tables: - **obj.info**: Gene information
+with validated scores - **set.info**: Gene set information with sizes -
+**set.obj**: Gene-to-set mappings
+
+### Step 2: Permutation Testing with `plR_permute()`
+
+The [`plR_permute()`](../reference/plR_permute.md) function performs
+gene set enrichment testing using a permutation procedure that: 1.
+Creates null distributions by permuting gene scores while preserving
+linkage structure 2. Fits Generalized Pareto Distributions (GPD) to the
+tails for accurate small p-values 3. Computes enrichment p-values for
+each gene set
+
+#### Parameter Explanations
+
+Key parameters for permutation:
+
+- **`n.perm`**: Number of permutations (default: 500,000). More
+  permutations = more accurate p-values but slower. Minimum: 50,000.
+- **`n.boot`**: Number of bootstrap replicates for GPD fitting (default:
+  30). Higher = more stable but slower.
+- **`alt`**: Test direction - `"upper"` for enrichment (default) or
+  `"lower"` for depletion
+- **`gpd.cutoff`**: Tail probability threshold for GPD fitting (default:
+  500/n.perm)
+- **`seed`**: Random seed for reproducibility
+- **`n.cores`**: Number of cores for parallel processing
+
+For this demonstration, we’ll use a smaller number of permutations for
+speed:
+
+``` r
+# Run permutation analysis with reduced permutations for vignette speed
+plr_perm <- plR_permute(
+  plR.input = plr_obj,
+  n.perm = 50000,      # Use 50k for demonstration (use 500k+ for real analysis)
+  n.boot = 10,         # Reduced bootstrap replicates
+  seed = 42,           # For reproducibility
+  n.cores = 1,         # Single core for vignette
+  verbose = TRUE
+)
+
+# Check the results
+print(plr_perm)
+```
+
+The [`plR_permute()`](../reference/plR_permute.md) function adds new
+columns to `set.info`: - **setScore.std**: Standardized gene set
+scores - **setScore.std.p**: P-values for enrichment
+
+Let’s examine the significant results:
+
+``` r
+# Extract set info with p-values
+set_results <- plr_perm$set.info
+
+# Show top significant sets
+head(set_results[order(setScore.std.p)][, .(setID, setN, setScore.std, setScore.std.p)])
+
+# Summary of p-values
+summary(set_results$setScore.std.p)
+```
+
+### Step 3: Rescaling for Autocorrelation with `plR_rescale()`
+
+The [`plR_rescale()`](../reference/plR_rescale.md) function adjusts gene
+set scores to account for genetic autocorrelation - the tendency for
+nearby genes to have correlated statistics due to LD. This step is
+crucial for accurate p-value estimation.
+
+#### Parameter Explanations
+
+Key parameters for rescaling:
+
+- **`rescale`**: Whether to perform rescaling (default: TRUE). Set FALSE
+  to only estimate autocorrelation.
+- **`fast`**: Use fast analytical rescaling (default: TRUE) vs. slower
+  empirical rescaling
+- **`cgm.range`**: Maximum inter-gene distance for autocovariance
+  estimation (default: 2 Mbp or 2 cM)
+- **`cgm.bin`**: Minimum gene pairs per lag bin (default: 30)
+- **`min.rho`**: Minimum correlation threshold (default: 1e-5)
+
+``` r
+# Rescale for genetic autocorrelation
+plr_rescale <- plR_rescale(
+  plR.input = plr_perm,
+  rescale = TRUE,
+  fast = TRUE,         # Use fast analytical method
+  verbose = TRUE
+)
+
+# Check results
+print(plr_rescale)
+```
+
+The [`plR_rescale()`](../reference/plR_rescale.md) function adds: -
+**setScore.rs**: Rescaled gene set scores (accounting for
+autocorrelation) - **setScore.rs.p**: P-values for rescaled scores
+
+Compare standard vs. rescaled scores:
+
+``` r
+# Compare standard and rescaled results
+comparison <- plr_rescale$set.info[, .(setID, setN, 
+                                       setScore.std, setScore.std.p,
+                                       setScore.rs, setScore.rs.p)]
+head(comparison[order(setScore.rs.p)])
+```
+
+### Step 4: Pruning and FDR Correction with `plR_prune()`
+
+The [`plR_prune()`](../reference/plR_prune.md) function performs
+multiple testing correction while accounting for shared genes between
+pathways. Gene sets often overlap, and this step ensures FDR control
+accounts for these dependencies.
+
+#### Parameter Explanations
+
+Key parameters for pruning:
+
+- **`n.fdr`**: Number of permuted datasets for FDR estimation (default:
+  300). Must be divisible by 100.
+- **`est.pi0`**: Whether to estimate proportion of true nulls (default:
+  TRUE)
+- **`tolerance`**: Convergence tolerance for pi0 estimation (default:
+  1e-3)
+
+``` r
+# Note: This step is computationally intensive and skipped in vignette
+# Run it for your actual analyses
+
+plr_final <- plR_prune(
+  plR.input = plr_rescale,
+  n.fdr = 300,         # Number of FDR replicates
+  est.pi0 = TRUE,      # Estimate proportion of true nulls
+  verbose = TRUE
+)
+
+# Results include:
+# - setScore.pr: Pruned gene set scores
+# - setScore.pr.p: P-values for pruned scores  
+# - setScore.pr.q: FDR-corrected q-values
+```
+
+## Result Visualization
+
+### Manhattan-style Plot of -log10(p-values)
+
+A common way to visualize pathway enrichment results is a
+Manhattan-style plot showing -log10(p-values) across gene sets:
+
+``` r
+# Prepare data for plotting
+plot_data <- plr_rescale$set.info[, .(setID, setN, setScore.std.p, setScore.rs.p)]
+plot_data[, log_p_std := -log10(setScore.std.p)]
+plot_data[, log_p_rs := -log10(setScore.rs.p)]
+
+# Create significance threshold line
+threshold <- -log10(0.05 / nrow(plot_data))  # Bonferroni
+
+# Plot
+p <- ggplot(plot_data, aes(x = seq_along(setID), y = log_p_rs)) +
+  geom_point(aes(color = log_p_rs > 5), alpha = 0.6, size = 2) +
+  geom_hline(yintercept = threshold, linetype = "dashed", color = "red") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dotted", color = "blue") +
+  scale_color_manual(values = c("grey50", "red"), 
+                     labels = c("Not significant", "Suggestive")) +
+  labs(
+    title = "Gene Set Enrichment Results",
+    subtitle = "polylinkR Analysis of Anatolia_EF_CLR Dataset",
+    x = "Gene Set Index",
+    y = expression(-log[10](p-value)),
+    color = "Significance"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold")
+  )
+
+print(p)
+```
+
+### Volcano Plot: Effect Size vs. P-value
+
+Another useful visualization is a volcano plot showing the relationship
+between effect size (gene set score) and statistical significance:
+
+``` r
+# Prepare volcano plot data
+volcano_data <- plr_rescale$set.info[, .(setID, setN, 
+                                          setScore.rs, setScore.rs.p,
+                                          setScore.std)]
+volcano_data[, log_p := -log10(setScore.rs.p)]
+volcano_data[, significance := ifelse(setScore.rs.p < 0.05 / nrow(volcano_data), 
+                                    "Significant", 
+                                    ifelse(setScore.rs.p < 0.05, 
+                                           "Suggestive", "Not significant"))]
+
+# Plot
+p2 <- ggplot(volcano_data, aes(x = setScore.rs, y = log_p)) +
+  geom_point(aes(color = significance, size = setN), alpha = 0.6) +
+  scale_color_manual(values = c("Not significant" = "grey50", 
+                               "Suggestive" = "orange",
+                               "Significant" = "red")) +
+  scale_size_continuous(range = c(1, 4)) +
+  geom_hline(yintercept = -log10(0.05), linetype = "dotted") +
+  labs(
+    title = "Volcano Plot: Gene Set Enrichment",
+    x = "Rescaled Gene Set Score",
+    y = expression(-log[10](p-value)),
+    color = "Significance",
+    size = "Gene Set Size"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+print(p2)
+```
+
+### Gene Set Size Distribution
+
+It’s also useful to visualize the distribution of gene set sizes:
+
+``` r
+# Plot gene set size distribution
+p3 <- ggplot(plr_rescale$set.info, aes(x = setN)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7, color = "white") +
+  scale_x_log10() +
+  labs(
+    title = "Distribution of Gene Set Sizes",
+    x = "Number of Genes (log scale)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+print(p3)
+```
+
+## Saving Results
+
+### Export to CSV/TSV Files
+
+polylinkR results can be easily exported for further analysis or
+sharing:
+
+``` r
+# Export gene set results
+results_to_export <- plr_rescale$set.info[, .(setID, setN, 
+                                              setScore.std, setScore.std.p,
+                                              setScore.rs, setScore.rs.p)]
+
+# Add set names if available
+if ("setName" %in% names(plr_rescale$set.info)) {
+  results_to_export[, setName := plr_rescale$set.info$setName]
+}
+
+# Write to file
+output_file <- file.path(temp_dir, "polylinkR_results.tsv")
+data.table::fwrite(results_to_export, output_file, sep = "\t")
+
+cat("Results saved to:", output_file, "\n")
+cat("Number of gene sets:", nrow(results_to_export), "\n")
+cat("Columns:", paste(names(results_to_export), collapse = ", "), "\n")
+```
+
+### Save Complete plR Object
+
+For reproducibility and further analysis, save the complete plR object:
+
+``` r
+# Save the complete plR object
+rds_file <- file.path(temp_dir, "polylinkR_results.rds")
+saveRDS(plr_rescale, rds_file)
+
+cat("Complete plR object saved to:", rds_file, "\n")
+
+# Demonstrate loading
+loaded_obj <- readRDS(rds_file)
+cat("Loaded object class:", class(loaded_obj), "\n")
+cat("Gene sets in loaded object:", nrow(loaded_obj$set.info), "\n")
+```
+
+### Accessing Attributes
+
+plR objects contain rich metadata in attributes:
+
+``` r
+# Access attributes
+attrs <- attributes(plr_rescale)
+names(attrs)
+
+# View function arguments used
+attrs$plr.args$read.args$min.set.n
+attrs$plr.args$permute.args$n.perm
+attrs$plr.args$rescale.args$fast
+
+# View data summaries
+attrs$plr.data$read.data
+```
+
+## Complete Reproducible Example
+
+Here is the complete workflow from start to finish:
+
+``` r
+# ============================================================
+# COMPLETE POLYLINKR WORKFLOW - REPRODUCIBLE EXAMPLE
+# ============================================================
+
+# 1. LOAD PACKAGES
+library(polylinkR)
+library(data.table)
+
+# 2. LOAD DATA
+data("Anatolia_EF_CLR")
+data("PolyLinkR_SetInfo")
+data("PolyLinkR_SetObj")
+data("rr.dt")
+
+# 3. PREPARE INPUT FILES
+temp_dir <- tempdir()
+data.table::fwrite(as.data.table(Anatolia_EF_CLR), 
+                   file.path(temp_dir, "obj.info.tsv"), sep = "\t")
+data.table::fwrite(as.data.table(PolyLinkR_SetInfo), 
+                   file.path(temp_dir, "set.info.tsv"), sep = "\t")
+data.table::fwrite(as.data.table(PolyLinkR_SetObj), 
+                   file.path(temp_dir, "set.obj.tsv"), sep = "\t")
+data.table::fwrite(as.data.table(rr.dt), 
+                   file.path(temp_dir, "rec.rate.tsv"), sep = "\t")
+
+# 4. READ DATA
+plr_obj <- plR_read(
+  input.path = temp_dir,
+  min.set.n = 5,
+  verbose = TRUE
+)
+
+# 5. PERMUTATION TESTING
+plr_perm <- plR_permute(
+  plR.input = plr_obj,
+  n.perm = 50000,    # Use 500000+ for real analysis
+  n.boot = 10,
+  seed = 42,
+  verbose = TRUE
+)
+
+# 6. RESCALE FOR AUTOCORRELATION
+plr_rescale <- plR_rescale(
+  plR.input = plr_perm,
+  fast = TRUE,
+  verbose = TRUE
+)
+
+# 7. EXTRACT AND SAVE RESULTS
+results <- plr_rescale$set.info[, .(setID, setN, 
+                                    setScore.std, setScore.std.p,
+                                    setScore.rs, setScore.rs.p)]
+
+# Add significance flags
+results[, significant := setScore.rs.p < 0.05 / .N]  # Bonferroni
+results[, suggestive := setScore.rs.p < 0.05]
+
+# Summary of results
+cat("\n=== ANALYSIS SUMMARY ===\n")
+cat("Total gene sets analyzed:", nrow(results), "\n")
+cat("Significant sets (Bonferroni):", sum(results$significant), "\n")
+cat("Suggestive sets (p < 0.05):", sum(results$suggestive), "\n")
+
+# Top 10 most significant sets
+cat("\n=== TOP 10 SIGNIFICANT GENE SETS ===\n")
+top_sets <- head(results[order(setScore.rs.p)], 10)
+print(top_sets[, .(setID, setN, setScore.rs, setScore.rs.p, significant)])
+
+# 8. CLEAN UP
+unlink(temp_dir, recursive = TRUE)
+cat("\n=== ANALYSIS COMPLETE ===\n")
+```
+
+## Tips and Common Pitfalls
+
+### Tips for Successful Analysis
+
+1.  **Start with smaller n.perm**: For initial exploration, use n.perm =
+    50,000. For publication-quality results, use 500,000+.
+
+2.  **Check gene set sizes**: Gene sets with fewer than 5 genes may
+    yield unreliable results. Use `min.set.n` to filter.
+
+3.  **Monitor memory usage**: Large datasets with many gene sets can
+    require substantial memory. Consider using fewer cores if memory is
+    limited.
+
+4.  **Use appropriate coordinates**: If your data uses physical
+    positions (bp), provide recombination rates for accurate distance
+    calculations.
+
+5.  **Save intermediate results**: The pipeline can be run
+    incrementally, so save objects after each step for troubleshooting.
+
+### Common Pitfalls
+
+1.  **Mismatched IDs**: Ensure `objID` in `obj.info` matches `objID` in
+    `set.obj`, and `setID` in `set.info` matches `setID` in `set.obj`.
+
+2.  **Missing coordinates**: Genomic coordinates are optional for
+    [`plR_read()`](../reference/plR_read.md) but required for
+    [`plR_rescale()`](../reference/plR_rescale.md). If missing,
+    rescaling will fail.
+
+3.  **Duplicate entries**: The functions handle duplicates
+    automatically, but it’s best to clean your data beforehand.
+
+4.  **Insufficient permutations**: Too few permutations lead to unstable
+    p-values. The minimum recommended is 50,000.
+
+5.  **Forgetting the seed**: Always set a seed for reproducible results,
+    especially when parallel processing.
+
+### Interpreting Results
+
+- **setScore.std**: Standardized gene set scores (mean = 0, variance = 1
+  per gene under null)
+- **setScore.std.p**: P-values before autocorrelation correction
+- **setScore.rs**: Rescaled scores accounting for genetic
+  autocorrelation
+- **setScore.rs.p**: P-values after autocorrelation correction (use
+  these for final interpretation)
+
+Gene sets with small p-values (\< 0.05 or Bonferroni-corrected) and
+positive scores indicate enrichment for the selection signals in your
+input data.
+
+## Session Information
+
+``` r
+sessionInfo()
+```
+
+## References
+
+For more information about polylinkR:
+
+- Package documentation:
+  [`?polylinkR`](../reference/polylinkR-package.md)
+- Function help: [`?plR_read`](../reference/plR_read.md),
+  [`?plR_permute`](../reference/plR_permute.md),
+  [`?plR_rescale`](../reference/plR_rescale.md),
+  [`?plR_prune`](../reference/plR_prune.md)
+- GitHub repository: <https://github.com/ACAD-UofA/PolyLinkR>
+
+For the underlying statistical methods:
+
+- The circular permutation algorithm preserves linkage structure while
+  generating null distributions
+- Generalized Pareto Distribution fitting enables accurate estimation of
+  small p-values
+- Rescaling accounts for genetic autocorrelation using empirical
+  variogram modeling
