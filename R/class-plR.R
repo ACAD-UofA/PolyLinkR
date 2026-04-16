@@ -144,12 +144,16 @@
 #' my_plR
 #' }
 print.plR <- function(x, ...) {
-   pT <- attributes(x)$plr_track # plR track info
-    if (pT == "INVALID") { # check if empty plR object
+   # Handle both old (plR.track) and new (plr_track) attribute names for backward compatibility
+   attrs <- attributes(x)
+   pT <- if (!is.null(attrs$plr_track)) attrs$plr_track else attrs$plR.track
+    if (is.null(pT) || pT == "INVALID") { # check if empty plR object
        cat(cli::col_red("Empty plR object\n"))
     } else {
-       # unpack input file information
-       list2env(attributes(x)$plr_data$read_data, envir = environment())
+       # unpack input file information - handle both old and new attribute names
+       plr_data <- if (!is.null(attrs$plr_data)) attrs$plr_data else attrs$plR.data
+       read_data <- if (!is.null(plr_data$read_data)) plr_data$read_data else plr_data$read.data
+       list2env(read_data, envir = environment())
        pT.all <- .get_processing_history()
        # check information
       pI <- sapply(lapply(strsplit(pT.all$INPUT, "; "), '%in%', pT), any)
@@ -244,8 +248,10 @@ summary.plR <- function(object, sig = 0.05, ...) {
       stop("significance value (sig argument) must be between 0 and 1",
            call. = FALSE)
    } else {
-       pT <- attributes(object)$plr_track # plR track info
-       if (pT == "INVALID") { # check if empty plR object
+       # Handle both old and new attribute names
+       attrs <- attributes(object)
+       pT <- if (!is.null(attrs$plr_track)) attrs$plr_track else attrs$plR.track
+       if (is.null(pT) || pT == "INVALID") { # check if empty plR object
           cat(cli::col_red("Empty plR object\n"))
        } else {
           acN <- colnames(object$set.info)
