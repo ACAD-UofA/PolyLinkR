@@ -6,7 +6,6 @@
 #' provide soft deprecation with informative warning messages.
 #'
 #' @keywords internal
-#' @noRd
 
 #' Deprecate a function name
 #'
