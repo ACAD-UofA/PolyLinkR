@@ -546,7 +546,7 @@
                      stop(emm, call. = FALSE)
                   } else {
                      if (any(ac$rho <= 0)) {
-                        stop("corrletions for all genes pairs must be ",
+                        stop("correlations for all genes pairs must be ",
                              "greater than 0", call. = FALSE)
                      }
                   }
@@ -1826,7 +1826,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #'  The model combines an LD-driven exponential decay in genetic distance
 #'  with a locally acting overlap correction that captures excess covariance
 #'  induced by overlapping or embedded gene intervals.
-#' @param par numeric; Vector of model parameters to esitmate. Elements include:
+#' @param par numeric; Vector of model parameters to estimate. Elements include:
 #'  \describe{
 #'    \item{beta1}{Amplitude of the LD-driven covariance component.}
 #'    \item{beta2}{Strength of the overlap-induced covariance component.}
