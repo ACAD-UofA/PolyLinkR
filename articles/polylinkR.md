@@ -205,10 +205,10 @@ str(plr_obj)
 #>   .. .. .. .. ..$ RemotePkgRef           : chr "local::."
 #>   .. .. .. .. ..$ RemoteType             : chr "local"
 #>   .. .. .. .. ..$ NeedsCompilation       : chr "no"
-#>   .. .. .. .. ..$ Packaged               : chr "2026-04-16 00:08:48 UTC; runner"
+#>   .. .. .. .. ..$ Packaged               : chr "2026-04-16 00:16:43 UTC; runner"
 #>   .. .. .. .. ..$ Author                 : chr "ACAD University of Adelaide [cph, fnd],\n  PolyLinkR authors [cre, aut]"
 #>   .. .. .. .. ..$ Maintainer             : chr "PolyLinkR authors <polylinkr@acad.edu.au>"
-#>   .. .. .. .. ..$ Built                  : chr "R 4.5.3; ; 2026-04-16 00:08:50 UTC; unix"
+#>   .. .. .. .. ..$ Built                  : chr "R 4.5.3; ; 2026-04-16 00:16:45 UTC; unix"
 #>   .. .. .. .. ..- attr(*, "class")= chr "packageDescription"
 #>   .. .. .. .. ..- attr(*, "file")= chr "/home/runner/work/_temp/Library/polylinkR/Meta/package.rds"
 #>   .. .. ..$ loadedOnly :List of 62
@@ -2054,7 +2054,7 @@ str(plr_obj)
 #>   .. .. ..$ LAPACK     : chr "/usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so"
 #>   .. .. ..$ LA_version : chr "3.12.0"
 #>   .. .. ..- attr(*, "class")= chr "sessionInfo"
-#>   .. ..$ run.time: 'difftime' num 0.294374465942383
+#>   .. ..$ run.time: 'difftime' num 0.329176187515259
 #>   .. .. ..- attr(*, "units")= chr "secs"
 #>  - attr(*, "plR.track")= chr "000"
 #>  - attr(*, "class")= chr "plR"
