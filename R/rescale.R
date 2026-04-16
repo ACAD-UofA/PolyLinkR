@@ -621,7 +621,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
                      dqrng::dqset.seed(x)
                      csX <- replicate(n.block,
                                       dqrng::dqsample.int(n.genes, n.max)) # faster than dqsample::dqsample
-                     rsX <- .get_covariance_null(csj = csX, rsX = rs0, SS0 = SS0, ac0 = ac0) # get covariances
+                      rsX <- .get_covariance_null(csj = csX, rsX = rs0, set_scores = SS0, autocov_data = ac0) # get covariances
                      csX <- matrix(os0[csX], nrow = n.max, ncol = n.block) # get gene scores
 
                      if (n.sets == 1) { # only take final entry
@@ -837,7 +837,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
       ac0 <- ac[, .(A = objID.A, B = objID.B, CV = 2 * rho)]
 
       obs.cov <- rep(0, n.sets)
-      oc0 <- .get_covariance(SSi = SSI, ac0 = ac0)
+       oc0 <- .get_covariance(SSi = SSI, autocov_data = ac0)
       obs.cov[oc0$sID] <- oc0$CV
 
       # calculate observed rescaled set scores

@@ -229,7 +229,7 @@ prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
 
       FDR.pr[[4]] <- foreach::foreach(f.i = fdr.perm, F.i = FDR, .combine = c) %do% {
          ss.i <- soi[, .(sID, oID = f.i[oID])]
-         cov.i <- .get_covariance(SSi = ss.i, ac0 = ac0)
+          cov.i <- .get_covariance(SSi = ss.i, autocov_data = ac0)
          sN0 <- sN[cov.i$sID]
          c.i[cov.i$sID] <- cov.i$CV
          F.i / sqrt((sN + c.i) * fpc[sN])
@@ -310,11 +310,11 @@ prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
       acX <- NULL
    }
 
-   SSO.pr <- .prune_gene_sets(OBS = set.info$setScore.std * sqrt(sN * fpc[sN]), # get raw unscaled scores
-                         EXP = ecdf0, GPD = gpd0, acX = acX, nX = sN,
-                         osX = obj.info[set.genes]$objStat.std, # limit scores to genes in gene sets
-                         pX = set.info[, get(objName)], mss = n.min, fpc = fpc,
-                         PI = data.table::copy(PI0), gP = .get_p)
+    SSO.pr <- .prune_gene_sets(OBS = set.info$setScore.std * sqrt(sN * fpc[sN]), # get raw unscaled scores
+                          EXP = ecdf0, GPD = gpd0, acX = acX, nX = sN,
+                          osX = obj.info[set.genes]$objStat.std, # limit scores to genes in gene sets
+                          pX = set.info[, get(objName)], min_set_size = n.min, finite_pop_correction = fpc,
+                          PI = data.table::copy(PI0), gP = .get_p)
 
    SSO.pr <- cbind(1:n.sets, SSO.pr) # add set ID
    SSO.pr <- data.table::as.data.table(SSO.pr)
@@ -350,7 +350,7 @@ prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
 
             ps.i <- .prune_gene_sets(OBS = ss.i, EXP = ecdf0, GPD = gpd0, acX = acX,
                                 pX = p.i, nX = sN, osX = os.i, PI = PI0,
-                                mss = n.min, fpc = fpc, gP = .get_p)
+                                min_set_size = n.min, finite_pop_correction = fpc, gP = .get_p)
             prog()
             ps.i
          }

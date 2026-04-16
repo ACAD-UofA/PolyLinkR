@@ -402,8 +402,8 @@ permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5
                # estimate local regression coefficients
                lqr <- foreach::foreach(i = I) %do% {
                  d.i <- sweep(cv.val, 2, cv.val[i, ], "-", check.margin = FALSE) # centre covariates
-                 .fit_local_quad_reg(d1 = d.i, wt0 = wt.i[i - min(I) + 1, ], os0 = os0,
-                          n.cv = n.cov)
+                  .fit_local_quad_reg(d1 = d.i, wt0 = wt.i[i - min(I) + 1, ], object_scores = os0,
+                           n.cv = n.cov)
                }
 
                # calculate fitting statistics
