@@ -6,7 +6,7 @@
 #' optional filtering and data generation tasks like oordinate conversion or
 #' gene score calculation.
 #'
-#' @param input.path
+#' @param input_path
 #'   \code{character}; path to the directory with input files.
 #'   Defaults to \code{NULL}. Not required if using separate file paths.
 #'   Automatically searches for required files with the following labels:
@@ -27,95 +27,95 @@
 #'   on required and optional input files for the columns needed in each
 #'   input file.
 #'
-#' @param obj.info.path
-#'   \code{character}; path to the \code{obj.info} file. Defaults to
-#'   \code{NULL}. Ignored if \code{input.path} is provided; otherwise all
+#' @param object_info_path
+#'   \code{character}; path to the object info file. Defaults to
+#'   \code{NULL}. Ignored if \code{input_path} is provided; otherwise all
 #'   required file paths must be specified.
 #'
-#' @param set.info.path
-#'   \code{character}; path to the \code{set.info} file. Defaults to
-#'   \code{NULL}. Ignored if \code{input.path} is provided; otherwise all
+#' @param gene_set_info_path
+#'   \code{character}; path to the gene set info file. Defaults to
+#'   \code{NULL}. Ignored if \code{input_path} is provided; otherwise all
 #'   required file paths must be specified.
 #'
-#' @param set.obj.path
-#'   \code{character}; path to the \code{set.obj} file. Defaults to
-#'   \code{NULL}. Ignored if \code{input.path} is provided; otherwise all
+#' @param gene_set_mapping_path
+#'   \code{character}; path to the gene set mapping file. Defaults to
+#'   \code{NULL}. Ignored if \code{input_path} is provided; otherwise all
 #'   required file paths must be specified.
 #'
-#' @param var.info.path
-#'   \code{character}; path to the \code{var.info} file. Defaults to
+#' @param variant_info_path
+#'   \code{character}; path to the variant info file. Defaults to
 #'   \code{NULL}. Optional file used for gene score generation. Ignored if
-#'   \code{input.path} is provided.
+#'   \code{input_path} is provided.
 #'
-#' @param rec.rate.path
-#'   \code{character}; path to the \code{rec.rate} file. Defaults to
+#' @param recombination_rate_path
+#'   \code{character}; path to the recombination rate file. Defaults to
 #'   \code{NULL}. Optional file used for genetic coordinate conversion.
-#'   Ignored if \code{input.path} is provided.
+#'   Ignored if \code{input_path} is provided.
 #'
-#' @param min.set.n
+#' @param min_set_size
 #'   \code{integer}; minimum size of gene sets to be retained. Defaults to
-#'   \code{2}. Must be in the range \code{[2L, max.set.n)}.
+#'   \code{2}. Must be in the range \code{[2L, max_set_size)}.
 #'
-#' @param max.set.n
+#' @param max_set_size
 #'   \code{integer}; maximum size of gene sets to be retained. Defaults to
-#'   \code{Inf}. Must be in the range \code{(min.set.n, Inf)}.
+#'   \code{Inf}. Must be in the range \code{(min_set_size, Inf)}.
 #'
-#' @param group
+#' @param group_label
 #'   \code{character}; label used to identify input files within a directory.
 #'   Defaults to \code{NULL}.
 #'
-#' @param map.fun
+#' @param mapping_function
 #'   \code{character}; mapping function to convert physical to genetic
 #'   distances. Options are \code{"Haldane"}, \code{"Kosambi"} (default),
 #'   \code{"Carter-Falconer"}, and \code{"Morgan"}.
 #'
-#' @param obj.buffer
+#' @param object_buffer
 #'   \code{numeric}; interval around genes (in base pairs) to include when
-#'   assigning values from the \code{var.info} file. Defaults to \code{1e4} if
-#'   \code{var.info} is provided and user does not set a value, otherwise it is
+#'   assigning values from the variant info file. Defaults to \code{1e4} if
+#'   variant info is provided and user does not set a value, otherwise it is
 #'   set to 0 if score assignment is not performed. User values must be in the
 #'   range \code{[0, 1e5L]}. Note that if the user provides their own gene
-#'   scores in the \code{obj.info } input file (i.e. not computed from the
-#'   \code{var.info} file), then the start and end positions must include any
+#'   scores in the object info input file (i.e. not computed from the
+#'   variant info file), then the start and end positions must include any
 #'   buffer used to bin scores, otherwise polylinkR deconfounding and
 #'   autocorrelation inference will not be performed appropriately.
 #'
-#' @param obj.stat.fun
+#' @param object_statistic_function
 #'   \code{character}; function used to correct maximum gene scores based on
 #'   the number of overlapping summary statistics (SNPs or windows). Default is
-#'  `non.param`, a robust non-parametric method that uses binned data to
+#'  \code{non.param}, a robust non-parametric method that uses binned data to
 #'  calculate median and median absolute deviation (MAD) to normalise scores.
-#'  Alternatively, `lm.logN` applies a linear regression to the log-transformed
+#'  Alternatively, \code{lm.logN} applies a linear regression to the log-transformed
 #'  SNP / bin counts (assumes a roughly linear relationship is appropriate). In
 #'  both cases, expected scores are estimated and gene scores calculated as the
-#'  residual value. Ignored if no var.info file is provided.
+#'  residual value. Ignored if no variant info file is provided.
 #'
-#' @param bin.size
+#' @param bin_size
 #'   \code{integer}; gene set size interval for non-parametric correction.
 #'   Defaults to \code{250L}. Must be in the range \code{[50L, 1e3L]};
 #'   ignored if the parametric function is used.
 #'
-#' @param obj.in
-#'   \code{character} or \code{numeric} vector; \code{objID}s of genes to
+#' @param objects_to_include
+#'   \code{character} or \code{numeric} vector; object IDs of genes to
 #'   explicitly retain. Defaults to \code{NULL}.
 #'
-#' @param obj.out
-#'   \code{character} or \code{numeric} vector; \code{objID}s of genes to
+#' @param objects_to_exclude
+#'   \code{character} or \code{numeric} vector; object IDs of genes to
 #'   explicitly remove. Defaults to \code{NULL}.
 #'
-#' @param set.in
-#'   \code{character} or \code{numeric} vector; \code{setID}s of gene sets
+#' @param sets_to_include
+#'   \code{character} or \code{numeric} vector; set IDs of gene sets
 #'   to explicitly retain. Defaults to \code{NULL}.
 #'
-#' @param set.out
-#'   \code{character} or \code{numeric} vector; \code{setID}s of gene sets
+#' @param sets_to_exclude
+#'   \code{character} or \code{numeric} vector; set IDs of gene sets
 #'   to explicitly remove. Defaults to \code{NULL}.
 #'
-#' @param set.merge
+#' @param merge_threshold
 #'   \code{numeric}; minimum proportion of shared genes for merging gene sets.
 #'   Defaults to \code{0.95}. Must be in the range \code{(0, 1]}.
 #'
-#' @param rem.genes
+#' @param remove_duplicate_genes
 #'   \code{logical}; should genes with identical genomic positions be
 #'   removed? Defaults to \code{FALSE}.
 #'
@@ -322,14 +322,38 @@
 #'   rec.rate.path = "path/to/rec.rate"
 #' )
 #' }
-plR_read <- function(input.path = NULL, obj.info.path = NULL,
-                     set.info.path = NULL, set.obj.path = NULL,
-                     var.info.path = NULL, rec.rate.path = NULL, min.set.n = 2L,
-                     max.set.n = Inf, group = NULL, map.fun = "kosambi",
-                     obj.buffer = "auto", obj.stat.fun = "non.param",
-                     bin.size = 250L, obj.in = NULL, obj.out = NULL,
-                     set.in = NULL, set.out = NULL, set.merge = 0.95,
-                     rem.genes = FALSE, verbose = TRUE) {
+read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
+                                 gene_set_info_path = NULL, gene_set_mapping_path = NULL,
+                                 variant_info_path = NULL, recombination_rate_path = NULL, 
+                                 min_set_size = 2L,
+                                 max_set_size = Inf, group_label = NULL, mapping_function = "kosambi",
+                                 object_buffer = "auto", object_statistic_function = "non.param",
+                                 bin_size = 250L, objects_to_include = NULL, objects_to_exclude = NULL,
+                                 sets_to_include = NULL, sets_to_exclude = NULL, merge_threshold = 0.95,
+                                 remove_duplicate_genes = FALSE, verbose = TRUE) {
+   
+   # Backward compatibility: map new snake_case parameters to legacy names
+   # This allows the function body to continue using legacy variable names
+   input.path <- input_path
+   obj.info.path <- object_info_path
+   set.info.path <- gene_set_info_path
+   set.obj.path <- gene_set_mapping_path
+   var.info.path <- variant_info_path
+   rec.rate.path <- recombination_rate_path
+   min.set.n <- min_set_size
+   max.set.n <- max_set_size
+   group <- group_label
+   map.fun <- mapping_function
+   obj.buffer <- object_buffer
+   obj.stat.fun <- object_statistic_function
+   bin.size <- bin_size
+   obj.in <- objects_to_include
+   obj.out <- objects_to_exclude
+   set.in <- sets_to_include
+   set.out <- sets_to_exclude
+   set.merge <- merge_threshold
+   rem.genes <- remove_duplicate_genes
+   # verbose unchanged
 
    # track function run time
    startT <- Sys.time()
@@ -1115,4 +1139,17 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
                   border_style = "double", col = "cyan", border_col = "cyan"))
    .vrb("\n")
    return(plr.out)
+}
+
+
+#' @title Read and validate required files for polylinkR (deprecated)
+#' @description
+#' This function is deprecated. Please use \code{read_polylinkr_data()} instead.
+#' @param ... All arguments passed to \code{read_polylinkr_data()}.
+#' @export
+#' @keywords internal
+plR_read <- function(...) {
+   .Deprecated("read_polylinkr_data", package = "polylinkR",
+               msg = "plR_read() is deprecated. Use read_polylinkr_data() instead.")
+   read_polylinkr_data(...)
 }
