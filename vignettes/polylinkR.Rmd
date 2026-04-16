@@ -27,10 +27,10 @@ library(polylinkR)
 
 The polylinkR workflow follows four sequential steps:
 
-1. **plR_read()** - Read and validate input files
-2. **plR_permute()** - Generate permutation nulls and compute p-values
-3. **plR_rescale()** - Rescale for genetic autocorrelation
-4. **plR_prune()** - Prune gene sets and compute FDR
+1. **read_polylinkr_data()** - Read and validate input files
+2. **permute_polylinkr_data()** - Generate permutation nulls and compute p-values
+3. **rescale_polylinkr_data()** - Rescale for genetic autocorrelation
+4. **prune_polylinkr_data()** - Prune gene sets and compute FDR
 
 ## Step 1: Read Input Data
 
@@ -38,12 +38,12 @@ First, we read the example data included with the package:
 
 ```{r read-data}
 # Locate the example data
-data_path <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
+data_path <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
 data_path
 
 # Read the data
-plr_obj <- plR_read(
-  input.path = data_path,
+plr_obj <- read_polylinkr_data(
+  input_path = data_path,
   verbose = FALSE
 )
 
@@ -52,7 +52,7 @@ class(plr_obj)
 print(plr_obj)
 ```
 
-The `plR_read()` function validates the input files and creates a `plR` class object containing:
+The `read_polylinkr_data()` function validates the input files and creates a `plR` class object containing:
 
 - **set.info**: Gene set information
 - **obj.info**: Gene (object) information with scores
@@ -111,11 +111,11 @@ The core statistical algorithms (permutation nulls, GPD fitting, rescaling, prun
 
 After reading the data, you would typically proceed through the pipeline:
 
-1. **plR_permute()** - Generate permutation-based null distributions
-2. **plR_rescale()** - Account for genetic autocorrelation
-3. **plR_prune()** - Identify significant gene sets
+1. **permute_polylinkr_data()** - Generate permutation-based null distributions
+2. **rescale_polylinkr_data()** - Account for genetic autocorrelation
+3. **prune_polylinkr_data()** - Identify significant gene sets
 
-See the function documentation (`?plR_permute`, `?plR_rescale`, `?plR_prune`) for details on subsequent steps.
+See the function documentation (`?permute_polylinkr_data`, `?rescale_polylinkr_data`, `?prune_polylinkr_data`) for details on subsequent steps.
 
 ## Session Information
 

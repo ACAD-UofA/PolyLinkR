@@ -1,0 +1,49 @@
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left: [intro, reference, articles, tutorials, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: Getting Started
+      - text: Basic Workflow with polylinkR
+        href: articles/basic_workflow.html
+      - text: "---"
+      - text: Advanced Topics
+      - text: Controlling for Confounders
+        href: articles/covariates_deconfounding.html
+      - text: Using Recombination Rates
+        href: articles/recombination_rates.html
+      - text: Parallel Processing
+        href: articles/parallel_processing.html
+      - text: "---"
+      - text: Reference
+      - text: Input Formats and Parameters
+        href: articles/input_formats_parameters.html
+
+reference:
+  - title: Core Functions
+    contents:
+    - read_polylinkr_data
+    - permute_polylinkr_data
+    - rescale_polylinkr_data
+    - prune_polylinkr_data
+    - plR_read
+    - plR_permute
+    - plR_rescale
+    - plR_prune
+  - title: Data
+    contents:
+    - anatolia_ef_clr
+    - polylinkr_set_info
+    - polylinkr_set_obj
+    - human_sexavg_rr_bherer2017
+    - rr.dt
+
+home:
+  sidebar:
+    structure: [links, license, community, citation, authors, dev]
