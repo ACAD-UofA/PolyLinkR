@@ -1,4 +1,4 @@
-# Tests for internal helper functions used in plR_permute, plR_rescale, plR_prune
+# Tests for internal helper functions used in permute_polylinkr_data, rescale_polylinkr_data, prune_polylinkr_data
 #
 # These unit tests verify the core statistical helpers work correctly.
 
@@ -19,57 +19,57 @@ test_that(".plR_track returns valid track table", {
   expect_s3_class(tab, "data.table")
   expect_named(tab, c("FUNCTION", "INPUT", "OUTPUT"))
   expect_equal(tab$FUNCTION,
-    c("plR_read", "plR_permute", "plR_rescale", "plR_prune"))
+    c("read_polylinkr_data", "permute_polylinkr_data", "rescale_polylinkr_data", "prune_polylinkr_data"))
 })
 
 test_that(".plR_track defines valid input/output transitions", {
   tab <- polylinkR:::.plR_track()
 
-  # plR_read outputs "000"
+  # read_polylinkr_data outputs "000"
   expect_true(grepl("000", tab$OUTPUT[1]))
 
-  # plR_permute accepts "000"
+  # permute_polylinkr_data accepts "000"
   expect_true(grepl("000", tab$INPUT[2]))
 
   # Each function has defined output (at least one value)
   expect_true(all(nzchar(tab$OUTPUT)))
 })
 
-test_that("plR_read returns valid plR object structure", {
+test_that("read_polylinkr_data returns valid polylinkr object structure", {
   # Use tiny fixture
-  d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
-  out <- plR_read(input.path = d, verbose = FALSE)
+  d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
+  out <- read_polylinkr_data(input_path = d, verbose = FALSE)
 
   expect_s3_class(out, "plR")
   expect_true("set.info" %in% names(out))
   expect_true("obj.info" %in% names(out))
   expect_true("set.obj" %in% names(out))
 
-  # Check required attributes
-  expect_true("plR.track" %in% names(attributes(out)))
-  expect_equal(attr(out, "plR.track"), "000")
+  # Check required attributes (new snake_case attribute names)
+  expect_true("plr_track" %in% names(attributes(out)))
+  expect_equal(attr(out, "plr_track"), "000")
 })
 
-test_that("plR_read validates min.set.n and max.set.n", {
-  d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
+test_that("read_polylinkr_data validates min_set_size and max_set_size", {
+  d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
 
-  # max.set.n too small
+  # max_set_size too small (internally still uses max.set.n in error messages)
   expect_error(
-    plR_read(input.path = d, max.set.n = 1),
+    read_polylinkr_data(input_path = d, max_set_size = 1),
     regexp = "max.set.n"
   )
 })
 
-test_that("plR_read set.merge parameter validation", {
-  d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
+test_that("read_polylinkr_data merge_threshold parameter validation", {
+  d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
 
-  # set.merge must be in (0, 1]
+  # merge_threshold must be in (0, 1] (internally still uses set.merge in error messages)
   expect_error(
-    plR_read(input.path = d, set.merge = 0),
+    read_polylinkr_data(input_path = d, merge_threshold = 0),
     regexp = "set.merge"
   )
   expect_error(
-    plR_read(input.path = d, set.merge = 1.1),
+    read_polylinkr_data(input_path = d, merge_threshold = 1.1),
     regexp = "set.merge"
   )
 })

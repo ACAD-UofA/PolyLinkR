@@ -1,0 +1,30 @@
+# PolyLinkR Linting Configuration
+# This file configures code style expectations for CodeFactor and lintr
+
+linters: linters_with_defaults(
+  line_length_linter = line_length_linter(100),  # Allow 100 char lines (modern standard)
+  object_name_linter = NULL,  # Don't enforce naming conventions
+  spaces_left_parentheses_linter = NULL,  # Allow function calls without space
+  trailing_whitespace_linter = trailing_whitespace_linter(),
+  commented_code_linter = NULL,  # Allow commented code (often documentation)
+  object_usage_linter = NULL  # Don't flag "unused" objects (many are internal)
+)
+
+exclusions: list(
+  # Exclude auto-generated files and data
+  "renv/",
+  "man/",
+  "data/",
+  "inst/extdata/",
+  "tests/testthat/humanpops_extract/",
+  "new_code/",
+  # Exclude vignettes (they have different formatting needs)
+  "vignettes/basic_workflow.Rmd",
+  "vignettes/covariates_deconfounding.Rmd",
+  "vignettes/input_formats_parameters.Rmd",
+  "vignettes/parallel_processing.Rmd",
+  "vignettes/recombination_rates.Rmd"
+)
+
+# Ignore specific patterns that are common in statistical computing
+exclude: "# nolint"

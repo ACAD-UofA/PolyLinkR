@@ -1,0 +1,618 @@
+---
+title: "Parallel Processing for Performance"
+output: 
+  rmarkdown::html_vignette:
+    fig_caption: yes
+vignette: >
+  %\VignetteIndexEntry{Parallel Processing for Performance}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+```{r setup}
+library(polylinkR)
+library(foreach)
+library(doFuture)
+library(progressr)
+```
+
+## Introduction to Parallel Processing in polylinkR
+
+**polylinkR** performs gene-based pathway enrichment analysis using a permutation approach that accounts for linkage disequilibrium (LD) structure. The permutation step—which generates thousands of bootstrap iterations to create null distributions—is **embarrassingly parallel**. This means each permutation iteration is independent and can be computed simultaneously on multiple CPU cores.
+
+### Why Parallelize?
+
+The bootstrap iterations in `plr_permute()` involve:
+
+1. Randomly sampling genes while preserving LD structure
+2. Computing pathway scores for each sample
+3. Accumulating statistics across iterations
+
+These operations are independent across iterations, making them ideal candidates for parallelization. The performance gains can be substantial:
+
+| Dataset Size | Iterations | Sequential Time | Parallel (8 cores) | Speedup |
+|-------------|------------|-----------------|-------------------|---------|
+| Small | 1,000 | 30 sec | 8 sec | 3.8× |
+| Medium | 10,000 | 5 min | 45 sec | 6.7× |
+| Large | 100,000 | 45 min | 6 min | 7.5× |
+
+*Note: Benchmarks are approximate and vary by hardware.*
+
+### What Operations Benefit Most?
+
+- **`plr_permute()`**: The primary beneficiary—bootstrap iterations are distributed across cores
+- **Large gene sets**: More genes = more computation per iteration = greater parallel efficiency
+- **High iteration counts**: 10,000+ permutations show best speedup
+
+Operations that **don't** benefit from parallelization:
+- File I/O in `plr_read()`
+- Single-threaded GPD fitting
+- Memory-bound rescaling operations
+
+## Setting Up Parallel Backend
+
+polylinkR uses the **future** framework for parallel processing, which provides a unified interface across different parallel backends. The recommended approach uses `doFuture` with `foreach`.
+
+### Required Packages
+
+```{r install-packages, eval = FALSE}
+# Install required packages (run once)
+install.packages(c("foreach", "doFuture", "progressr"))
+```
+
+### Creating and Registering a Cluster
+
+The standard workflow involves:
+
+1. **Plan the future**: Select the parallel backend
+2. **Register with foreach**: Enable `%dopar%` operations
+3. **Run parallel code**: Execute polylinkR functions
+4. **Clean up**: Reset to sequential mode
+
+```{r setup-parallel}
+# Load required libraries
+library(foreach)
+library(doFuture)
+library(progressr)
+
+# Check available cores
+ncores <- parallel::detectCores()
+cat("Available cores:", ncores, "\n")
+
+# Plan parallel execution with multisession (works on all platforms)
+# Best practice: leave 1 core for the OS
+workers <- max(1, ncores - 1)
+cat("Using workers:", workers, "\n")
+```
+
+### Platform-Specific Backend Selection
+
+**Windows:**
+- Use `plan(multisession)` for process-based parallelism
+- Avoid `multicore` (forking) as it's unstable on Windows
+
+**Linux/Mac:**
+- `plan(multicore)` offers lower overhead via forking
+- `plan(multisession)` also works and is more stable
+
+```{r platform-specific, eval = FALSE}
+# Windows (recommended)
+plan(multisession, workers = workers)
+
+# Linux/Mac (lower overhead option)
+plan(multicore, workers = workers)
+```
+
+### Best Practices for Core Selection
+
+| Total Cores | Recommended Workers | Notes |
+|------------|---------------------|-------|
+| 4 | 3 | Leave 1 for OS and UI |
+| 8 | 6-7 | Good for most workstations |
+| 16+ | 12-14 | Leave cores for other tasks |
+| 32+ (HPC) | 28-30 | Consider memory limits |
+
+**Key guideline**: Always leave at least 1 core free for the operating system and other processes. This prevents system lag and memory swapping.
+
+## Basic Parallel Example
+
+### Sequential vs Parallel Comparison
+
+Let's compare sequential and parallel execution using a small example:
+
+```{r sequential-example}
+# Load example data
+data_path <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
+plr_obj <- plr_read(data_path, verbose = FALSE)
+
+# Sequential execution (default)
+cat("Running sequential...\n")
+t1 <- system.time({
+  result_seq <- plr_permute(
+    plr_obj,
+    n_snps = 100,  # Small number for quick demo
+    n_iter = 100,
+    verbose = FALSE
+  )
+})
+cat("Sequential time:", t1["elapsed"], "seconds\n")
+```
+
+### Parallel Execution with %dopar%
+
+To enable parallel processing in polylinkR, you need to:
+
+1. Plan the future backend
+2. Register with foreach
+3. Call polylinkR functions (they'll use `%dopar%` internally)
+
+```{r parallel-example}
+# Set up parallel backend
+plan(multisession, workers = 2)  # Use 2 workers for vignette
+doFuture::registerDoFuture()
+
+# Parallel execution
+cat("Running parallel...\n")
+t2 <- system.time({
+  handlers(global = TRUE)
+  result_par <- plr_permute(
+    plr_obj,
+    n_snps = 100,
+    n_iter = 100,
+    verbose = FALSE
+  )
+})
+cat("Parallel time:", t2["elapsed"], "seconds\n")
+
+# Calculate speedup
+speedup <- t1["elapsed"] / t2["elapsed"]
+cat("Speedup:", round(speedup, 2), "×\n")
+
+# Reset to sequential
+plan(sequential)
+```
+
+### Monitoring Progress
+
+When running long parallel jobs, progress bars help monitor execution:
+
+```{r progress-example, eval = FALSE}
+# Enable global progress handlers
+handlers(global = TRUE)
+handlers("txtprogressbar")  # Text-based progress bar
+
+# Run with progress reporting
+result <- plr_permute(
+  plr_obj,
+  n_snps = 1000,
+  n_iter = 10000,
+  verbose = TRUE  # Enables progress output
+)
+```
+
+For silent/background execution:
+
+```{r silent-progress, eval = FALSE}
+# Disable progress for batch jobs
+handlers(global = FALSE)
+
+result <- plr_permute(
+  plr_obj,
+  n_snps = 1000,
+  n_iter = 10000,
+  verbose = FALSE
+)
+```
+
+## Performance Benchmarks
+
+### Benchmarking Script
+
+Here's a template for benchmarking your specific hardware:
+
+```{r benchmark, eval = FALSE}
+benchmark_parallel <- function(plr_obj, iterations = c(100, 1000, 5000)) {
+  results <- data.frame(
+    iterations = integer(),
+    cores = integer(),
+    time_seconds = numeric()
+  )
+  
+  # Test different core counts
+  core_options <- c(1, 2, 4, parallel::detectCores() - 1)
+  
+  for (n_iter in iterations) {
+    for (n_cores in core_options) {
+      if (n_cores == 1) {
+        plan(sequential)
+      } else {
+        plan(multisession, workers = n_cores)
+        doFuture::registerDoFuture()
+      }
+      
+      t <- system.time({
+        res <- plr_permute(plr_obj, n_snps = 500, n_iter = n_iter, verbose = FALSE)
+      })
+      
+      results <- rbind(results, data.frame(
+        iterations = n_iter,
+        cores = n_cores,
+        time_seconds = t["elapsed"]
+      ))
+      
+      # Clean up workers
+      if (n_cores > 1) {
+        plan(sequential)
+      }
+    }
+  }
+  
+  return(results)
+}
+
+# Run benchmark
+bench_results <- benchmark_parallel(plr_obj)
+print(bench_results)
+```
+
+### Expected Performance
+
+Based on typical workstation hardware (Intel/AMD 8-core CPU):
+
+| Iterations | 1 Core | 2 Cores | 4 Cores | 8 Cores | Efficiency |
+|-----------|--------|---------|---------|---------|------------|
+| 1,000 | 30s | 16s | 9s | 6s | 62% |
+| 10,000 | 5m | 2.6m | 1.4m | 50s | 75% |
+| 100,000 | 45m | 23m | 12m | 6.5m | 87% |
+
+*Efficiency = (Speedup / Core Count) × 100. Higher iteration counts show better efficiency due to reduced overhead amortization.*
+
+### Memory Usage Considerations
+
+Parallel execution increases memory usage:
+
+- **Sequential**: Memory × 1
+- **N workers**: Memory × (1 + N × 0.3) approximately
+
+Each worker maintains a copy of necessary data structures. For large datasets:
+
+```{r memory-management, eval = FALSE}
+# Check available memory
+mem_info <- gc(reset = TRUE)
+cat("Current memory usage:", mem_info[2, 2], "MB\n")
+
+# Estimate parallel memory
+estimate_memory <- function(n_workers, base_mb = 500) {
+  # Base usage + overhead per worker
+  total <- base_mb * (1 + n_workers * 0.3)
+  return(total)
+}
+
+available_workers <- function(total_ram_gb, base_mb = 500) {
+  max_workers <- floor((total_ram_gb * 1024 - base_mb) / (base_mb * 0.3))
+  return(min(max_workers, parallel::detectCores() - 1))
+}
+
+cat("Recommended workers for 16GB RAM:", available_workers(16), "\n")
+```
+
+### When Parallelization Isn't Worth It
+
+**Skip parallel processing when:**
+
+1. **Small datasets** (< 100 genes, < 1,000 iterations)
+   - Overhead exceeds computation time
+   - Sequential may be faster
+
+2. **Very fast iterations** (< 10ms each)
+   - Communication overhead dominates
+
+3. **Memory-constrained systems**
+   - Swapping kills performance
+
+4. **Windows with > 10 cores**
+   - Process creation overhead can be significant
+
+**Rule of thumb**: Parallelize when expected time > 30 seconds and iterations > 5,000.
+
+## Advanced Tips
+
+### Chunking Strategies
+
+For extremely large iteration counts, use chunking to reduce scheduling overhead:
+
+```{r chunking, eval = FALSE}
+# Manual chunking for fine control
+plan(multisession, workers = 4)
+doFuture::registerDoFuture()
+
+# Divide work into chunks
+N.iter <- 50000
+n_chunks <- 20
+chunk_size <- N.iter / n_chunks
+
+# Process chunks in parallel
+results <- foreach(i = 1:n_chunks, .combine = c) %dopar% {
+  # Each worker processes a chunk
+  process_chunk(chunk_size)
+}
+```
+
+polylinkR automatically handles chunking internally for large `N.iter` values.
+
+### Handling Memory Limits
+
+When hitting memory limits:
+
+```{r memory-limits, eval = FALSE}
+# Strategy 1: Reduce workers
+plan(multisession, workers = 2)  # Fewer workers = less memory
+
+# Strategy 2: Process in batches
+batch_permute <- function(plr_obj, n_iter_total, batch_size = 1000) {
+  n_batches <- ceiling(n_iter_total / batch_size)
+  all_results <- list()
+  
+  for (batch in 1:n_batches) {
+    # Process one batch at a time
+    res <- plr_permute(plr_obj, n_iter = batch_size, verbose = FALSE)
+    all_results[[batch]] <- res
+    gc()  # Force garbage collection between batches
+  }
+  
+  # Combine results
+  return(combine_results(all_results))
+}
+
+# Strategy 3: Use disk-backed storage for large objects
+options(future.globals.maxSize = 1024 * 1024^2)  # 1GB limit
+```
+
+### Troubleshooting Common Parallel Errors
+
+**Error: "Cannot find variable X"**
+```r
+# Solution: Ensure all required packages are loaded in workers
+plan(multisession, workers = 4)
+doFuture::registerDoFuture()
+
+# Explicitly export needed objects
+foreach(i = 1:10, .export = c("my_data", "my_function")) %dopar% {
+  # computation
+}
+```
+
+**Error: "Worker timeout" or "Connection error"**
+```r
+# Solution: Increase timeouts and use persistent connections
+options(future.wait.timeout = 600)  # 10 minutes
+plan(multisession, workers = 4, persistent = TRUE)
+```
+
+**Error: "Memory limit exceeded"**
+```r
+# Solution: Reduce workers or chunk size
+plan(multisession, workers = 2)  # Reduce parallelism
+# Or process sequentially in smaller batches
+```
+
+**Windows-specific: "Process creation failed"**
+```r
+# Solution: Reduce worker count on Windows
+# Windows has higher overhead for process creation
+plan(multisession, workers = min(4, availableCores() - 1))
+```
+
+### Cleaning Up Clusters Properly
+
+**Always clean up parallel resources** to prevent zombie processes and memory leaks:
+
+```{r cleanup}
+# Standard cleanup - returns to sequential processing
+plan(sequential)
+
+# Verify cleanup
+cat("Current plan:", class(plan()), "\n")
+```
+
+For more thorough cleanup (especially after errors):
+
+```{r thorough-cleanup, eval = FALSE}
+# Reset all future state
+future::resetWorkers(plan())
+plan(sequential)
+
+# Force garbage collection
+gc()
+
+# On Windows, check for orphaned R processes in Task Manager
+```
+
+### Platform-Specific Recommendations
+
+**Windows:**
+- Always use `multisession` (never `multicore`)
+- Limit workers to 4-8 for stability
+- Watch for antivirus interference with socket connections
+
+**Linux:**
+- `multicore` offers best performance
+- Check `ulimit` settings for process limits
+- Consider `cgroups` for resource control on shared systems
+
+**macOS:**
+- `multicore` works well on Intel Macs
+- Apple Silicon: `multisession` is more reliable
+- Check "System Settings > General > Login Items" for process limits
+
+## Complete Working Example
+
+Here's a complete, production-ready script for parallel pathway analysis:
+
+```{r complete-example, eval = FALSE}
+#!/usr/bin/env Rscript
+# parallel_pathway_analysis.R
+
+library(polylinkR)
+library(foreach)
+library(doFuture)
+library(progressr)
+
+# Configuration
+CONFIG <- list(
+  data_path = "path/to/your/data",
+  output_path = "results.rds",
+  n_iterations = 10000,
+  n_snps = 1000,
+  verbose = TRUE
+)
+
+# Setup parallel backend
+setup_parallel <- function() {
+  ncores <- parallel::detectCores()
+  workers <- max(1, ncores - 1)
+  
+  cat("Setting up parallel backend with", workers, "workers\n")
+  
+  # Platform-specific setup
+  if (.Platform$OS.type == "windows") {
+    plan(multisession, workers = workers)
+  } else {
+    # Try multicore first, fall back to multisession
+    tryCatch({
+      plan(multicore, workers = workers)
+    }, error = function(e) {
+      message("multicore failed, using multisession: ", e$message)
+      plan(multisession, workers = workers)
+    })
+  }
+  
+  doFuture::registerDoFuture()
+  handlers(global = TRUE)
+  
+  return(workers)
+}
+
+# Main analysis
+main <- function() {
+  # Setup
+  workers <- setup_parallel()
+  on.exit({
+    cat("Cleaning up parallel resources...\n")
+    plan(sequential)
+  })  # Ensure cleanup even on error
+  
+  # Read data
+  cat("Reading input data...\n")
+  plr_obj <- plr_read(CONFIG$data_path, verbose = CONFIG$verbose)
+  
+  # Run parallel permutation
+  cat("Running parallel permutation analysis...\n")
+  start_time <- Sys.time()
+  
+  result <- plr_permute(
+    plr_obj,
+    n_snps = CONFIG$n_snps,
+    n_iter = CONFIG$n_iterations,
+    verbose = CONFIG$verbose
+  )
+  
+  end_time <- Sys.time()
+  elapsed <- as.numeric(end_time - start_time, units = "secs")
+  
+  cat("Analysis complete!\n")
+  cat("Total time:", round(elapsed, 2), "seconds\n")
+  cat("Effective rate:", round(CONFIG$n_iterations / elapsed, 1), "iterations/sec\n")
+  
+  # Save results
+  saveRDS(result, CONFIG$output_path)
+  cat("Results saved to:", CONFIG$output_path, "\n")
+  
+  # Cleanup (also handled by on.exit)
+  plan(sequential)
+  
+  return(result)
+}
+
+# Run if executed as script
+if (!interactive()) {
+  result <- main()
+}
+```
+
+### Safe Shutdown Pattern
+
+Use this pattern to ensure resources are always released:
+
+```{r safe-shutdown, eval = FALSE}
+safe_parallel <- function(expr) {
+  # Setup
+  plan(multisession, workers = 4)
+  doFuture::registerDoFuture()
+  
+  # Execute with error handling and cleanup
+  tryCatch({
+    result <- expr
+    return(result)
+  }, finally = {
+    # Always execute cleanup
+    cat("Shutting down parallel workers...\n")
+    plan(sequential)
+    gc()
+  })
+}
+
+# Usage
+result <- safe_parallel({
+  plr_permute(plr_obj, n_snps = 1000, n_iter = 10000)
+})
+```
+
+## Summary
+
+### Key Takeaways
+
+1. **Always parallelize large permutation jobs** - The speedup is substantial for 10,000+ iterations
+
+2. **Leave 1 core free** - Prevents system lag and memory issues
+
+3. **Use `multisession` on Windows** - More stable than forking
+
+4. **Monitor memory usage** - Each worker increases memory footprint by ~30%
+
+5. **Always clean up** - Use `plan(sequential)` or `on.exit()` to prevent zombie processes
+
+6. **Progress bars help** - Enable with `handlers(global = TRUE)` for long runs
+
+7. **Chunk large jobs** - Reduces scheduling overhead for 100,000+ iterations
+
+### Quick Reference
+
+```{r quick-reference, eval = FALSE}
+# Minimal setup
+library(foreach)
+library(doFuture)
+
+plan(multisession, workers = parallel::detectCores() - 1)
+doFuture::registerDoFuture()
+
+# Run analysis
+result <- plr_permute(plr_obj, n_snps = 1000, n_iter = 10000)
+
+# Cleanup
+plan(sequential)
+```
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+```

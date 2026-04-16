@@ -344,28 +344,28 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    rlang::local_options(verbose = verbose, .frame = environment())
 
    # check arguments
-   .arg_check(f = "read", ENV = environment())
+   .check_arguments(f = "read", ENV = environment())
 
    # announce function
    hdr <- "Running plR_read -- Loading polylinkR input files"
    pdg <- (80 - nchar(hdr)) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
-   .vrb("\n\n")
+   .verbose_msg("\n\n")
 
    #---------------------------------------------------------------------------#
    ## Read and check plR input files
    #---------------------------------------------------------------------------#
 
-   .path_check(input.path = input.path, oi.path = obj.info.path,
+   .check_file_paths(input.path = input.path, oi.path = obj.info.path,
                si.path = set.info.path, so.path = set.obj.path,
                vi.path = var.info.path, rr.path = rec.rate.path,
                group = group, ENV = environment())
 
-   .vrb(cli::style_italic("Reading files:\n"))
+   .verbose_msg(cli::style_italic("Reading files:\n"))
    for (fni in names(file.paths)) {
       fpi <- file.paths[[fni]]
-      .vrb(paste0("--> Loading ", fni, " (",  fpi, ")\n"))
+      .verbose_msg(paste0("--> Loading ", fni, " (",  fpi, ")\n"))
       assign(x = fni, value = data.table::fread(fpi), envir = environment())
    }
 
@@ -373,7 +373,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    ## Check presence of canonical columns
    #---------------------------------------------------------------------------#
 
-   .vrb(cli::style_italic("\nPerforming file checks\n"))
+   .verbose_msg(cli::style_italic("\nPerforming file checks\n"))
 
    # check appropriate columns are present and no missing data
    CHK0 <- c("obj.info", "set.info", "set.obj")
@@ -457,7 +457,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    # record user defined columns and replace non-canonical labels
    for (i in seq_along(CHK0)) {
       if (!all(c0[[i]] %in% canon[[i]])) { # check for noncanonical labels
-         .vrb(paste0("Replacing non-canonical column labels for ",
+         .verbose_msg(paste0("Replacing non-canonical column labels for ",
                      CHK0[[i]], "\n"))
          data.table::setnames(x = get(CHK0[[i]]), old = c0[[i]],
                               new = canon[[i]])
@@ -507,7 +507,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
                data.table::setnames(obj.info, old = bNames[[2]], new = bNames[[1]])
             }
          } else { # add if user has not included base position columns
-            .vrb(paste0("Note: ", paste(bNames[!bCols], collapse = " and "),
+            .verbose_msg(paste0("Note: ", paste(bNames[!bCols], collapse = " and "),
                         " columns not detected in obj.info\n",
                         "[polylinkR analyses will assume standard gene ",
                         " boundaries were used in gene score assignment]"))
@@ -653,7 +653,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    }
 
    if (!is.null(rW)) {
-      .vrb(paste0(paste(rW, collapse = "\n"),
+      .verbose_msg(paste0(paste(rW, collapse = "\n"),
                   "\n[info available in removed.ID]\n"))
    }
 
@@ -662,7 +662,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    si.check <- set.info[, .N, by = setID][N > 1]
    Ndup.si <-  nrow(si.check)
    if (Ndup.si > 0) {
-      .vrb(paste0("Indentified and removed ", Ndup.si, " duplicated gene set",
+      .verbose_msg(paste0("Indentified and removed ", Ndup.si, " duplicated gene set",
                   ifelse(Ndup.si == 1, "", "s"), "\n"))
       rID <- data.table::data.table(file = "set.info",
                                     setID = si.check[, setID],
@@ -674,7 +674,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    oi.check <- obj.info[, .N, by = objID][N > 1]
    Ndup.oi <- nrow(oi.check)
    if (Ndup.oi > 0) {
-      .vrb(paste0("Indentified and removed ", Ndup.oi, " duplicated gene",
+      .verbose_msg(paste0("Indentified and removed ", Ndup.oi, " duplicated gene",
                   ifelse(Ndup.oi == 1, "", "s"), "\n"))
       rID <- cbind(file = "obj.info", setID = NA, oi.check)
       repeat.ID <- rbind(repeat.ID, rID)
@@ -684,7 +684,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    so.check <- set.obj[, .N, by = .(setID, objID)][N > 1]
    Ndup.so <- data.table::uniqueN(so.check$setID)
    if (Ndup.so > 0) {
-      .vrb(paste0("Indentified ", Ndup.so, " gene set",
+      .verbose_msg(paste0("Indentified ", Ndup.so, " gene set",
                   ifelse(Ndup.so == 1, "", "s"),
                   " with duplicated gene IDs, removing duplicates\n"))
       rID <- cbind(file.type = "set.obj", so.check)
@@ -693,7 +693,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    }
 
    if (Ndup.si > 0 | Ndup.oi > 0 | Ndup.so > 0) {
-      .vrb("[info available in repeat.ID]\n")
+      .verbose_msg("[info available in repeat.ID]\n")
    }
 
    # check for duplicated genes by position
@@ -702,7 +702,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
                               by = c("chr", "startpos.base", "endpos.base")]
       obj.dups <- obj.per.set[N > 1]
       if (nrow(obj.dups) > 0) {
-         .vrb(paste0("Found ", nrow(obj.dups), " genes that have an identical ",
+         .verbose_msg(paste0("Found ", nrow(obj.dups), " genes that have an identical ",
                      "genomic position with other genes\n"))
          if (rem.genes) { # Optional: remove genes with identical start and end positions on same chromosome
             # privilege retention of genes in gene sets (or that appear in most sets)
@@ -724,10 +724,10 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
             rID <- data.table::data.table(file = "obj.info", setID = NA,
                                           objID = obj.rem, flag = "coord_dup")
             removed.ID <- rbind(removed.ID, rID)
-            .vrb(paste0(length(obj.keep), " unique genes remain after merging\n",
+            .verbose_msg(paste0(length(obj.keep), " unique genes remain after merging\n",
                         "[info available in merged.ID]\n"))
          } else {
-            .vrb("rem.genes = FALSE, identical genes will be retained\n")
+            .verbose_msg("rem.genes = FALSE, identical genes will be retained\n")
          }
       }
    }
@@ -743,7 +743,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    km.ch <- list(obj.in, obj.out, set.in, set.out)
    w.ch <- !sapply(km.ch, is.null)
    if (any(w.ch)) {
-      .vrb(cli::style_italic("\nFiltering files:\n"))
+      .verbose_msg(cli::style_italic("\nFiltering files:\n"))
       W.ch <- which(w.ch)
       nor0 <- nrow(obj.info)
       sor0 <- nrow(set.info)
@@ -756,7 +756,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          obj.info <- obj.info[o.in]
          nor <- nor0 - nrow(obj.info)
-         .vrb(paste0("obj.in option enacted: ", nor, " gene",
+         .verbose_msg(paste0("obj.in option enacted: ", nor, " gene",
                      ifelse(nor == 1, "", "s"), " removed\n"))
          nor.d <- length(obj.in) - nrow(obj.info)
       }
@@ -768,12 +768,12 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          obj.info <- obj.info[!o.out]
          nor <- nor0 - nrow(obj.info)
-         .vrb(paste0("obj.out option enacted: ", nor, " gene",
+         .verbose_msg(paste0("obj.out option enacted: ", nor, " gene",
                      ifelse(nor == 1, "", "s"), " removed\n"))
          nor.d <- length(obj.out) - nor
       }
       if (nor.d > 0) {
-         .vrb(paste0("   [NB: ", nor.d, " gene ID",
+         .verbose_msg(paste0("   [NB: ", nor.d, " gene ID",
                      ifelse(nor.d == 1, " was", "s were"),
                      " not detected in obj.info]\n"))
       }
@@ -785,7 +785,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          set.info <- set.info[s.in]
          nsr <- sor0 - nrow(set.info)
-         .vrb(paste0("set.in option enacted: ", nsr, " gene set ID",
+         .verbose_msg(paste0("set.in option enacted: ", nsr, " gene set ID",
                      ifelse(nsr == 1, "", "s"), " removed\n"))
          nsr.d <- length(set.in) - nrow(set.info)
       }
@@ -797,12 +797,12 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          set.info <- set.info[!s.out]
          nsr <- sor0 - nrow(set.info)
-         .vrb(paste0("set.out option enacted: ", nsr, " gene set",
+         .verbose_msg(paste0("set.out option enacted: ", nsr, " gene set",
                      ifelse(nsr == 1, "", "s"), " removed\n"))
          nsr.d <- length(set.out) - nsr
       }
       if (nsr.d > 0) {
-         .vrb(paste0("   [NB: ", nsr.d, " gene set ID",
+         .verbose_msg(paste0("   [NB: ", nsr.d, " gene set ID",
                      ifelse(nsr.d == 1, " was", "s were"),
                      " not detected in set.info]\n"))
       }
@@ -830,12 +830,12 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    # get chromosome lengths (also used in final section)
    chr.len <- obj.info[, max(endpos) - min(startpos), by = chr]$V1
    if (bp.to.cM | get.objStat) {
-      .vrb(cli::style_italic(paste("\nAuxillary files detected:",
+      .verbose_msg(cli::style_italic(paste("\nAuxillary files detected:",
                                    "updating obj.info file\n")))
 
       # generate gene scores
       if (get.objStat) {
-         .vrb(paste0("Generating gene scores using residuals from ",
+         .verbose_msg(paste0("Generating gene scores using residuals from ",
                      ifelse(obj.stat.fun == "non.param", "non-", ""),
                      "parametric regression: `max value` ~ `",
                      ifelse(obj.stat.fun == "non.param", "", "log "),
@@ -867,13 +867,13 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
 
       # convert genome coordinates from physical (bp) to genetic (cM)
       if (bp.to.cM) {
-         .vrb("Coverting coordinates from physical to genetic system")
+         .verbose_msg("Coverting coordinates from physical to genetic system")
          gD <- c("cM", "cm", "CM", "map", "Map", "MAP") %in% colnames(rec.rate)
          if (any(gD)) { # user has provided relevant genetic distance column
             map.fun <- NULL
-            .vrb("\n")
+            .verbose_msg("\n")
          } else {
-            .vrb(paste0(" [using the ",
+            .verbose_msg(paste0(" [using the ",
                        toupper(substring(map.fun, 1, 1)), substring(map.fun, 2),
                        " map function]\n"))
          }
@@ -926,8 +926,8 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
          }
 
          removed.ID[order(file, setID, objID)]
-         .vrb(paste(rw, collapse = "\n"))
-         .vrb("\n[info available in removed.ID]\n")
+         .verbose_msg(paste(rw, collapse = "\n"))
+         .verbose_msg("\n[info available in removed.ID]\n")
       }
    } else {
       obj.stat.param <- NULL
@@ -937,14 +937,14 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    ## Ensure gene sets meet size and gene sharing specifications
    #---------------------------------------------------------------------------#
 
-   .vrb(cli::style_italic("\nEnsuring gene sets are in prescribed range\n"))
+   .verbose_msg(cli::style_italic("\nEnsuring gene sets are in prescribed range\n"))
    n.sets.orig <- nrow(set.info)
    merged.ID <- NULL
    if (n.sets.orig > 1) { # run merging
       if (set.merge == 1) {
-         .vrb("Identifying and merging and identical gene sets: ")
+         .verbose_msg("Identifying and merging and identical gene sets: ")
       } else {
-         .vrb(paste0("Identifying and merging gene sets with >= ",
+         .verbose_msg(paste0("Identifying and merging gene sets with >= ",
                      round(set.merge * 100, 1), "% similarity: "))
       }
 
@@ -960,9 +960,9 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
       }
 
       if (R == 0) {
-         .vrb(paste("none detected\n"))
+         .verbose_msg(paste("none detected\n"))
       } else {
-         .vrb(paste0(nrow(set.info.merged), " sets merged into ",
+         .verbose_msg(paste0(nrow(set.info.merged), " sets merged into ",
                      data.table::uniqueN(set.info.merged$setID.new),
                      " set", ifelse(n.sets.orig - nrow(set.info) == 1, "", "s"),
                      "\n[info available in merged.ID]\n"))
@@ -980,7 +980,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
       # check if sets are outside of chosen range
       set.size.rng <- min.set.n > min(set.info$setN) | !is.infinite(max.set.n)
       if (set.size.rng) { # remove gene sets that have too many / too few genes
-         .vrb(paste0("Identifying and removing gene sets with < ", min.set.n,
+         .verbose_msg(paste0("Identifying and removing gene sets with < ", min.set.n,
                      ifelse(max.set.n == Inf, "", paste(" or >", max.set.n)),
                      " genes: "))
          s.rng <- set.info[, setN < min.set.n | setN > max.set.n]
@@ -989,7 +989,7 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
                  call. = FALSE)
          } else {
             if (sum(s.rng) == 0)  { # update objects
-               .vrb("no gene sets fall outside prescribed range\n")
+               .verbose_msg("no gene sets fall outside prescribed range\n")
             } else {
                rID <- data.table::data.table(file = "set.info",
                                              setID = set.info[s.rng]$setID,
@@ -997,13 +997,13 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
                removed.ID <- rbind(removed.ID, rID)
                set.info <- set.info[!s.rng]
                set.obj <- set.obj[setID %in% set.info$setID] # update set.obj
-               .vrb(paste0(sum(s.rng), " set",
+               .verbose_msg(paste0(sum(s.rng), " set",
                            ifelse(sum(s.rng) == 1, "", "s"),
                            " removed\n[info available in removed.ID]\n"))
             }
          }
       } else {
-         .vrb(paste0("All gene sets within specified size range [>= ",
+         .verbose_msg(paste0("All gene sets within specified size range [>= ",
                      min.set.n, ifelse(max.set.n == Inf, "",
                                        paste(" and <=", max.set.n)),
                      " genes]\n"))
@@ -1063,14 +1063,14 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
    plr.out <- .new_plR(BASE = OUT, plR.data = plr.data, plR.args = plr.args,
                        plR.summary = plr.summary, plR.session = plr.session)
 
-   .vrb(cli::style_italic("\nFile loading summary:\n"))
-   .vrb(paste0("Loaded ", nrow(set.info), " unique gene set",
+   .verbose_msg(cli::style_italic("\nFile loading summary:\n"))
+   .verbose_msg(paste0("Loaded ", nrow(set.info), " unique gene set",
                ifelse(n.sets == 1, "", "s"), " and ", nrow(obj.info),
                " unique genes\n"))
 
    obj.nx <- nrow(obj.info) - data.table::uniqueN(set.obj$objID)
    if(obj.nx > 0) {
-      .vrb(paste0("[NB: ", obj.nx, " genes (",
+      .verbose_msg(paste0("[NB: ", obj.nx, " genes (",
                   round(obj.nx / nrow(obj.info) * 100, 1),
                   "% of total genes) are not in any gene set ",
                   "but are retained for computing null and autocovariance]\n"))
@@ -1111,15 +1111,15 @@ plR_read <- function(input.path = NULL, obj.info.path = NULL,
                      "plR_prune will estimate q values for gene set scores",
                      "after correcting for shared genes")
    }
-   .vrb(paste(c(paste("**", c.mss, "**"), paste("**", p.mss, "**"),
+   .verbose_msg(paste(c(paste("**", c.mss, "**"), paste("**", p.mss, "**"),
                 paste("**", q.mss, "**")), collapse = "\n"))
-   .vrb("\n\n")
+   .verbose_msg("\n\n")
 
    ftr <- paste0("Finished loading files -- run time: ", r0[[1]])
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
-   .vrb("\n")
+   .verbose_msg("\n")
    return(plr.out)
 }
 
@@ -1352,8 +1352,8 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
 
    # perform checks and unpack required plR objects
    .plR_check(f = "permute", ENV = environment())
-   .arg_check(f = "permute", ENV = environment())
-   .plR_unpack(plr = plR.input, ENV = environment())
+   .check_arguments(f = "permute", ENV = environment())
+   .unpack_plr_object(plr = plR.input, ENV = environment())
    rm(plR.input); gc(verbose = FALSE)
 
    # set random seed
@@ -1394,35 +1394,35 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
 
    hdr[1] <- paste("Running plR_permute:", hdr[1])
    pdg <- (80 - max(nchar(hdr))) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .vrb("\n")
+   .verbose_msg("\n")
    if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .vrb(paste0("\n", MSS, "\n"))
+   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
    if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .vrb(paste0("\n", pMSS, "\n"))
-   .vrb("\n")
+   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
+   .verbose_msg("\n")
 
    ##=========================================================================##
    ## PART 2: Calculate standardised gene scores
    ##=========================================================================##
 
    if (perm.path == "full") { # perform local regression
-      .vrb(cli::style_italic(paste("Estimating prognostic gene scores",
+      .verbose_msg(cli::style_italic(paste("Estimating prognostic gene scores",
                                    "(confounder effect) using local quadratic",
                                    "regression:\n")))
-      .vrb("Calculating pairwise Mahalanobis Distances for all genes")
+      .verbose_msg("Calculating pairwise Mahalanobis Distances for all genes")
 
       cv.val <- as.matrix(obj.info[, .SD, .SDcols = cov.names]) # covariate matrix
 
       if (md.meth == "robust") {
-         .vrb(" in robust covariate space (coverting to normal scores)\n")
+         .verbose_msg(" in robust covariate space (coverting to normal scores)\n")
          cv.val <- Rfast::colRanks(cv.val, method = "average") # generate ranks
          cv.val <- qnorm((cv.val - 0.5) / n.genes) # convert ranks to normal scores
       } else {
-         .vrb(" in covariate space\n")
+         .verbose_msg(" in covariate space\n")
       }
 
       # check for singularity among covariates
@@ -1431,7 +1431,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          if (qrX$rank < length(cov.names)) {
             col.keep <- qrX$pivot[1:qrX$rank]
             cv.val <- cv.val[, col.keep] # remove redundant covariates
-            .vrb(paste0("Covariate matrix is singular\nRedundant covariates [",
+            .verbose_msg(paste0("Covariate matrix is singular\nRedundant covariates [",
                         paste0("Cov", setdiff(1:ncol(cov.mat), col.keep),
                                collapse = ", "),
                         "] are ommited from all regression models\n"))
@@ -1443,13 +1443,13 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       # generate Mahalanobis distances
       M0 <- distances::distances(data = cv.val, normalize = "mahalanobize")
 
-      .vrb(paste("Estimating regression coefficients for each gene using",
+      .verbose_msg(paste("Estimating regression coefficients for each gene using",
                  kern.func, "kernel weights \n"))
       if (kern.scale == "auto") {
          wK <- which(c("normal", "exponential", "inverse") == kern.func)
          kern.scale <- c(2, log(10), 2)[wK]
       }
-      .vrb("\n")
+      .verbose_msg("\n")
 
       # determine boundary for excluding genes
       if (kern.bound == "auto") {
@@ -1519,7 +1519,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
                # estimate local regression coefficients
                lqr <- foreach::foreach(i = I) %do% {
                  d.i <- sweep(cv.val, 2, cv.val[i, ], "-", check.margin = FALSE) # centre covariates
-                 .fit_lqr(d1 = d.i, wt0 = wt.i[i - min(I) + 1, ], os0 = os0,
+                 .fit_local_quad_reg(d1 = d.i, wt0 = wt.i[i - min(I) + 1, ], os0 = os0,
                           n.cv = n.cov)
                }
 
@@ -1543,17 +1543,17 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       lqr.fit <- Rfast::rowTrue(!is.na(lqr.coeff))
       if (any(lqr.fit < choose(n.cov, 3) + 1)) {
          tfit <- table(lqr.fit)
-         .vrb("Local quadratic regression failed for some genes:\n")
+         .verbose_msg("Local quadratic regression failed for some genes:\n")
          if (any(lqr.fit == n.cov + 1)) {
             lf <- tfit[names(tfit) == n.par[2]]
-            .vrb(paste(lf, "gene", ifelse(lf == 1, "", "s"), "had linear fit"))
+            .verbose_msg(paste(lf, "gene", ifelse(lf == 1, "", "s"), "had linear fit"))
          }
-         .vrb(ifelse(length(tfit) == 3, " and ", " "))
+         .verbose_msg(ifelse(length(tfit) == 3, " and ", " "))
          if (any(lqr.fit == 1)) {
             nf <- tfit[names(tfit) == n.par[3]]
-            .vrb(paste(nf, "gene", ifelse(lf == 1, "", "s"), "had 0-order fit"))
+            .verbose_msg(paste(nf, "gene", ifelse(lf == 1, "", "s"), "had 0-order fit"))
          }
-         .vrb("\n[check lqr.fit object in attributes]\n")
+         .verbose_msg("\n[check lqr.fit object in attributes]\n")
       }
 
       # extract NW estimator
@@ -1568,7 +1568,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       obj.info[, objStat.res := objStat - lqr.coeff[, 1]] # calculate residual values (observed - prognostic score)
       obj.info[, objStat.std := scale(objStat.res)] # ensure mean = 1 sd = 0
 
-      .vrb("Generating deconfounded gene scores and model fitting statistics\n")
+      .verbose_msg("Generating deconfounded gene scores and model fitting statistics\n")
       # calculate correlations between gene scores and covariates
       cv.val <- cbind(obj.info[, .(objStat, objStat.std)], cv.val)
       cP <- stats::cor(cv.val, method = "pearson")
@@ -1591,7 +1591,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       rm(obj.Ne, obj.MD, set.Ne, set.MD, sO, sS); gc(verbose = FALSE)
    } else { # no regression required
       if (perm.path == "partial") { # no prognostic scores present
-         .vrb(paste("No covariate columns identified:",
+         .verbose_msg(paste("No covariate columns identified:",
                     "Skipping gene score deconfounding step\n"))
          # update gene scores
          obj.info[, objStat.res := objStat - mean(objStat)] # calculate residual values
@@ -1611,8 +1611,8 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
    ##=========================================================================##
 
    if (permute) {
-      .vrb(cli::style_italic("\nGenerating null set score distributions:\n"))
-      .vrb(paste0("Estimating empirical CDFs and fitting GPDs using ",
+      .verbose_msg(cli::style_italic("\nGenerating null set score distributions:\n"))
+      .verbose_msg(paste0("Estimating empirical CDFs and fitting GPDs using ",
                   n.boot, " x ", n.perm / ifelse(n.perm / 1e6 >= 1, 1e6, 1e3),
                   ifelse(n.perm / 1e6 >= 1, "M", "k"), " permuted gene sets\n"))
 
@@ -1728,7 +1728,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          ecdf0 <- NULL
          eSumm <- NULL
       } else { # smooth estimates and interpolate missing set sizes
-         .vrb(paste("Smoothing empirical CDF and GPD parameter estimates",
+         .verbose_msg(paste("Smoothing empirical CDF and GPD parameter estimates",
                     "and interpolating missing values\n"))
 
          K <- .est_ss_cov(x = th0, n.genes = n.genes) # covariance matrix
@@ -1760,7 +1760,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
                                    ej = split(eEmean, eQnt),
                                    .options.future = fopt,
                                    .combine = cbind) %dofuture% {
-            eSmFit <- .par_smooth(y = ei, x = th0, K = K, n.th = n.th,
+            eSmFit <- .parallel_smooth(y = ei, x = th0, K = K, n.th = n.th,
                                   sm0 = sm0, tau = ej)
             predict(eSmFit, newdata = data.frame(x = log(2:n.max), oneW = 1))
          }
@@ -1790,7 +1790,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          for (p in c("scale", "shape")) {
             gM <- g0[, mean(get(p)), by = setN]
             gV <- g0[, mean(get(paste0(p, ".var"))), by = setN]
-            gSmFit <- .par_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
+            gSmFit <- .parallel_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
                                   sm0 = sm0, tau = gV$V1)
             yFit <- predict(gSmFit, newdata = data.frame(x = log(2:n.max),
                                                          oneW = 1))
@@ -1804,14 +1804,14 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          gpd0[, cut.z := c(NA, cut.z)] # add 0.999 quantile threshold
 
          # calculate associated cutoff p-value gpd minimum non-0 p values and quantiles
-         .vrb(paste("Identifying and setting minimum possible p values\n"))
+         .verbose_msg(paste("Identifying and setting minimum possible p values\n"))
          fopt <- list(packages = "data.table",
                       globals = c("gpd.cutoff", "q.bnd", ".get_gpd_mins"),
                       seed = seed)
          gpdM <- foreach::foreach(gpdI = split(gpd0[-1], 2:n.max),
                                   .options.future = fopt,
                                   .combine = rbind) %dofuture% {
-            .get_gpd_mins(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
+            .get_gpd_minimums(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
          }
          gpd0[, adj.p := c(NA, gpdM[, "adj.p"])]
          gpd0[, min.z := c(NA, gpdM[, "min.z"])]
@@ -1819,7 +1819,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
 
          rm(g0, gpdM); gc(verbose = FALSE) # clean up
       }
-      .vrb("\n")
+      .verbose_msg("\n")
    } else {
       dqi <- NULL
       ecdf0 <- NULL
@@ -1833,8 +1833,8 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
    ##=========================================================================##
 
    if (permute) {
-      .vrb(cli::style_italic("Calculating test statistics:\n"))
-      .vrb(paste0("Calculating observed and null gene set scores\n"))
+      .verbose_msg(cli::style_italic("Calculating test statistics:\n"))
+      .verbose_msg(paste0("Calculating observed and null gene set scores\n"))
 
       # calculate observed standardised set scores
       # mean of standardised gene scores = 0 and variance = 1 -> set score variance = set size (assuming independence)
@@ -1843,7 +1843,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       set.info[.(ss.obs), setScore.std := V1]
 
       # calculate p values
-      .vrb("Calculating p values for each gene set\n")
+      .verbose_msg("Calculating p values for each gene set\n")
       if (alt == "lower") {
          .get_p <- .get_p_lt
       } else {
@@ -1905,12 +1905,12 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
                        plR.summary = plr.summary, plR.seed = plr.seed,
                        plR.session = plr.session)
 
-   .vrb("\n")
+   .verbose_msg("\n")
    ftr <- cli::col_cyan(paste0("Finished plR_rescale -- run time: ", r0[[1]]))
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", , col = "cyan", border_col = "cyan"))
-   .vrb("\n")
+   .verbose_msg("\n")
    return(invisible(plr.out))
 }
 
@@ -2118,8 +2118,8 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
 
    # perform checks and unpack required plR objects
    .plR_check(f = "rescale", ENV = environment())
-   .arg_check(f = "rescale", ENV = environment())
-   .plR_unpack(plr = plR.input, ENV = environment())
+   .check_arguments(f = "rescale", ENV = environment())
+   .unpack_plr_object(plr = plR.input, ENV = environment())
    rm(plR.input); gc(verbose = FALSE)
 
    # set random seed
@@ -2160,30 +2160,30 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
 
    hdr[1] <- paste("Running plR_rescale:", hdr[1])
    pdg <- (80 - max(nchar(hdr))) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .vrb("\n")
+   .verbose_msg("\n")
    if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .vrb(paste0("\n", MSS, "\n"))
+   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
    if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .vrb(paste0("\n", pMSS, "\n"))
-   .vrb("\n")
+   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
+   .verbose_msg("\n")
 
    ##==========================================================================##
    ## PART 2: Calculate genomic autocovariance
    ##==========================================================================##
 
    if (is.null(ac)) { # infer genetic autocovariance
-      .vrb(cli::style_italic("Estimating genetic autocovariance:\n"))
+      .verbose_msg(cli::style_italic("Estimating genetic autocovariance:\n"))
 
       # generate exponential lag bin sizes
       if (cgm.range == "auto") { # determine maximum correlogram range if not provided
          maxL <- ifelse(coord == "cM", 3L, 3e6L)
       }
 
-      .vrb(paste0("Creating correlogram lag bins [max ", maxL, coord,
+      .verbose_msg(paste0("Creating correlogram lag bins [max ", maxL, coord,
                   " lag and >= ", cgm.bin, " gene pairs per bin]\n"))
 
       minL <- if (coord == "cM") { # define smallest possible lag bin (capturing 0-lags)
@@ -2246,7 +2246,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       # extract objects
       cN <- do.call(rbind, lapply(cv0, "[[", 1)) # binned estimates
 
-      .vrb("Assigning emprical covariances to lag bins\n")
+      .verbose_msg("Assigning emprical covariances to lag bins\n")
       if (n.chr > 1) { # add complete genome
          cv0 <- lapply(cv0, "[[", 2)
          gv0 <- lapply(1:nBins, function(b){
@@ -2273,7 +2273,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       cN[, bin.max := cBins[-1][bin]]
       cN[, bin.size := bin.max - bin.min]
 
-      .vrb(paste("Fitting autocovariance function\n"))
+      .verbose_msg(paste("Fitting autocovariance function\n"))
 
       # determine lag bin weights for covariance function fitting
       cgm.wt.min <- 2 / (nBins - 1) # check sufficient minimum weight (ignore lag = 0 bin)
@@ -2324,16 +2324,16 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
          names(gFit) <- c("All", 1:n.chr)
 
          # regularise covariance function parameter estimates for each chromosome
-         .vrb("Apply empirical Bayes to revise chromosome parameters\n")
-         ebPar0 <- .emp_bayes_est(cPar = cPar, gPar = gPar, cN0 = cN,
+         .verbose_msg("Apply empirical Bayes to revise chromosome parameters\n")
+         ebPar0 <- .empirical_bayes_estimate(cPar = cPar, gPar = gPar, cN0 = cN,
                                   corr = FALSE)
          if (emp.bayes == "auto") {
             emp.bayes <- ifelse(n.chr >= 15, "full", "reduced")
          }
 
          if (emp.bayes == "full") {
-            .vrb("Comparing full and marginal models\n")
-            ebPar <- .emp_bayes_est(cPar = cPar, gPar = gPar, cN0 = cN,
+            .verbose_msg("Comparing full and marginal models\n")
+            ebPar <- .empirical_bayes_estimate(cPar = cPar, gPar = gPar, cN0 = cN,
                                     corr = TRUE)
             LR <- 2 * (ebPar0$logLik - ebPar$logLik)
             pval <- 0.5 * pchisq(LR, df = 1, lower.tail = FALSE)
@@ -2377,7 +2377,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       }
 
       # determine empirical covariances
-      .vrb("Generating intergene covariances\n")
+      .verbose_msg("Generating intergene covariances\n")
 
       ac <- foreach::foreach(x = oi0, par = split(cgm.summary, 1:n.chr)) %do% {
          xD <- dist(x$midpos)
@@ -2397,7 +2397,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
          xIJ <- cbind(xIJ[, .(objID.A, objID.B, cov.ovlp)], pos.lag = xD[wD]) # add covariances
 
          # calculate pairwise covariances (= correlations)
-         xIJ[, rho := .cov_fun(h = pos.lag, ovlp = cov.ovlp, scale = par$scale,
+         xIJ[, rho := .covariance_function(h = pos.lag, ovlp = cov.ovlp, scale = par$scale,
                                beta1 = par$beta.LD.reg,
                                beta2 = par$beta.ovlp.reg)]
          cbind(chr = x$chr[1],  xIJ[rho >= min.rho])
@@ -2406,7 +2406,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
 
       user.ac <- FALSE
    } else { # user has provided valid ac object
-      .vrb(paste("Valid ac object detected:",
+      .verbose_msg(paste("Valid ac object detected:",
                  "Skipping autocovariance calculation step\n"))
       ac <- ac[objID.A != objID.B][rho >= min.rho] # remove unused values
       if (exists("plr.summary$rescale.summary")) { # ac previously estimated using plR, retain args and summaries
@@ -2426,7 +2426,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
    ##==========================================================================##
 
    if (rescale) {
-      .vrb(cli::style_italic("\nRescaling null set score distributions:\n"))
+      .verbose_msg(cli::style_italic("\nRescaling null set score distributions:\n"))
 
       # get common variables for analytical and permutation-based corrections
       n.perm <- plr.args$permute.args$n.perm
@@ -2443,7 +2443,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       rI <- sqrt(1 + (1:n.max - 1) * rho.hat) # analytical rescaling factor
 
       if (fast) {
-         .vrb(paste("fast = TRUE: Rescaling empirical CDFs and GPD scale",
+         .verbose_msg(paste("fast = TRUE: Rescaling empirical CDFs and GPD scale",
                     "coefficient using analytical scaling factor\n"))
 
          if (n.sets == 1) {
@@ -2475,7 +2475,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       } else {
          n.boot <- plr.args$permute.args$n.boot
 
-         .vrb(paste0("fast = FALSE: Set-wise rescaling of empirical CDFs and",
+         .verbose_msg(paste0("fast = FALSE: Set-wise rescaling of empirical CDFs and",
                      " refitting GPDs for ", n.boot, " x ",
                      n.perm / ifelse(n.perm / 1e6 >= 1, 1e6, 1e3),
                      ifelse(n.perm / 1e6 >= 1, "M", "k"), " gene sets\n"))
@@ -2536,7 +2536,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
                      dqrng::dqset.seed(x)
                      csX <- replicate(n.block,
                                       dqrng::dqsample.int(n.genes, n.max)) # faster than dqsample::dqsample
-                     rsX <- .get_cov0(csj = csX, rsX = rs0, SS0 = SS0, ac0 = ac0) # get covariances
+                     rsX <- .get_covariance_null(csj = csX, rsX = rs0, SS0 = SS0, ac0 = ac0) # get covariances
                      csX <- matrix(os0[csX], nrow = n.max, ncol = n.block) # get gene scores
 
                      if (n.sets == 1) { # only take final entry
@@ -2612,7 +2612,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             ecdf0 <- NULL
             eSumm <- NULL
          } else { # smooth estimates and interpolate missing set sizes
-            .vrb(paste("Smoothing empirical CDF and GPD parameter estimates",
+            .verbose_msg(paste("Smoothing empirical CDF and GPD parameter estimates",
                        "and interpolating missing values\n"))
 
             K <- .est_ss_cov(x = th0, n.genes = n.genes) # covariance matrix
@@ -2644,7 +2644,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
                                       ej = split(eEmean, eQnt),
                                       .options.future = fopt,
                                       .combine = cbind) %dofuture% {
-               eSmFit <- .par_smooth(y = ei, x = th0, K = K, n.th = n.th,
+               eSmFit <- .parallel_smooth(y = ei, x = th0, K = K, n.th = n.th,
                                      sm0 = sm0, tau = ej)
                predict(eSmFit, newdata = data.frame(x = log(2:n.max), oneW = 1))
             }
@@ -2674,7 +2674,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             for (p in c("scale", "shape")) {
                gM <- g0[, mean(get(p)), by = setN]
                gV <- g0[, mean(get(paste0(p, ".var"))), by = setN]
-               gSmFit <- .par_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
+               gSmFit <- .parallel_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
                                      sm0 = sm0, tau = gV$V1)
                yFit <- predict(gSmFit, newdata = data.frame(x = log(2:n.max),
                                                             oneW = 1))
@@ -2688,7 +2688,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             gpd0[, cut.z := c(NA, cut.z)] # add 0.999 quantile threshold
 
             # include associated cutoff p-value gpd minimum non-0 p values and quantiles
-            .vrb(paste("Identifying and setting minimum possible p values\n"))
+            .verbose_msg(paste("Identifying and setting minimum possible p values\n"))
             fopt <- list(packages = "data.table",
                          globals = c("gpd.cutoff", "q.bnd", ".get_gpd_mins"),
                          seed = seed)
@@ -2696,7 +2696,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             gpdM <- foreach::foreach(gpdI = split(gpd0[-1], 2:n.max),
                                      .options.future = fopt,
                                      .combine = rbind) %dofuture% {
-            .get_gpd_mins(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
+            .get_gpd_minimums(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
                                      }
             gpd0[, adj.p := c(NA, gpdM[, "adj.p"])]
             gpd0[, min.z := c(NA, gpdM[, "min.z"])]
@@ -2726,7 +2726,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             }
             data.table::setDT(rSumm)
          }
-         .vrb("\n")
+         .verbose_msg("\n")
       }
 
       # set pre-scaled ECDF and GDP to null
@@ -2745,21 +2745,21 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
    ##==========================================================================##
 
    if (rescale) {
-      .vrb(cli::style_italic("\nCalculating test statistics:\n"))
+      .verbose_msg(cli::style_italic("\nCalculating test statistics:\n"))
 
       # compute rescaling factor for observed set scores
       SSI <- set.obj[, .(oID = objID), keyby = setID][, .(sID = setID, oID)]
       ac0 <- ac[, .(A = objID.A, B = objID.B, CV = 2 * rho)]
 
       obs.cov <- rep(0, n.sets)
-      oc0 <- .get_cov(SSi = SSI, ac0 = ac0)
+      oc0 <- .get_covariance(SSi = SSI, ac0 = ac0)
       obs.cov[oc0$sID] <- oc0$CV
 
       # calculate observed rescaled set scores
       set.info[, setScore.rs := setScore.std * sqrt(setN / (setN + obs.cov))]
 
       # calculate p values
-      .vrb("Calculating p values for each gene set\n")
+      .verbose_msg("Calculating p values for each gene set\n")
       if (alt == "lower") {
          .get_p <- .get_p_lt
       } else {
@@ -2825,10 +2825,10 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
                        plR.summary = plr.summary, plR.seed = plr.seed,
                        plR.session = plr.session)
 
-   .vrb("\n")
+   .verbose_msg("\n")
    ftr <- cli::col_cyan(paste0("Finished plR_rescale -- run time: ", r0[[1]]))
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
 
    return(invisible(plr.out))
@@ -2976,8 +2976,8 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
 
    # perform checks and unpack required plR objects
    .plR_check(f = "prune", ENV = environment())
-   .arg_check(f = "prune", ENV = environment())
-   .plR_unpack(plr = plR.input, ENV = environment())
+   .check_arguments(f = "prune", ENV = environment())
+   .unpack_plr_object(plr = plR.input, ENV = environment())
    rm(plR.input); gc(verbose = FALSE)
 
    # set random seed
@@ -3007,25 +3007,25 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    # checks completed, announce function
    hdr <- "Running plR_prune: FDR correction accounting for shared genes"
    pdg <- (80 - max(nchar(hdr))) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .vrb("\n")
+   .verbose_msg("\n")
    if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .vrb(paste0("\n", MSS, "\n"))
+   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
    if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .vrb(paste0("\n", pMSS, "\n"))
-   .vrb("\n")
+   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
+   .verbose_msg("\n")
 
    ##=========================================================================##
    ##PART 2: generate FDR sets and empirical prepare objects for pruning step
    ##=========================================================================##
 
-   .vrb(cli::style_italic("Preparing objects for pruning step:\n"))
+   .verbose_msg(cli::style_italic("Preparing objects for pruning step:\n"))
 
    # generate random scores for q-value adjustment
-   .vrb(paste("Generating", n.fdr, "permuted gene sets for pruning step\n"))
+   .verbose_msg(paste("Generating", n.fdr, "permuted gene sets for pruning step\n"))
    # create gene set by gene identity matrix (genes limited to those in sets)
    dqi <- dqrng::generateSeedVectors(n.fdr)
    os0 <- obj.info$objStat.std
@@ -3044,7 +3044,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    FDR <- lapply(fdr.perm, "[[", 1) # extract standardised scores
    fdr.perm <- lapply(fdr.perm, "[[", 2) # extract permuted gene IDs
 
-   .vrb("Calculating p values for pre-pruned gene sets\n")
+   .verbose_msg("Calculating p values for pre-pruned gene sets\n")
    # create FDR summary object
    FDR.pr <- list(FDR.rep = rep(1:n.fdr, each = n.sets),
                   setID = rep(1:n.fdr, n.sets),
@@ -3057,14 +3057,14 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    rescaled <- plr.args$rescale.args$rescale
    if (is.null(rescaled)) rescaled <- FALSE
    if (rescaled) { # include covariance in standardised scores
-      .vrb(paste("Rescaling pruning gene sets\n"))
+      .verbose_msg(paste("Rescaling pruning gene sets\n"))
       ac0 <- ac[, .(A = objID.A, B = objID.B, CV = 2 * rho)]
       data.table::setkey(ac0, A, B)
       c.i <- rep(0, n.sets)
 
       FDR.pr[[4]] <- foreach::foreach(f.i = fdr.perm, F.i = FDR, .combine = c) %do% {
          ss.i <- soi[, .(sID, oID = f.i[oID])]
-         cov.i <- .get_cov(SSi = ss.i, ac0 = ac0)
+         cov.i <- .get_covariance(SSi = ss.i, ac0 = ac0)
          sN0 <- sN[cov.i$sID]
          c.i[cov.i$sID] <- cov.i$CV
          F.i / sqrt((sN + c.i) * fpc[sN])
@@ -3110,7 +3110,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
             paste0("setScore.", ifelse(rescaled, "rs", "std"), c("", ".p")))
    data.table::setnames(FDR.pr, nms)
 
-   .vrb("Determining shared genes for each pair of gene sets\n")
+   .verbose_msg("Determining shared genes for each pair of gene sets\n")
    progressr::with_progress({
       prog <- progressr::progressor(steps = n.sets)
       suppressPackageStartupMessages(
@@ -3130,8 +3130,8 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    ##PART 3: Prune scores and use permuted datasets to estimate FDR
    ##=========================================================================##
 
-   .vrb(cli::style_italic("\nRunning pruning step\n"))
-   .vrb("Pruning observed gene set scores\n")
+   .verbose_msg(cli::style_italic("\nRunning pruning step\n"))
+   .verbose_msg("Pruning observed gene set scores\n")
 
    # limit autocovariance matrix to genes appearing in gene sets
    objName <- paste0("setScore.", ifelse(rescaled, "rs", "std"), ".p")
@@ -3145,7 +3145,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
       acX <- NULL
    }
 
-   SSO.pr <- .prune_sets(OBS = set.info$setScore.std * sqrt(sN * fpc[sN]), # get raw unscaled scores
+   SSO.pr <- .prune_gene_sets(OBS = set.info$setScore.std * sqrt(sN * fpc[sN]), # get raw unscaled scores
                          EXP = ecdf0, GPD = gpd0, acX = acX, nX = sN,
                          osX = obj.info[set.genes]$objStat.std, # limit scores to genes in gene sets
                          pX = set.info[, get(objName)], mss = n.min, fpc = fpc,
@@ -3159,7 +3159,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    SSO.pr[Rank == 0, (k.nms[-1]) := list(NA, NA, NA, NA, NA, NA)] # set 0 to NA
 
    # FDR set scores
-   .vrb("Pruning FDR gene set scores\n")
+   .verbose_msg("Pruning FDR gene set scores\n")
    fopt <- list(packages = c("data.table", "Rfast", 'fExtremes'),
                 globals = c("os0", "ac0", "sN", "ecdf0", "gpd0", "n.min",
                             "PI0", "fit.meth", "fpc", "prog", "n.set.genes",
@@ -3183,7 +3183,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
               acX <- NULL
             }
 
-            ps.i <- .prune_sets(OBS = ss.i, EXP = ecdf0, GPD = gpd0, acX = acX,
+            ps.i <- .prune_gene_sets(OBS = ss.i, EXP = ecdf0, GPD = gpd0, acX = acX,
                                 pX = p.i, nX = sN, osX = os.i, PI = PI0,
                                 mss = n.min, fpc = fpc, gP = .get_p)
             prog()
@@ -3207,7 +3207,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    ##PART 4: Compute adjusted p-values
    ##=========================================================================##
 
-   .vrb("Computing FDR corrected p values [q values]\n")
+   .verbose_msg("Computing FDR corrected p values [q values]\n")
 
    #---------------------------------------------------------------------------#
    ## estimate pi0 using histogram method
@@ -3215,7 +3215,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
 
    n.fdr.sets <- nrow(SSO.pr[!is.na(Rank)]) # number of pruned p-values evaluated
    if (est.pi0) { # estimate pi0
-      .est_pi0(n.fdr.sets = n.fdr.sets, SSO.pr = SSO.pr, FDR.pr = FDR.pr,
+      .estimate_pi0(n.fdr.sets = n.fdr.sets, SSO.pr = SSO.pr, FDR.pr = FDR.pr,
                n.fdr = n.fdr, tolerance = tolerance, env = environment())
    } else {
       pi0 <- 1
@@ -3311,12 +3311,12 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
                        plR.summary = plr.summary, plR.seed = plr.seed,
                        plR.session = plr.session)
 
-   .vrb("\n")
+   .verbose_msg("\n")
    ftr <- cli::col_cyan(paste0("Finished plR_prune -- run time: ", r0[[1]]))
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
-   .vrb("\n")
+   .verbose_msg("\n")
    return(invisible(plr.out))
 }
 

@@ -1,6 +1,6 @@
 Package: polylinkR
 Title: Polygenic Pathway Enrichment with Linkage Structure
-Version: 0.0.0.9000
+Version: 0.6.0
 Authors@R: c(
     person("ACAD", "University of Adelaide", role = c("cph", "fnd")),
     person("PolyLinkR authors", email = "polylinkr@acad.edu.au", role = c("cre", "aut"))
@@ -37,7 +37,6 @@ Imports:
     rlang,
     robustbase,
     stats,
-    tdigest,
     utils
 Suggests:
     knitr,
