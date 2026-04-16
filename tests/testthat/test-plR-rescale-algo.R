@@ -32,7 +32,7 @@ test_that("plR_rescale validates track status", {
   # plR_rescale requires specific input track from plR_permute
   # Testing with plR_read output (track "000") should fail with track error
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
-  plr_obj <- read_polylinkr_data(input.path = d, verbose = FALSE)
+  plr_obj <- read_polylinkr_data(input_path = d, verbose = FALSE)
 
   expect_error(
     plR_rescale(plR.input = plr_obj),
@@ -44,7 +44,7 @@ test_that("plR_rescale validates cgm.bin range", {
   # Test cgm.bin validation by checking error message
   # cgm.bin must be in [10, 1e3] according to documentation
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
-  plr_obj <- read_polylinkr_data(input.path = d, verbose = FALSE)
+  plr_obj <- read_polylinkr_data(input_path = d, verbose = FALSE)
 
   # Will fail on track check before arg check, but that's expected
   expect_error(plR_rescale(plR.input = plr_obj))
