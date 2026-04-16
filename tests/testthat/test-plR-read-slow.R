@@ -78,5 +78,5 @@ test_that("plR_read backward compatibility (deprecated) works", {
     ),
     "deprecated"
   )
-  expect_s3_class(out, "plR")))
+  expect_s3_class(out, "plR")
 })
