@@ -54,7 +54,7 @@
       }
    }
 
-   EMSS <- character(0) # collect error messages
+   error.messages <- character(0) # collect error messages
    if (multi.path) { # check for individually labelled files
       fn0 <- c(oi.path, si.path, so.path)
       if (!is.null(vi.path)) {
@@ -68,18 +68,18 @@
       fE <- vapply(fn0, file.exists, FUN.VALUE = logical(1L))
       if (!all(fE)) {
          missing <- fn0[!fE]
-         EMSS <- c(EMSS, paste(paste(missing, collapse = ", "), "does not exist\n"))
+         error.messages <- c(error.messages, paste(paste(missing, collapse = ", "), "does not exist\n"))
       }
    } else { # search in designated folder for polylingR files
       if (!dir.exists(input.path)) {
-         EMSS <- c(EMSS, "input.path directory does not exist")
+         error.messages <- c(error.messages, "input.path directory does not exist")
       } else {
          ll <- list.files(input.path)
          if (!is.null(group)) {
             ll <- ll[grep(group, ll)]
          }
          if (length(ll) == 0) {
-            EMSS <- c(EMSS, "No input files detected")
+            error.messages <- c(error.messages, "No input files detected")
          }
       }
 
@@ -114,19 +114,19 @@
          } else {
             if (sum(nT) > 1) { # multiple file versions
                mss0 <- paste("Multiple copies of", rfi, "detected\n")
-               EMSS <- c(EMSS, mss0)
+               error.messages <- c(error.messages, mss0)
             } else {
                if (sum(nT) == 0 & rfi %in% req.files[1:3]) { # no versions of file (ignore for rec.rate and var.info files)
                   mss0 <- paste("No copies of", rfi, "detected\n")
-                  EMSS <- c(EMSS, mss0)
+                  error.messages <- c(error.messages, mss0)
                }
             }
          }
       }
    }
 
-   if (length(EMSS) > 0L) {
-      stop(paste0(EMSS),
+   if (length(error.messages) > 0L) {
+      stop(paste0(error.messages),
            "Check path and ensure that file names are correct", call. = FALSE)
    }
 
@@ -183,8 +183,8 @@
    f0.args <- names(formals(get(f0, envir = asNamespace("polylinkR")))) # retrieve argument names
    list2env(mget(setdiff(f0.args, "..."), envir = ENV), envir = environment()) # collect function arguments
    obj2env <- list() # collect objects to return to function environment
-   MSS <- NULL # collect messages
-   WMSS <- NULL # collect warnings
+   info.messages <- NULL # collect messages
+   warning.messages <- NULL # collect warnings
 
    if (f %in% c("permute", "rescale", "prune")) {
       plr_input_obj <- get("plR.input", envir = ENV)
@@ -358,7 +358,7 @@
                                      "Small scale can increase variance",
                                      "in corrected gene scores\n")
                      }
-                     WMSS <- c(WMSS, wms)
+                     warning.messages <- c(warning.messages, wms)
                   }
                } else {
                   stop(e.mss, call. = FALSE)
@@ -379,7 +379,7 @@
             obj2env$perm.path <- "full" # perform deconfounding
          } else {
             if (permute) { # permutation requested
-               MSS <- c(MSS,
+               info.messages <- c(info.messages,
                         paste("Note: no covariate information detected;",
                               "confounder correction not possible\n"))
                obj2env$md.meth <- "none"
@@ -413,7 +413,7 @@
             if (n.perm >= 1e7) {
                wmss <- paste(n.perm, "permuations requested; operations",
                              "may be slow without sufficient parallelisation")
-               WMSS <- c(WMSS, wmss)
+               warning.messages <- c(warning.messages, wmss)
             }
          }
 
@@ -429,7 +429,7 @@
                wmss <- paste(n.boot,
                              "bootstrap replicates requested; operations",
                              "may be slow without sufficient parallelisation")
-               WMSS <- c(WMSS, wmss)
+               warning.messages <- c(warning.messages, wmss)
             }
          }
 
@@ -523,7 +523,7 @@
                      w.mss <- paste0("emp.bayes = 'full' but only ",  n.chr,
                                      " chromosomes present\nReduced model will",
                                      " also be fit and best model determined\n")
-                     WMSS <- c(WMSS, w.mss)
+                     warning.messages <- c(warning.messages, w.mss)
                   }
                } else {
                   stop("emp.bayes must be one of 'auto', 'full' or 'reduced'",
@@ -596,7 +596,7 @@
             if (n.fdr > 1000) {
                w.mss <- paste("n.fdr > 1000; pruning may be slow ",
                               "without sufficient parallelisation\n")
-               WMSS <- c(WMSS, w.mss)
+               warning.messages <- c(warning.messages, w.mss)
             }
          }
       }
@@ -713,7 +713,7 @@ if (f == "plot") { # check plotting arguments
          }
          if (!is.null(show.sets) & track == "100") {
             show.sets <- NULL
-            MSS <- c(MSS,
+            info.messages <- c(info.messages,
                      "show.sets requires p values from enrichment tests")
          }
       } else { # no deconfounding plots
@@ -721,7 +721,7 @@ if (f == "plot") { # check plotting arguments
             if (osp) {
                if (!is.null(show.sets)) {
                   show.sets <- NULL
-                  MSS <- c(MSS,
+                  info.messages <- c(info.messages,
                            "show.sets requires p values from enrichment tests")
                }
             } else {
@@ -747,10 +747,10 @@ if (f == "plot") { # check plotting arguments
    }
 
    # Return info to function environment
-   if (!is.null(MSS)) MSS <- paste(MSS, collapse = "\n")
-   assign("MSS", MSS, envir = ENV)
-   if (!is.null(WMSS)) WMSS <- paste(WMSS, collapse = "\n")
-   assign("WMSS", WMSS, envir = ENV)
+   if (!is.null(info.messages)) info.messages <- paste(info.messages, collapse = "\n")
+   assign("info.messages", info.messages, envir = ENV)
+   if (!is.null(warning.messages)) warning.messages <- paste(warning.messages, collapse = "\n")
+   assign("warning.messages", warning.messages, envir = ENV)
 
    # return information and warning messages to parent environment
    list2env(obj2env, envir = ENV)
@@ -865,7 +865,7 @@ if (f == "plot") { # check plotting arguments
 #'   processing parameters to the specified environment, or stops with an error.
 #' @noRd
 .par_params <- function(n.cores, fut.plan, verbose, ENV) {
-   pWMSS <- NULL # capture warning messages
+   param.warnings <- NULL # capture warning messages
 
    # detect available cores
    N.cores <- future::availableCores()
@@ -881,7 +881,7 @@ if (f == "plot") { # check plotting arguments
             nc <- as.integer(n.cores) # force integer
             if (n.cores <= 0 | n.cores > N.cores) {
                nc <- N.cores - 1
-               pWMSS <- c(pWMSS,
+               param.warnings <- c(param.warnings,
                           paste0("n.cores not in accepted range [1, ",
                                  N.cores, "]"))
             }
@@ -911,17 +911,17 @@ if (f == "plot") { # check plotting arguments
                fut.plan <- "sequential" # forcing sequential processing
                if (N.cores == 1) {
                   ms <- "Only single core detected; using sequential processing"
-                  pWMSS <- c(pWMSS, ms)
+                  param.warnings <- c(param.warnings, ms)
                } else {
                   ms <- "User has set n.core = 1; using sequential processing"
-                  pWMSS <- c(pWMSS, ms)
+                  param.warnings <- c(param.warnings, ms)
                }
             } else {
                if (fut.plan == "multicore") { # check for multicore support
                   if(!future::supportsMulticore()) {
                      fut.plan <- "multisession"
                      ms <- "multicore option not supported; using multisession"
-                     pWMSS <- c(pWMSS, ms)
+                     param.warnings <- c(param.warnings, ms)
                   }
                }
             }
@@ -930,16 +930,16 @@ if (f == "plot") { # check plotting arguments
    }
 
    if (fut.plan == "sequential") {
-      pMSS <- c("Sequential processing enabled [fut.plan = sequential]",
+      param.messages <- c("Sequential processing enabled [fut.plan = sequential]",
                 "All processes will utilise a single core")
    } else {
-      pMSS <- c(paste0("Parallel processing enabled [fut.plan = ",
+      param.messages <- c(paste0("Parallel processing enabled [fut.plan = ",
                        fut.plan, "]"),
                 paste0("Specific processes will utilise ", nc, " cores"))
    }
 
-   pMSS <- paste(pMSS, collapse = "\n")
-   if (!is.null(pWMSS)) pWMSS <- paste(pWMSS, collapse = "\n")
+   param.messages <- paste(param.messages, collapse = "\n")
+   if (!is.null(param.warnings)) param.warnings <- paste(param.warnings, collapse = "\n")
 
    if (verbose) { # use progress reporting
       preset.hand <- progressr::handlers(global = NA) # check for preset handlers
@@ -954,7 +954,7 @@ if (f == "plot") { # check plotting arguments
    }
 
    list2env(list(n.cores = nc, fut.plan = fut.plan, prog.hand = prog.hand,
-                 pWMSS = pWMSS, pMSS = pMSS), envir = ENV)
+                 param.warnings = param.warnings, param.messages = param.messages), envir = ENV)
 }
 
 
