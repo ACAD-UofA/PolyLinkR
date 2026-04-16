@@ -316,3 +316,11 @@ summary.plR <- function(object, sig = 0.05, ...) {
    .check_plr_object(f, ENV)
 }
 
+
+#' @keywords internal
+#' @noRd
+.get_processing_history <- function() {
+   # New name for .plR_track() following tidyverse conventions
+   .plR_track()
+}
+
