@@ -32,7 +32,7 @@
 #'
 #' @keywords internal
 #' @noRd
-.new_plr <- function(BASE = NA, plR.data = NULL, plR.args = NULL,
+.new_plR <- function(BASE = NA, plR.data = NULL, plR.args = NULL,
                      plR.summary = NULL, plR.seed = NULL, plR.session = NULL) {
    if (all(c("set.info", "obj.info", "set.obj") %in% names(BASE))) {
       plr.track <- c(0, 0, 0)
@@ -86,14 +86,14 @@
 #'
 #' @keywords internal
 #' @noRd
-.check_plr_object <- function(f, ENV) {
-   plr <- deparse(substitute(plr_input, env = ENV))
+.plR_check <- function(f, ENV) {
+   plr <- deparse(substitute(plR.input, env = ENV))
    if (plr == "") {
-      stop("plr_input is empty; please provide valid plr input", call. = FALSE)
+      stop("plR.input is empty; please provide valid plr input", call. = FALSE)
    } else {
-      pT <- attributes(get("plr_input", envir = ENV))$plr.track
+      pT <- attributes(get("plR.input", envir = ENV))$plr.track
       if (is.null(pT)) {
-         stop("plr_input = ", plr, " is not a plr class object", call. = FALSE)
+         stop("plR.input = ", plr, " is not a plr class object", call. = FALSE)
       } else {
          pT.all <- .get_processing_history()
          f0 <- paste0("plr_", f)
@@ -104,7 +104,7 @@
                    value = as.numeric(unlist(strsplit(pT, split = ""))),
                    envir = ENV)
          } else {
-            stop("plr_input = ", plr, " is not valid input for plr_",
+            stop("plR.input = ", plr, " is not valid input for plr_",
                  f, "\nCheck header of print(", plr, ") for valid usage options",
                  call. = FALSE)
          }
@@ -292,7 +292,7 @@ summary.plR <- function(object, sig = 0.05, ...) {
 #' @keywords internal
 #' @noRd
 .plR_check <- function(f, ENV) {
-   .Deprecated(".check_plr_object", package = "polylinkR")
-   .check_plr_object(f, ENV)
+   .Deprecated(".plR_check", package = "polylinkR")
+   .plR_check(f, ENV)
 }
 
