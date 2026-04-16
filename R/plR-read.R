@@ -1146,11 +1146,57 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
 #' @title Read and validate required files for polylinkR (deprecated)
 #' @description
 #' This function is deprecated. Please use \code{read_polylinkr_data()} instead.
-#' @param ... All arguments passed to \code{read_polylinkr_data()}.
+#' @param input.path Deprecated. Use \code{input_path}.
+#' @param obj.info.path Deprecated. Use \code{object_info_path}.
+#' @param set.info.path Deprecated. Use \code{gene_set_info_path}.
+#' @param set.obj.path Deprecated. Use \code{gene_set_mapping_path}.
+#' @param var.info.path Deprecated. Use \code{variant_info_path}.
+#' @param rec.rate.path Deprecated. Use \code{recombination_rate_path}.
+#' @param min.set.n Deprecated. Use \code{min_set_size}.
+#' @param max.set.n Deprecated. Use \code{max_set_size}.
+#' @param group Deprecated. Use \code{group_label}.
+#' @param map.fun Deprecated. Use \code{mapping_function}.
+#' @param obj.buffer Deprecated. Use \code{object_buffer}.
+#' @param obj.stat.fun Deprecated. Use \code{object_statistic_function}.
+#' @param bin.size Deprecated. Use \code{bin_size}.
+#' @param obj.in Deprecated. Use \code{objects_to_include}.
+#' @param obj.out Deprecated. Use \code{objects_to_exclude}.
+#' @param set.in Deprecated. Use \code{sets_to_include}.
+#' @param set.out Deprecated. Use \code{sets_to_exclude}.
+#' @param set.merge Deprecated. Use \code{merge_threshold}.
+#' @param rem.genes Deprecated. Use \code{remove_duplicate_genes}.
+#' @param verbose Deprecated. Use \code{verbose}.
 #' @export
-#' @keywords internal
-plR_read <- function(...) {
+plR_read <- function(input.path = NULL, obj.info.path = NULL,
+                     set.info.path = NULL, set.obj.path = NULL,
+                     var.info.path = NULL, rec.rate.path = NULL, min.set.n = 2L,
+                     max.set.n = Inf, group = NULL, map.fun = "kosambi",
+                     obj.buffer = "auto", obj.stat.fun = "non.param",
+                     bin.size = 250L, obj.in = NULL, obj.out = NULL,
+                     set.in = NULL, set.out = NULL, set.merge = 0.95,
+                     rem.genes = FALSE, verbose = TRUE) {
    .Deprecated("read_polylinkr_data", package = "polylinkR",
                msg = "plR_read() is deprecated. Use read_polylinkr_data() instead.")
-   read_polylinkr_data(...)
+   read_polylinkr_data(
+      input_path = input.path,
+      object_info_path = obj.info.path,
+      gene_set_info_path = set.info.path,
+      gene_set_mapping_path = set.obj.path,
+      variant_info_path = var.info.path,
+      recombination_rate_path = rec.rate.path,
+      min_set_size = min.set.n,
+      max_set_size = max.set.n,
+      group_label = group,
+      mapping_function = map.fun,
+      object_buffer = obj.buffer,
+      object_statistic_function = obj.stat.fun,
+      bin_size = bin.size,
+      objects_to_include = obj.in,
+      objects_to_exclude = obj.out,
+      sets_to_include = set.in,
+      sets_to_exclude = set.out,
+      merge_threshold = set.merge,
+      remove_duplicate_genes = rem.genes,
+      verbose = verbose
+   )
 }
