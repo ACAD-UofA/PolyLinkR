@@ -36,6 +36,7 @@
                      plR.summary = NULL, plR.seed = NULL, plR.session = NULL) {
    if (all(c("set.info", "obj.info", "set.obj") %in% names(BASE))) {
       plr.track <- c(0, 0, 0)
+      # diagnose input file structure
       if (!is.null(plR.args$permute.args)) {
          permute <- plR.args$permute.args$permute
          no.deconf <- plR.data$permute.data$no.deconf
@@ -94,7 +95,7 @@
       if (is.null(pT)) {
          stop("plR.input = ", plr, " is not a plR class object", call. = FALSE)
       } else {
-         pT.all <- .get_processing_history()
+         pT.all <- .plR_track()
          f0 <- paste0("plR_", f)
          req.track <- unlist(strsplit(pT.all[FUNCTION == f0]$INPUT, "; "))
          if (pT %in% req.track) { # return output to parent environment
@@ -276,10 +277,11 @@ summary.plR <- function(object, sig = 0.05, ...) {
                              ifelse(nS == 1, "", "s"), " with ", cN,
                              " <= ", sig, ":\n\n")
                cat(cli::col_cyan(mss))
-                print(SI[wSig], nrows = nS)
+               print(SI[wSig], nrows = nS)
             }
             invisible(SI)
          }
       }
    }
 }
+
