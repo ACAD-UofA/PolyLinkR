@@ -285,14 +285,3 @@ summary.plR <- function(object, sig = 0.05, ...) {
    }
 }
 
-
-# Deprecated aliases for backward compatibility (v0.6.0)
-# These will be removed in v1.0.0
-
-#' @keywords internal
-#' @noRd
-.plR_check <- function(f, ENV) {
-   .Deprecated(".plR_check", package = "polylinkR")
-   .plR_check(f, ENV)
-}
-
