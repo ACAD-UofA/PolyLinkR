@@ -87,27 +87,29 @@
 #' @keywords internal
 #' @noRd
 .check_plr_object <- function(f, ENV) {
-   plr <- deparse(substitute(plr_input, env = ENV))
-   if (plr == "") {
+   # Check if plr_input exists in the environment
+   if (!exists("plr_input", envir = ENV, inherits = FALSE)) {
       stop("plr_input is empty; please provide valid plr input", call. = FALSE)
+   }
+   
+   plr_obj <- get("plr_input", envir = ENV)
+   pT <- attributes(plr_obj)$plr_track
+   
+   if (is.null(pT)) {
+      stop("plr_input is not a plr class object", call. = FALSE)
    } else {
-      pT <- attributes(get("plr_input", envir = ENV))$plr_track
-      if (is.null(pT)) {
-         stop("plr_input = ", plr, " is not a plr class object", call. = FALSE)
-      } else {
       pT.all <- .get_processing_history()
-          f0 <- paste0("plR_", f)  # Use old naming convention for compatibility with .plR_track()
-          req.track <- unlist(strsplit(pT.all[FUNCTION == f0]$INPUT, "; "))
-         if (pT %in% req.track) { # return output to parent environment
-            plr_track <- pT
-            assign(x = "plr_track",
-                   value = as.numeric(unlist(strsplit(pT, split = ""))),
-                   envir = ENV)
-         } else {
-            stop("plr_input = ", plr, " is not valid input for plr_",
-                 f, "\nCheck header of print(", plr, ") for valid usage options",
-                 call. = FALSE)
-         }
+      f0 <- paste0("plR_", f)  # Use old naming convention for compatibility with .plR_track()
+      req.track <- unlist(strsplit(pT.all[FUNCTION == f0]$INPUT, "; "))
+      if (pT %in% req.track) { # return output to parent environment
+         plr_track <- pT
+         assign(x = "plr_track",
+                value = as.numeric(unlist(strsplit(pT, split = ""))),
+                envir = ENV)
+      } else {
+         stop("plr_input is not valid input for plr_",
+              f, "\nCheck header of print(plr_input) for valid usage options",
+              call. = FALSE)
       }
    }
 }
