@@ -8,8 +8,8 @@
 #' rescaling to be performed, otherwise the function will exit with an error
 #' message.
 #'
-#' @param plR.input
-#'   \code{plR} class object; output from \code{polylinkR::plR_permute}.
+#' @param plr_input
+#'   \code{plR} class object; output from \code{polylinkR::permute_polylinkr_data}.
 #'   Required.
 #'
 #' @param rescale
@@ -18,7 +18,7 @@
 #'   autocorrelation is estimated without revising enrichment testing for
 #'   rescaled (i.e., decorrelated) gene set scores. This is useful for exploring
 #'   how parameter settings impact gene set autocorrelation. The rescaling step
-#'   can be performed later by passing the output to \code{plR_rescale}, or by
+#'   can be performed later by passing the output to \code{rescale_polylinkr_data}, or by
 #'   providing the \code{ac} object to the \code{ac} argument.
 #'
 #' @param fast
@@ -38,29 +38,29 @@
 #'   columns \code{objID.A} and \code{objID.B}. The corresponding
 #'   autocorrelation value must be in \code{gamma}. Defaults to \code{NULL}.
 #'
-#' @param cgm.range
+#' @param cgm_range
 #'   \code{numeric}; maximum inter-gene lag used to evaluate autocovariance.
 #'   Defaults to \code{2e6} bp or \code{2} cM, depending on genetic distance
 #'   measure. Must be within interval \code{[1e5, 5e7]} bp or \code{[0.1, 50]}
 #'   cM.
 #'
-#' @param cgm.bin
+#' @param cgm_bin
 #'   \code{numeric}; mimimum number of gene pairs required for bins of empirical
 #'   covariances. Default value = \code{30}. Must be in range \code{[10, 1e3]}.
 #'   Initially an exponential grid of bin sizes will be generated, favouring
-#'   smaller bins at short distances and larger bins for more distant gene
-#'   pairs. Bins with too few genes will be successively merged with the larger
+#'   smaller bins at short distances and larger bins for more distant gene pairs.
+#'   Bins with too few genes will be successively merged with the larger
 #'   bins until the minimum number of genes are reached. This condition is
 #'   evaluated across all chromosomes, ensuring no bin is smaller than the
 #'   minimum value (other than the final bins).
 #'
-#' @param cgm.wt.max
+#' @param cgm_weight_max
 #'   \code{numeric}; maximum probability weight for a single lag window.
 #'   Defaults to \code{0.1}. Set to \code{1} if no upper bound is desired.
 #'   Note that the lower bound is reset to \code{2 / no. fitted lags} if the
 #'   chosen value falls below this limit.
 #'
-#' @param emp.bayes
+#' @param empirical_bayes
 #'   \code{numeric}; A character string indicating the empirical Bayes rescaling
 #'   framework employed for chromosome-level covariance beta coefficients. Users
 #'   may choose to fit either the \code{full} or \code{reduced} model, with the
@@ -71,7 +71,7 @@
 #'   model is also fitted and a likelihood-based test is used to decide whether
 #'   a correlated random-effects structure is supported.
 #'
-#' @param min.rho
+#' @param min_rho
 #'   \code{numeric}; minimum estimated correlation between two gene sets;
 #'   values below this are set to \code{0}. Defaults to \code{1e-5}. Range
 #'   \code{(0, 0.01]}.
@@ -80,13 +80,13 @@
 #'   \code{logical}; should progress reporting be enabled? Defaults to
 #'   \code{TRUE}.
 #'
-#' @param n.cores
+#' @param n_cores
 #'   \code{integer}; number of cores for parallel processing. Defaults to
 #'   \code{1} or \code{maximum cores - 1}. Must be in \code{[1, maximum cores]}.
 #'
-#' @param fut.plan
+#' @param future_plan
 #'   \code{character}; parallel backend from the \code{future} package.
-#'   Defaults to user \code{n.cores} choice or checks cores, choosing
+#'   Defaults to user \code{n_cores} choice or checks cores, choosing
 #'   \code{"sequential"} on single-core and \code{"multisession"} on
 #'   multi-core systems. Options: \code{"multisession"},
 #'   \code{"multicore"}, \code{"cluster"}, \code{"sequential"}.
@@ -141,51 +141,60 @@
 #' The first four attribute classes aggregate information over successive
 #' functions. For example, to access the \code{plr.data} attribute for the
 #' \code{plR} object output after running \code{plR_permute}, use
-#' \code{attributes(X)$plR.data$permute.data}, where \code{X} is the object
+#' \code{attributes(X)$plr_data$permute.data}, where \code{X} is the object
 #' name. Similarly, the arguments used in \code{plR_read} are in
-#' \code{attributes(X)$plR.args$read.args}.
+#' \code{attributes(X)$plr_args$read.args}.
 #'
 #' The primary data structure of the \code{plR} object can be accessed using
 #' \code{print()} or by simply typing the object's name.
 #'
 #' @examples
 #' \dontrun{
-#' # Assuming `my_plr` is the result of `polylinkR::plR_permute`
+#' # Assuming `my_plr` is the result of `polylinkR::permute_polylinkr_data`
 #'
 #' # Example 1: Basic usage
-#' new_plr <- plR_rescale(plR.input = my_plr)
+#' new_plr <- rescale_polylinkr_data(plr_input = my_plr)
 #'
 #' # Example 2: Estimate autocorrelation only (no rescaling)
-#' new_plr <- plR_rescale(
-#'    plR.input = my_plr,
-#'    rescale = FALSE
+#' new_plr <- rescale_polylinkr_data(
+#'    plr_input = my_plr,
+#'    rescale   = FALSE
 #' )
 #'
 #' # Example 3: Custom variogram model and cores
-#' new_plr <- plR_rescale(
-#'   plR.input = my_plr,
-#'   vg.model  = c("Exp","Sph"),
-#'   n.cores   = 4
+#' new_plr <- rescale_polylinkr_data(
+#'   plr_input = my_plr,
+#'   n_cores   = 4
 #' )
 #'
 #' # Example 4: Using a user-provided autocovariance object
 #' # Assuming `my_ac` is a valid data.table or data.frame
-#' new_plr <- plR_rescale(
-#'    plR.input = my_plr,
+#' new_plr <- rescale_polylinkr_data(
+#'    plr_input = my_plr,
 #'    ac        = my_ac
 #' )
 #'
 #' # Or using the `new_plr` object generated by Example 2
-#' new_plr <- plR_rescale(plR.input = my_rescaled_plr)
+#' new_plr <- rescale_polylinkr_data(plr_input = my_rescaled_plr)
 #' }
-plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
-                        cgm.bin = 30, cgm.range = "auto", cgm.wt.max = 0.05,
-                        emp.bayes = "auto", min.rho = 1e-5, verbose = TRUE,
-                        n.cores = "auto", fut.plan = "auto") {
+rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = NULL,
+                                    cgm_bin = 30, cgm_range = "auto", cgm_weight_max = 0.05,
+                                    empirical_bayes = "auto", min_rho = 1e-5, verbose = TRUE,
+                                    n_cores = "auto", future_plan = "auto") {
 
    ##==========================================================================##
    ## PART 1: Clean data and run checks
    ##==========================================================================##
+
+   # Map snake_case parameters to legacy names for internal use
+   plR.input <- plr_input
+   cgm.bin <- cgm_bin
+   cgm.range <- cgm_range
+   cgm.wt.max <- cgm_weight_max
+   emp.bayes <- empirical_bayes
+   min.rho <- min_rho
+   n.cores <- n_cores
+   fut.plan <- future_plan
 
    # track function run time
    startT <- Sys.time()
@@ -194,9 +203,9 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
    rlang::local_options(verbose = verbose, .frame = environment())
 
    # perform checks and unpack required plR objects
-   .plR_check(f = "rescale", ENV = environment())
-   .arg_check(f = "rescale", ENV = environment())
-   .plR_unpack(plr = plR.input, ENV = environment())
+   .check_plr_object(f = "rescale", ENV = environment())
+   .check_arguments(f = "rescale", ENV = environment())
+   .unpack_plr_object(plr = plR.input, ENV = environment())
    rm(plR.input); gc(verbose = FALSE)
 
    # set random seed
@@ -235,32 +244,32 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       hdr <- "estimate intergene autocovariance"
    }
 
-   hdr[1] <- paste("Running plR_rescale:", hdr[1])
+   hdr[1] <- paste("Running rescale_polylinkr_data:", hdr[1])
    pdg <- (80 - max(nchar(hdr))) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .vrb("\n")
+   .verbose_msg("\n")
    if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .vrb(paste0("\n", MSS, "\n"))
+   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
    if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .vrb(paste0("\n", pMSS, "\n"))
-   .vrb("\n")
+   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
+   .verbose_msg("\n")
 
    ##==========================================================================##
    ## PART 2: Calculate genomic autocovariance
    ##==========================================================================##
 
    if (is.null(ac)) { # infer genetic autocovariance
-      .vrb(cli::style_italic("Estimating genetic autocovariance:\n"))
+      .verbose_msg(cli::style_italic("Estimating genetic autocovariance:\n"))
 
       # generate exponential lag bin sizes
       if (cgm.range == "auto") { # determine maximum correlogram range if not provided
          maxL <- ifelse(coord == "cM", 3L, 3e6L)
       }
 
-      .vrb(paste0("Creating correlogram lag bins [max ", maxL, coord,
+      .verbose_msg(paste0("Creating correlogram lag bins [max ", maxL, coord,
                   " lag and >= ", cgm.bin, " gene pairs per bin]\n"))
 
       minL <- if (coord == "cM") { # define smallest possible lag bin (capturing 0-lags)
@@ -323,7 +332,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       # extract objects
       cN <- do.call(rbind, lapply(cv0, "[[", 1)) # binned estimates
 
-      .vrb("Assigning emprical covariances to lag bins\n")
+      .verbose_msg("Assigning emprical covariances to lag bins\n")
       if (n.chr > 1) { # add complete genome
          cv0 <- lapply(cv0, "[[", 2)
          gv0 <- lapply(1:nBins, function(b){
@@ -350,7 +359,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       cN[, bin.max := cBins[-1][bin]]
       cN[, bin.size := bin.max - bin.min]
 
-      .vrb(paste("Fitting autocovariance function\n"))
+      .verbose_msg(paste("Fitting autocovariance function\n"))
 
       # determine lag bin weights for covariance function fitting
       cgm.wt.min <- 2 / (nBins - 1) # check sufficient minimum weight (ignore lag = 0 bin)
@@ -401,16 +410,16 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
          names(gFit) <- c("All", 1:n.chr)
 
          # regularise covariance function parameter estimates for each chromosome
-         .vrb("Apply empirical Bayes to revise chromosome parameters\n")
-         ebPar0 <- .emp_bayes_est(cPar = cPar, gPar = gPar, cN0 = cN,
+         .verbose_msg("Apply empirical Bayes to revise chromosome parameters\n")
+         ebPar0 <- .empirical_bayes_estimate(cPar = cPar, gPar = gPar, cN0 = cN,
                                   corr = FALSE)
          if (emp.bayes == "auto") {
             emp.bayes <- ifelse(n.chr >= 15, "full", "reduced")
          }
 
          if (emp.bayes == "full") {
-            .vrb("Comparing full and marginal models\n")
-            ebPar <- .emp_bayes_est(cPar = cPar, gPar = gPar, cN0 = cN,
+            .verbose_msg("Comparing full and marginal models\n")
+            ebPar <- .empirical_bayes_estimate(cPar = cPar, gPar = gPar, cN0 = cN,
                                     corr = TRUE)
             LR <- 2 * (ebPar0$logLik - ebPar$logLik)
             pval <- 0.5 * pchisq(LR, df = 1, lower.tail = FALSE)
@@ -454,7 +463,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       }
 
       # determine empirical covariances
-      .vrb("Generating intergene covariances\n")
+      .verbose_msg("Generating intergene covariances\n")
 
       ac <- foreach::foreach(x = oi0, par = split(cgm.summary, 1:n.chr)) %do% {
          xD <- dist(x$midpos)
@@ -474,7 +483,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
          xIJ <- cbind(xIJ[, .(objID.A, objID.B, cov.ovlp)], pos.lag = xD[wD]) # add covariances
 
          # calculate pairwise covariances (= correlations)
-         xIJ[, rho := .cov_fun(h = pos.lag, ovlp = cov.ovlp, scale = par$scale,
+         xIJ[, rho := .covariance_function(h = pos.lag, ovlp = cov.ovlp, scale = par$scale,
                                beta1 = par$beta.LD.reg,
                                beta2 = par$beta.ovlp.reg)]
          cbind(chr = x$chr[1],  xIJ[rho >= min.rho])
@@ -483,7 +492,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
 
       user.ac <- FALSE
    } else { # user has provided valid ac object
-      .vrb(paste("Valid ac object detected:",
+      .verbose_msg(paste("Valid ac object detected:",
                  "Skipping autocovariance calculation step\n"))
       ac <- ac[objID.A != objID.B][rho >= min.rho] # remove unused values
       if (exists("plr.summary$rescale.summary")) { # ac previously estimated using plR, retain args and summaries
@@ -503,7 +512,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
    ##==========================================================================##
 
    if (rescale) {
-      .vrb(cli::style_italic("\nRescaling null set score distributions:\n"))
+      .verbose_msg(cli::style_italic("\nRescaling null set score distributions:\n"))
 
       # get common variables for analytical and permutation-based corrections
       n.perm <- plr.args$permute.args$n.perm
@@ -520,7 +529,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       rI <- sqrt(1 + (1:n.max - 1) * rho.hat) # analytical rescaling factor
 
       if (fast) {
-         .vrb(paste("fast = TRUE: Rescaling empirical CDFs and GPD scale",
+         .verbose_msg(paste("fast = TRUE: Rescaling empirical CDFs and GPD scale",
                     "coefficient using analytical scaling factor\n"))
 
          if (n.sets == 1) {
@@ -552,7 +561,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
       } else {
          n.boot <- plr.args$permute.args$n.boot
 
-         .vrb(paste0("fast = FALSE: Set-wise rescaling of empirical CDFs and",
+         .verbose_msg(paste0("fast = FALSE: Set-wise rescaling of empirical CDFs and",
                      " refitting GPDs for ", n.boot, " x ",
                      n.perm / ifelse(n.perm / 1e6 >= 1, 1e6, 1e3),
                      ifelse(n.perm / 1e6 >= 1, "M", "k"), " gene sets\n"))
@@ -612,7 +621,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
                      dqrng::dqset.seed(x)
                      csX <- replicate(n.block,
                                       dqrng::dqsample.int(n.genes, n.max)) # faster than dqsample::dqsample
-                     rsX <- .get_cov0(csj = csX, rsX = rs0, SS0 = SS0, ac0 = ac0) # get covariances
+                     rsX <- .get_covariance_null(csj = csX, rsX = rs0, SS0 = SS0, ac0 = ac0) # get covariances
                      csX <- matrix(os0[csX], nrow = n.max, ncol = n.block) # get gene scores
 
                      if (n.sets == 1) { # only take final entry
@@ -688,7 +697,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             ecdf0 <- NULL
             eSumm <- NULL
          } else { # smooth estimates and interpolate missing set sizes
-            .vrb(paste("Smoothing empirical CDF and GPD parameter estimates",
+            .verbose_msg(paste("Smoothing empirical CDF and GPD parameter estimates",
                        "and interpolating missing values\n"))
 
             K <- .est_ss_cov(x = th0, n.genes = n.genes) # covariance matrix
@@ -720,7 +729,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
                                       ej = split(eEmean, eQnt),
                                       .options.future = fopt,
                                       .combine = cbind) %dofuture% {
-               eSmFit <- .par_smooth(y = ei, x = th0, K = K, n.th = n.th,
+               eSmFit <- .parallel_smooth(y = ei, x = th0, K = K, n.th = n.th,
                                      sm0 = sm0, tau = ej)
                predict(eSmFit, newdata = data.frame(x = log(2:n.max), oneW = 1))
             }
@@ -750,7 +759,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             for (p in c("scale", "shape")) {
                gM <- g0[, mean(get(p)), by = setN]
                gV <- g0[, mean(get(paste0(p, ".var"))), by = setN]
-               gSmFit <- .par_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
+               gSmFit <- .parallel_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
                                      sm0 = sm0, tau = gV$V1)
                yFit <- predict(gSmFit, newdata = data.frame(x = log(2:n.max),
                                                             oneW = 1))
@@ -764,7 +773,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             gpd0[, cut.z := c(NA, cut.z)] # add 0.999 quantile threshold
 
             # include associated cutoff p-value gpd minimum non-0 p values and quantiles
-            .vrb(paste("Identifying and setting minimum possible p values\n"))
+            .verbose_msg(paste("Identifying and setting minimum possible p values\n"))
             fopt <- list(packages = "data.table",
                          globals = c("gpd.cutoff", "q.bnd", ".get_gpd_mins"),
                          seed = seed)
@@ -772,7 +781,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             gpdM <- foreach::foreach(gpdI = split(gpd0[-1], 2:n.max),
                                      .options.future = fopt,
                                      .combine = rbind) %dofuture% {
-            .get_gpd_mins(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
+            .get_gpd_minimums(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
                                      }
             gpd0[, adj.p := c(NA, gpdM[, "adj.p"])]
             gpd0[, min.z := c(NA, gpdM[, "min.z"])]
@@ -802,7 +811,7 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
             }
             data.table::setDT(rSumm)
          }
-         .vrb("\n")
+         .verbose_msg("\n")
       }
 
       # set pre-scaled ECDF and GDP to null
@@ -821,21 +830,21 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
    ##==========================================================================##
 
    if (rescale) {
-      .vrb(cli::style_italic("\nCalculating test statistics:\n"))
+      .verbose_msg(cli::style_italic("\nCalculating test statistics:\n"))
 
       # compute rescaling factor for observed set scores
       SSI <- set.obj[, .(oID = objID), keyby = setID][, .(sID = setID, oID)]
       ac0 <- ac[, .(A = objID.A, B = objID.B, CV = 2 * rho)]
 
       obs.cov <- rep(0, n.sets)
-      oc0 <- .get_cov(SSi = SSI, ac0 = ac0)
+      oc0 <- .get_covariance(SSi = SSI, ac0 = ac0)
       obs.cov[oc0$sID] <- oc0$CV
 
       # calculate observed rescaled set scores
       set.info[, setScore.rs := setScore.std * sqrt(setN / (setN + obs.cov))]
 
       # calculate p values
-      .vrb("Calculating p values for each gene set\n")
+      .verbose_msg("Calculating p values for each gene set\n")
       if (alt == "lower") {
          .get_p <- .get_p_lt
       } else {
@@ -897,15 +906,54 @@ plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
    # set s3 class and create attributes
    .file_reset(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
    OUT <- list(set.info = set.info, obj.info = obj.info, set.obj = set.obj)
-   plr.out <- .new_plR(BASE = OUT, plR.data = plr.data, plR.args = plr.args,
-                       plR.summary = plr.summary, plR.seed = plr.seed,
-                       plR.session = plr.session)
+   plr.out <- .new_plr(BASE = OUT, plr_data = plr.data, plr_args = plr.args,
+                       plr_summary = plr.summary, plr_seed = plr.seed,
+                       plr_session = plr.session)
 
-   .vrb("\n")
-   ftr <- cli::col_cyan(paste0("Finished plR_rescale -- run time: ", r0[[1]]))
+   .verbose_msg("\n")
+   ftr <- cli::col_cyan(paste0("Finished rescale_polylinkr_data -- run time: ", r0[[1]]))
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
 
    return(invisible(plr.out))
+}
+
+
+#' @title Gene set enrichment on scores rescaled for genetic autocorrelation (deprecated)
+#' @description
+#' This function is deprecated. Please use \code{rescale_polylinkr_data()} instead.
+#' @param plR.input Deprecated. Use \code{plr_input}.
+#' @param rescale Deprecated. Use \code{rescale}.
+#' @param fast Deprecated. Use \code{fast}.
+#' @param ac Deprecated. Use \code{ac}.
+#' @param cgm.bin Deprecated. Use \code{cgm_bin}.
+#' @param cgm.range Deprecated. Use \code{cgm_range}.
+#' @param cgm.wt.max Deprecated. Use \code{cgm_weight_max}.
+#' @param emp.bayes Deprecated. Use \code{empirical_bayes}.
+#' @param min.rho Deprecated. Use \code{min_rho}.
+#' @param verbose Deprecated. Use \code{verbose}.
+#' @param n.cores Deprecated. Use \code{n_cores}.
+#' @param fut.plan Deprecated. Use \code{future_plan}.
+#' @export
+plR_rescale <- function(plR.input, rescale = TRUE, fast = TRUE, ac = NULL,
+                         cgm.bin = 30, cgm.range = "auto", cgm.wt.max = 0.05,
+                         emp.bayes = "auto", min.rho = 1e-5, verbose = TRUE,
+                         n.cores = "auto", fut.plan = "auto") {
+   .Deprecated("rescale_polylinkr_data", package = "polylinkR",
+               msg = "plR_rescale() is deprecated. Use rescale_polylinkr_data() instead.")
+   rescale_polylinkr_data(
+      plr_input = plR.input,
+      rescale = rescale,
+      fast = fast,
+      ac = ac,
+      cgm_bin = cgm.bin,
+      cgm_range = cgm.range,
+      cgm_weight_max = cgm.wt.max,
+      empirical_bayes = emp.bayes,
+      min_rho = min.rho,
+      verbose = verbose,
+      n_cores = n.cores,
+      future_plan = fut.plan
+   )
 }

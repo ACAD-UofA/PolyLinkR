@@ -7,17 +7,17 @@
 #' Note that this step require that at more than one gene set with shared genes
 #' is present, otherwise the function will exit with an error message.
 #'
-#' @param plR.input
-#'   \code{plR} class object; output from \code{polylinkR::plR_permute} or
-#'   \code{polylinkR::plR_rescale}. Required.
+#' @param plr_input
+#'   \code{plR} class object; output from \code{polylinkR::permute_polylinkr_data} or
+#'   \code{polylinkR::rescale_polylinkr_data}. Required.
 #'
-#' @param n.fdr
+#' @param n_fdr
 #'   \code{integer}; number of times to replicate the pruning procedure.
 #'   Used to estimate FDR-corrected p (q) values using a histogram method.
 #'   Defaults to \code{300L}. Range \code{[100, Inf)} and must be exactly
 #'   divisible by \code{100}.
 #'
-#' @param est.pi0
+#' @param estimate_pi0
 #'   \code{logical}; should \code{pi0} be estimated during FDR correction?
 #'   Defaults to \code{TRUE}. If \code{FALSE}, \code{pi0} is set to \code{1}.
 #'
@@ -30,13 +30,13 @@
 #'   \code{logical}; should progress reporting be enabled? Defaults to
 #'   \code{TRUE}.
 #'
-#' @param n.cores
+#' @param n_cores
 #'   \code{integer}; number of cores for parallel processing. Defaults to
 #'   \code{1} or \code{maximum cores - 1}. Must be in \code{[1, maximum cores]}.
 #'
-#' @param fut.plan
+#' @param future_plan
 #'   \code{character}; parallel backend from the \code{future} package.
-#'   Defaults to user \code{n.cores} choice or checks cores, choosing
+#'   Defaults to user \code{n_cores} choice or checks cores, choosing
 #'   \code{"sequential"} on single-core and \code{"multisession"} on
 #'   multi-core systems. Options: \code{"multisession"},
 #'   \code{"multicore"}, \code{"cluster"}, \code{"sequential"}.
@@ -91,39 +91,47 @@
 #' The first four attribute classes aggregate information over successive
 #' functions. For example, to access the \code{plr.data} attribute for the
 #' \code{plR} object output after running \code{plR_permute}, use
-#' \code{attributes(X)$plR.data$permute.data}, where \code{X} is the object
+#' \code{attributes(X)$plr_data$permute.data}, where \code{X} is the object
 #' name. Similarly, the arguments used in \code{plR_read} are in
-#' \code{attributes(X)$plR.args$read.args}.
+#' \code{attributes(X)$plr_args$read.args}.
 #'
 #' The primary data structure of the \code{plR} object can be accessed using
 #' \code{print()} or by simply typing the object's name.
 #'
 #' @examples
 #' \dontrun{
-#' # Assuming `my_plr` is the result of `polylinkR::plR_permute` or
-#' # `polylinkR::plR_rescale`
+#' # Assuming `my_plr` is the result of `polylinkR::permute_polylinkr_data` or
+#' # `polylinkR::rescale_polylinkr_data`
 #'
 #' # Example 1: Basic usage
-#' new_plr <- plR_prune(plR.input = my_plr)
+#' new_plr <- prune_polylinkr_data(plr_input = my_plr)
 #'
 #' # Example 2: Increase iterations for null p-value distribution
-#' new_plr <- plR_prune(
-#'    plR.input = my_plr,
-#'    n.fdr = 1000L
+#' new_plr <- prune_polylinkr_data(
+#'    plr_input = my_plr,
+#'    n_fdr = 1000L
 #' )
 #'
 #' # Example 3: Do not estimate pi0 (sets pi0 = 1)
-#' new_plr <- plR_prune(
-#'    plR.input = my_plr,
-#'    est.pi0 = FALSE
+#' new_plr <- prune_polylinkr_data(
+#'    plr_input = my_plr,
+#'    estimate_pi0 = FALSE
 #' )
 #' }
-plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
-                      verbose = TRUE, n.cores = "auto", fut.plan = "auto") {
+prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
+                                  tolerance = 1e-3, verbose = TRUE, n_cores = "auto",
+                                  future_plan = "auto") {
 
    ##=========================================================================##
    ##PART 1: clean data and run checks
    ##=========================================================================##
+
+   # Map snake_case parameters to legacy names for internal use
+   plR.input <- plr_input
+   n.fdr <- n_fdr
+   est.pi0 <- estimate_pi0
+   n.cores <- n_cores
+   fut.plan <- future_plan
 
    # track function run time
    startT <- Sys.time()
@@ -132,9 +140,9 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    rlang::local_options(verbose = verbose, .frame = environment())
 
    # perform checks and unpack required plR objects
-   .plR_check(f = "prune", ENV = environment())
-   .arg_check(f = "prune", ENV = environment())
-   .plR_unpack(plr = plR.input, ENV = environment())
+   .check_plr_object(f = "prune", ENV = environment())
+   .check_arguments(f = "prune", ENV = environment())
+   .unpack_plr_object(plr = plR.input, ENV = environment())
    rm(plR.input); gc(verbose = FALSE)
 
    # set random seed
@@ -162,27 +170,27 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    }
 
    # checks completed, announce function
-   hdr <- "Running plR_prune: FDR correction accounting for shared genes"
+   hdr <- "Running prune_polylinkr_data: FDR correction accounting for shared genes"
    pdg <- (80 - max(nchar(hdr))) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .vrb("\n")
+   .verbose_msg("\n")
    if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .vrb(paste0("\n", MSS, "\n"))
+   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
    if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .vrb(paste0("\n", pMSS, "\n"))
-   .vrb("\n")
+   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
+   .verbose_msg("\n")
 
    ##=========================================================================##
    ##PART 2: generate FDR sets and empirical prepare objects for pruning step
    ##=========================================================================##
 
-   .vrb(cli::style_italic("Preparing objects for pruning step:\n"))
+   .verbose_msg(cli::style_italic("Preparing objects for pruning step:\n"))
 
    # generate random scores for q-value adjustment
-   .vrb(paste("Generating", n.fdr, "permuted gene sets for pruning step\n"))
+   .verbose_msg(paste("Generating", n.fdr, "permuted gene sets for pruning step\n"))
    # create gene set by gene identity matrix (genes limited to those in sets)
    dqi <- dqrng::generateSeedVectors(n.fdr)
    os0 <- obj.info$objStat.std
@@ -201,7 +209,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    FDR <- lapply(fdr.perm, "[[", 1) # extract standardised scores
    fdr.perm <- lapply(fdr.perm, "[[", 2) # extract permuted gene IDs
 
-   .vrb("Calculating p values for pre-pruned gene sets\n")
+   .verbose_msg("Calculating p values for pre-pruned gene sets\n")
    # create FDR summary object
    FDR.pr <- list(FDR.rep = rep(1:n.fdr, each = n.sets),
                   setID = rep(1:n.fdr, n.sets),
@@ -214,14 +222,14 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    rescaled <- plr.args$rescale.args$rescale
    if (is.null(rescaled)) rescaled <- FALSE
    if (rescaled) { # include covariance in standardised scores
-      .vrb(paste("Rescaling pruning gene sets\n"))
+      .verbose_msg(paste("Rescaling pruning gene sets\n"))
       ac0 <- ac[, .(A = objID.A, B = objID.B, CV = 2 * rho)]
       data.table::setkey(ac0, A, B)
       c.i <- rep(0, n.sets)
 
       FDR.pr[[4]] <- foreach::foreach(f.i = fdr.perm, F.i = FDR, .combine = c) %do% {
          ss.i <- soi[, .(sID, oID = f.i[oID])]
-         cov.i <- .get_cov(SSi = ss.i, ac0 = ac0)
+         cov.i <- .get_covariance(SSi = ss.i, ac0 = ac0)
          sN0 <- sN[cov.i$sID]
          c.i[cov.i$sID] <- cov.i$CV
          F.i / sqrt((sN + c.i) * fpc[sN])
@@ -267,7 +275,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
             paste0("setScore.", ifelse(rescaled, "rs", "std"), c("", ".p")))
    data.table::setnames(FDR.pr, nms)
 
-   .vrb("Determining shared genes for each pair of gene sets\n")
+   .verbose_msg("Determining shared genes for each pair of gene sets\n")
    progressr::with_progress({
       prog <- progressr::progressor(steps = n.sets)
       suppressPackageStartupMessages(
@@ -287,8 +295,8 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    ##PART 3: Prune scores and use permuted datasets to estimate FDR
    ##=========================================================================##
 
-   .vrb(cli::style_italic("\nRunning pruning step\n"))
-   .vrb("Pruning observed gene set scores\n")
+   .verbose_msg(cli::style_italic("\nRunning pruning step\n"))
+   .verbose_msg("Pruning observed gene set scores\n")
 
    # limit autocovariance matrix to genes appearing in gene sets
    objName <- paste0("setScore.", ifelse(rescaled, "rs", "std"), ".p")
@@ -302,7 +310,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
       acX <- NULL
    }
 
-   SSO.pr <- .prune_sets(OBS = set.info$setScore.std * sqrt(sN * fpc[sN]), # get raw unscaled scores
+   SSO.pr <- .prune_gene_sets(OBS = set.info$setScore.std * sqrt(sN * fpc[sN]), # get raw unscaled scores
                          EXP = ecdf0, GPD = gpd0, acX = acX, nX = sN,
                          osX = obj.info[set.genes]$objStat.std, # limit scores to genes in gene sets
                          pX = set.info[, get(objName)], mss = n.min, fpc = fpc,
@@ -316,7 +324,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    SSO.pr[Rank == 0, (k.nms[-1]) := list(NA, NA, NA, NA, NA, NA)] # set 0 to NA
 
    # FDR set scores
-   .vrb("Pruning FDR gene set scores\n")
+   .verbose_msg("Pruning FDR gene set scores\n")
    fopt <- list(packages = c("data.table", "Rfast", 'fExtremes'),
                 globals = c("os0", "ac0", "sN", "ecdf0", "gpd0", "n.min",
                             "PI0", "fit.meth", "fpc", "prog", "n.set.genes",
@@ -340,7 +348,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
               acX <- NULL
             }
 
-            ps.i <- .prune_sets(OBS = ss.i, EXP = ecdf0, GPD = gpd0, acX = acX,
+            ps.i <- .prune_gene_sets(OBS = ss.i, EXP = ecdf0, GPD = gpd0, acX = acX,
                                 pX = p.i, nX = sN, osX = os.i, PI = PI0,
                                 mss = n.min, fpc = fpc, gP = .get_p)
             prog()
@@ -364,7 +372,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    ##PART 4: Compute adjusted p-values
    ##=========================================================================##
 
-   .vrb("Computing FDR corrected p values [q values]\n")
+   .verbose_msg("Computing FDR corrected p values [q values]\n")
 
    #---------------------------------------------------------------------------#
    ## estimate pi0 using histogram method
@@ -372,7 +380,7 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
 
    n.fdr.sets <- nrow(SSO.pr[!is.na(Rank)]) # number of pruned p-values evaluated
    if (est.pi0) { # estimate pi0
-      .est_pi0(n.fdr.sets = n.fdr.sets, SSO.pr = SSO.pr, FDR.pr = FDR.pr,
+      .estimate_pi0(n.fdr.sets = n.fdr.sets, SSO.pr = SSO.pr, FDR.pr = FDR.pr,
                n.fdr = n.fdr, tolerance = tolerance, env = environment())
    } else {
       pi0 <- 1
@@ -464,16 +472,43 @@ plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
    # set s3 class and create attributes
    .file_reset(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
    OUT <- list(set.info = set.info, obj.info = obj.info, set.obj = set.obj)
-   plr.out <- .new_plR(BASE = OUT, plR.data = plr.data, plR.args = plr.args,
-                       plR.summary = plr.summary, plR.seed = plr.seed,
-                       plR.session = plr.session)
+   plr.out <- .new_plr(BASE = OUT, plr_data = plr.data, plr_args = plr.args,
+                       plr_summary = plr.summary, plr_seed = plr.seed,
+                       plr_session = plr.session)
 
-   .vrb("\n")
-   ftr <- cli::col_cyan(paste0("Finished plR_prune -- run time: ", r0[[1]]))
+   .verbose_msg("\n")
+   ftr <- cli::col_cyan(paste0("Finished prune_polylinkr_data -- run time: ", r0[[1]]))
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
-   .vrb("\n")
+   .verbose_msg("\n")
    return(invisible(plr.out))
+}
+
+
+#' @title Gene set enrichment adjusting for multiple testing and shared genes (deprecated)
+#' @description
+#' This function is deprecated. Please use \code{prune_polylinkr_data()} instead.
+#' @param plR.input Deprecated. Use \code{plr_input}.
+#' @param n.fdr Deprecated. Use \code{n_fdr}.
+#' @param est.pi0 Deprecated. Use \code{estimate_pi0}.
+#' @param tolerance Deprecated. Use \code{tolerance}.
+#' @param verbose Deprecated. Use \code{verbose}.
+#' @param n.cores Deprecated. Use \code{n_cores}.
+#' @param fut.plan Deprecated. Use \code{future_plan}.
+#' @export
+plR_prune <- function(plR.input, n.fdr = 300L, est.pi0 = TRUE, tolerance = 1e-3,
+                       verbose = TRUE, n.cores = "auto", fut.plan = "auto") {
+   .Deprecated("prune_polylinkr_data", package = "polylinkR",
+               msg = "plR_prune() is deprecated. Use prune_polylinkr_data() instead.")
+   prune_polylinkr_data(
+      plr_input = plR.input,
+      n_fdr = n.fdr,
+      estimate_pi0 = est.pi0,
+      tolerance = tolerance,
+      verbose = verbose,
+      n_cores = n.cores,
+      future_plan = fut.plan
+   )
 }
 

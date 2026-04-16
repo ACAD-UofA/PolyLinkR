@@ -11,33 +11,37 @@ navbar:
       menu:
       - text: Getting Started
       - text: Basic Workflow with polylinkR
-        href: articles/basic-workflow.html
+        href: articles/basic_workflow.html
       - text: "---"
       - text: Advanced Topics
       - text: Controlling for Confounders
-        href: articles/covariates-deconfounding.html
+        href: articles/covariates_deconfounding.html
       - text: Using Recombination Rates
-        href: articles/recombination-rates.html
+        href: articles/recombination_rates.html
       - text: Parallel Processing
-        href: articles/parallel-processing.html
+        href: articles/parallel_processing.html
       - text: "---"
       - text: Reference
       - text: Input Formats and Parameters
-        href: articles/input-formats-parameters.html
+        href: articles/input_formats_parameters.html
 
 reference:
   - title: Core Functions
     contents:
+    - read_polylinkr_data
+    - permute_polylinkr_data
+    - rescale_polylinkr_data
+    - prune_polylinkr_data
     - plR_read
     - plR_permute
     - plR_rescale
     - plR_prune
   - title: Data
     contents:
-    - Anatolia_EF_CLR
-    - PolyLinkR_SetInfo
-    - PolyLinkR_SetObj
-    - human_sexavg_RR_Bherer2017
+    - anatolia_ef_clr
+    - polylinkr_set_info
+    - polylinkr_set_obj
+    - human_sexavg_rr_bherer2017
     - rr.dt
 
 home:

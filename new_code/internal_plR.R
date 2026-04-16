@@ -1846,7 +1846,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
    lam <- ifelse(is.null(fixed), par[3], fixed)
 
    # Predicted covariance: Matérn + linear gene interval terms
-   cov_pred <- .cov_fun(h = h, ovlp = ovlp, beta1 = b1, beta2 = b2, scale = lam)
+   cov_pred <- .covariance_function(h = h, ovlp = ovlp, beta1 = b1, beta2 = b2, scale = lam)
    cov_pred <- pmax(cov_pred, 1e-12) # Numerical stabilisation
 
    # Heteroskedastic variances from Huber-M SEs
@@ -2045,7 +2045,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
    rescaled <- !is.null(acX)
    if (rescaled) { # track autocovariance
       cX <- rep(0, n.set.rem)
-      cx0 <- .get_cov(SSi = PI[A == B, .(sID = A, oID = X)], ac0 = acX)
+      cx0 <- .get_covariance(SSi = PI[A == B, .(sID = A, oID = X)], ac0 = acX)
       cX[cx0$sID] <- cx0$CV
    }
 

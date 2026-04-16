@@ -2,20 +2,11 @@
 % Please edit documentation in R/data.R
 \name{human_sexavg_RR_Bherer2017}
 \alias{human_sexavg_RR_Bherer2017}
-\title{human_sexavg_RR_Bherer2017}
+\title{human_sexavg_RR_Bherer2017 (deprecated)}
 \format{
-A data.table with columns:
-\describe{
-\item{chr}{Chromosome number}
-\item{pos}{Base pair position}
-\item{rate}{Recombination rate (cM/Mb)}
-\item{cM}{Cumulative genetic map position (centiMorgans)}
-}
-}
-\source{
-Bherer et al. (2017) - refined maps from pedigree and population data
+See \code{human_sexavg_rr_bherer2017}.
 }
 \description{
-Genome-wide recombination rate data from Bherer et al. 2017.
-Sex-averaged recombination rates for GRCh37/hg19 across the human genome.
+Deprecated alias for \code{human_sexavg_rr_bherer2017}.
 }
+\keyword{internal}

@@ -2,13 +2,11 @@
 % Please edit documentation in R/data.R
 \name{PolyLinkR_SetInfo}
 \alias{PolyLinkR_SetInfo}
-\title{PolyLinkR_SetInfo}
+\title{PolyLinkR_SetInfo (deprecated)}
 \format{
-A data frame with setID, setName, setSource columns.
-}
-\source{
-Internal example dataset for testing.
+See \code{polylinkr_set_info}.
 }
 \description{
-Example gene set information for testing.
+Deprecated alias for \code{polylinkr_set_info}.
 }
+\keyword{internal}

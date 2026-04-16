@@ -272,9 +272,9 @@
 #' The first four attribute classes aggregate information over successive
 #' functions. For example, to access the \code{plr.data} attribute for the
 #' \code{plR} object output after running \code{plR_permute}, use
-#' \code{attributes(X)$plR.data$permute.data}, where \code{X} is the object
+#' \code{attributes(X)$plr_data$permute.data}, where \code{X} is the object
 #' name. Similarly, the arguments used in \code{plR_read} are in
-#' \code{attributes(X)$plR.args$read.args}.
+#' \code{attributes(X)$plr_args$read.args}.
 #'
 #' The primary data structure of the \code{plR} object can be accessed using
 #' \code{print()} or by simply typing the object's name.
@@ -363,28 +363,28 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    rlang::local_options(verbose = verbose, .frame = environment())
 
    # check arguments
-   .arg_check(f = "read", ENV = environment())
+   .check_arguments(f = "read", ENV = environment())
 
    # announce function
    hdr <- "Running plR_read -- Loading polylinkR input files"
    pdg <- (80 - nchar(hdr)) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
-   .vrb("\n\n")
+   .verbose_msg("\n\n")
 
    #---------------------------------------------------------------------------#
    ## Read and check plR input files
    #---------------------------------------------------------------------------#
 
-   .path_check(input.path = input.path, oi.path = obj.info.path,
+   .check_file_paths(input.path = input.path, oi.path = obj.info.path,
                si.path = set.info.path, so.path = set.obj.path,
                vi.path = var.info.path, rr.path = rec.rate.path,
                group = group, ENV = environment())
 
-   .vrb(cli::style_italic("Reading files:\n"))
+   .verbose_msg(cli::style_italic("Reading files:\n"))
    for (fni in names(file.paths)) {
       fpi <- file.paths[[fni]]
-      .vrb(paste0("--> Loading ", fni, " (",  fpi, ")\n"))
+      .verbose_msg(paste0("--> Loading ", fni, " (",  fpi, ")\n"))
       assign(x = fni, value = data.table::fread(fpi), envir = environment())
    }
 
@@ -392,7 +392,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    ## Check presence of canonical columns
    #---------------------------------------------------------------------------#
 
-   .vrb(cli::style_italic("\nPerforming file checks\n"))
+   .verbose_msg(cli::style_italic("\nPerforming file checks\n"))
 
    # check appropriate columns are present and no missing data
    CHK0 <- c("obj.info", "set.info", "set.obj")
@@ -476,7 +476,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    # record user defined columns and replace non-canonical labels
    for (i in seq_along(CHK0)) {
       if (!all(c0[[i]] %in% canon[[i]])) { # check for noncanonical labels
-         .vrb(paste0("Replacing non-canonical column labels for ",
+         .verbose_msg(paste0("Replacing non-canonical column labels for ",
                      CHK0[[i]], "\n"))
          data.table::setnames(x = get(CHK0[[i]]), old = c0[[i]],
                               new = canon[[i]])
@@ -526,7 +526,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
                data.table::setnames(obj.info, old = bNames[[2]], new = bNames[[1]])
             }
          } else { # add if user has not included base position columns
-            .vrb(paste0("Note: ", paste(bNames[!bCols], collapse = " and "),
+            .verbose_msg(paste0("Note: ", paste(bNames[!bCols], collapse = " and "),
                         " columns not detected in obj.info\n",
                         "[polylinkR analyses will assume standard gene ",
                         " boundaries were used in gene score assignment]"))
@@ -672,7 +672,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    }
 
    if (!is.null(rW)) {
-      .vrb(paste0(paste(rW, collapse = "\n"),
+      .verbose_msg(paste0(paste(rW, collapse = "\n"),
                   "\n[info available in removed.ID]\n"))
    }
 
@@ -681,7 +681,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    si.check <- set.info[, .N, by = setID][N > 1]
    Ndup.si <-  nrow(si.check)
    if (Ndup.si > 0) {
-      .vrb(paste0("Indentified and removed ", Ndup.si, " duplicated gene set",
+      .verbose_msg(paste0("Indentified and removed ", Ndup.si, " duplicated gene set",
                   ifelse(Ndup.si == 1, "", "s"), "\n"))
       rID <- data.table::data.table(file = "set.info",
                                     setID = si.check[, setID],
@@ -693,7 +693,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    oi.check <- obj.info[, .N, by = objID][N > 1]
    Ndup.oi <- nrow(oi.check)
    if (Ndup.oi > 0) {
-      .vrb(paste0("Indentified and removed ", Ndup.oi, " duplicated gene",
+      .verbose_msg(paste0("Indentified and removed ", Ndup.oi, " duplicated gene",
                   ifelse(Ndup.oi == 1, "", "s"), "\n"))
       rID <- cbind(file = "obj.info", setID = NA, oi.check)
       repeat.ID <- rbind(repeat.ID, rID)
@@ -703,7 +703,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    so.check <- set.obj[, .N, by = .(setID, objID)][N > 1]
    Ndup.so <- data.table::uniqueN(so.check$setID)
    if (Ndup.so > 0) {
-      .vrb(paste0("Indentified ", Ndup.so, " gene set",
+      .verbose_msg(paste0("Indentified ", Ndup.so, " gene set",
                   ifelse(Ndup.so == 1, "", "s"),
                   " with duplicated gene IDs, removing duplicates\n"))
       rID <- cbind(file.type = "set.obj", so.check)
@@ -712,7 +712,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    }
 
    if (Ndup.si > 0 | Ndup.oi > 0 | Ndup.so > 0) {
-      .vrb("[info available in repeat.ID]\n")
+      .verbose_msg("[info available in repeat.ID]\n")
    }
 
    # check for duplicated genes by position
@@ -721,7 +721,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
                               by = c("chr", "startpos.base", "endpos.base")]
       obj.dups <- obj.per.set[N > 1]
       if (nrow(obj.dups) > 0) {
-         .vrb(paste0("Found ", nrow(obj.dups), " genes that have an identical ",
+         .verbose_msg(paste0("Found ", nrow(obj.dups), " genes that have an identical ",
                      "genomic position with other genes\n"))
          if (rem.genes) { # Optional: remove genes with identical start and end positions on same chromosome
             # privilege retention of genes in gene sets (or that appear in most sets)
@@ -743,10 +743,10 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
             rID <- data.table::data.table(file = "obj.info", setID = NA,
                                           objID = obj.rem, flag = "coord_dup")
             removed.ID <- rbind(removed.ID, rID)
-            .vrb(paste0(length(obj.keep), " unique genes remain after merging\n",
+            .verbose_msg(paste0(length(obj.keep), " unique genes remain after merging\n",
                         "[info available in merged.ID]\n"))
          } else {
-            .vrb("rem.genes = FALSE, identical genes will be retained\n")
+            .verbose_msg("rem.genes = FALSE, identical genes will be retained\n")
          }
       }
    }
@@ -762,7 +762,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    km.ch <- list(obj.in, obj.out, set.in, set.out)
    w.ch <- !sapply(km.ch, is.null)
    if (any(w.ch)) {
-      .vrb(cli::style_italic("\nFiltering files:\n"))
+      .verbose_msg(cli::style_italic("\nFiltering files:\n"))
       W.ch <- which(w.ch)
       nor0 <- nrow(obj.info)
       sor0 <- nrow(set.info)
@@ -775,7 +775,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          obj.info <- obj.info[o.in]
          nor <- nor0 - nrow(obj.info)
-         .vrb(paste0("obj.in option enacted: ", nor, " gene",
+         .verbose_msg(paste0("obj.in option enacted: ", nor, " gene",
                      ifelse(nor == 1, "", "s"), " removed\n"))
          nor.d <- length(obj.in) - nrow(obj.info)
       }
@@ -787,12 +787,12 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          obj.info <- obj.info[!o.out]
          nor <- nor0 - nrow(obj.info)
-         .vrb(paste0("obj.out option enacted: ", nor, " gene",
+         .verbose_msg(paste0("obj.out option enacted: ", nor, " gene",
                      ifelse(nor == 1, "", "s"), " removed\n"))
          nor.d <- length(obj.out) - nor
       }
       if (nor.d > 0) {
-         .vrb(paste0("   [NB: ", nor.d, " gene ID",
+         .verbose_msg(paste0("   [NB: ", nor.d, " gene ID",
                      ifelse(nor.d == 1, " was", "s were"),
                      " not detected in obj.info]\n"))
       }
@@ -804,7 +804,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          set.info <- set.info[s.in]
          nsr <- sor0 - nrow(set.info)
-         .vrb(paste0("set.in option enacted: ", nsr, " gene set ID",
+         .verbose_msg(paste0("set.in option enacted: ", nsr, " gene set ID",
                      ifelse(nsr == 1, "", "s"), " removed\n"))
          nsr.d <- length(set.in) - nrow(set.info)
       }
@@ -816,12 +816,12 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
          removed.ID <- rbind(removed.ID, rID)
          set.info <- set.info[!s.out]
          nsr <- sor0 - nrow(set.info)
-         .vrb(paste0("set.out option enacted: ", nsr, " gene set",
+         .verbose_msg(paste0("set.out option enacted: ", nsr, " gene set",
                      ifelse(nsr == 1, "", "s"), " removed\n"))
          nsr.d <- length(set.out) - nsr
       }
       if (nsr.d > 0) {
-         .vrb(paste0("   [NB: ", nsr.d, " gene set ID",
+         .verbose_msg(paste0("   [NB: ", nsr.d, " gene set ID",
                      ifelse(nsr.d == 1, " was", "s were"),
                      " not detected in set.info]\n"))
       }
@@ -849,12 +849,12 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    # get chromosome lengths (also used in final section)
    chr.len <- obj.info[, max(endpos) - min(startpos), by = chr]$V1
    if (bp.to.cM | get.objStat) {
-      .vrb(cli::style_italic(paste("\nAuxillary files detected:",
+      .verbose_msg(cli::style_italic(paste("\nAuxillary files detected:",
                                    "updating obj.info file\n")))
 
       # generate gene scores
       if (get.objStat) {
-         .vrb(paste0("Generating gene scores using residuals from ",
+         .verbose_msg(paste0("Generating gene scores using residuals from ",
                      ifelse(obj.stat.fun == "non.param", "non-", ""),
                      "parametric regression: `max value` ~ `",
                      ifelse(obj.stat.fun == "non.param", "", "log "),
@@ -886,13 +886,13 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
 
       # convert genome coordinates from physical (bp) to genetic (cM)
       if (bp.to.cM) {
-         .vrb("Coverting coordinates from physical to genetic system")
+         .verbose_msg("Coverting coordinates from physical to genetic system")
          gD <- c("cM", "cm", "CM", "map", "Map", "MAP") %in% colnames(rec.rate)
          if (any(gD)) { # user has provided relevant genetic distance column
             map.fun <- NULL
-            .vrb("\n")
+            .verbose_msg("\n")
          } else {
-            .vrb(paste0(" [using the ",
+            .verbose_msg(paste0(" [using the ",
                        toupper(substring(map.fun, 1, 1)), substring(map.fun, 2),
                        " map function]\n"))
          }
@@ -945,8 +945,8 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
          }
 
          removed.ID[order(file, setID, objID)]
-         .vrb(paste(rw, collapse = "\n"))
-         .vrb("\n[info available in removed.ID]\n")
+         .verbose_msg(paste(rw, collapse = "\n"))
+         .verbose_msg("\n[info available in removed.ID]\n")
       }
    } else {
       obj.stat.param <- NULL
@@ -956,14 +956,14 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    ## Ensure gene sets meet size and gene sharing specifications
    #---------------------------------------------------------------------------#
 
-   .vrb(cli::style_italic("\nEnsuring gene sets are in prescribed range\n"))
+   .verbose_msg(cli::style_italic("\nEnsuring gene sets are in prescribed range\n"))
    n.sets.orig <- nrow(set.info)
    merged.ID <- NULL
    if (n.sets.orig > 1) { # run merging
       if (set.merge == 1) {
-         .vrb("Identifying and merging and identical gene sets: ")
+         .verbose_msg("Identifying and merging and identical gene sets: ")
       } else {
-         .vrb(paste0("Identifying and merging gene sets with >= ",
+         .verbose_msg(paste0("Identifying and merging gene sets with >= ",
                      round(set.merge * 100, 1), "% similarity: "))
       }
 
@@ -979,9 +979,9 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
       }
 
       if (R == 0) {
-         .vrb(paste("none detected\n"))
+         .verbose_msg(paste("none detected\n"))
       } else {
-         .vrb(paste0(nrow(set.info.merged), " sets merged into ",
+         .verbose_msg(paste0(nrow(set.info.merged), " sets merged into ",
                      data.table::uniqueN(set.info.merged$setID.new),
                      " set", ifelse(n.sets.orig - nrow(set.info) == 1, "", "s"),
                      "\n[info available in merged.ID]\n"))
@@ -999,7 +999,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
       # check if sets are outside of chosen range
       set.size.rng <- min.set.n > min(set.info$setN) | !is.infinite(max.set.n)
       if (set.size.rng) { # remove gene sets that have too many / too few genes
-         .vrb(paste0("Identifying and removing gene sets with < ", min.set.n,
+         .verbose_msg(paste0("Identifying and removing gene sets with < ", min.set.n,
                      ifelse(max.set.n == Inf, "", paste(" or >", max.set.n)),
                      " genes: "))
          s.rng <- set.info[, setN < min.set.n | setN > max.set.n]
@@ -1008,7 +1008,7 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
                  call. = FALSE)
          } else {
             if (sum(s.rng) == 0)  { # update objects
-               .vrb("no gene sets fall outside prescribed range\n")
+               .verbose_msg("no gene sets fall outside prescribed range\n")
             } else {
                rID <- data.table::data.table(file = "set.info",
                                              setID = set.info[s.rng]$setID,
@@ -1016,13 +1016,13 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
                removed.ID <- rbind(removed.ID, rID)
                set.info <- set.info[!s.rng]
                set.obj <- set.obj[setID %in% set.info$setID] # update set.obj
-               .vrb(paste0(sum(s.rng), " set",
+               .verbose_msg(paste0(sum(s.rng), " set",
                            ifelse(sum(s.rng) == 1, "", "s"),
                            " removed\n[info available in removed.ID]\n"))
             }
          }
       } else {
-         .vrb(paste0("All gene sets within specified size range [>= ",
+         .verbose_msg(paste0("All gene sets within specified size range [>= ",
                      min.set.n, ifelse(max.set.n == Inf, "",
                                        paste(" and <=", max.set.n)),
                      " genes]\n"))
@@ -1079,17 +1079,17 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
    OUT <- list(set.info = set.info, obj.info = obj.info, set.obj = set.obj)
 
    # set s3 class and create attributes
-   plr.out <- .new_plR(BASE = OUT, plR.data = plr.data, plR.args = plr.args,
-                       plR.summary = plr.summary, plR.session = plr.session)
+   plr.out <- .new_plr(BASE = OUT, plr_data = plr.data, plr_args = plr.args,
+                       plr_summary = plr.summary, plr_session = plr.session)
 
-   .vrb(cli::style_italic("\nFile loading summary:\n"))
-   .vrb(paste0("Loaded ", nrow(set.info), " unique gene set",
+   .verbose_msg(cli::style_italic("\nFile loading summary:\n"))
+   .verbose_msg(paste0("Loaded ", nrow(set.info), " unique gene set",
                ifelse(n.sets == 1, "", "s"), " and ", nrow(obj.info),
                " unique genes\n"))
 
    obj.nx <- nrow(obj.info) - data.table::uniqueN(set.obj$objID)
    if(obj.nx > 0) {
-      .vrb(paste0("[NB: ", obj.nx, " genes (",
+      .verbose_msg(paste0("[NB: ", obj.nx, " genes (",
                   round(obj.nx / nrow(obj.info) * 100, 1),
                   "% of total genes) are not in any gene set ",
                   "but are retained for computing null and autocovariance]\n"))
@@ -1130,15 +1130,15 @@ read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
                      "plR_prune will estimate q values for gene set scores",
                      "after correcting for shared genes")
    }
-   .vrb(paste(c(paste("**", c.mss, "**"), paste("**", p.mss, "**"),
+   .verbose_msg(paste(c(paste("**", c.mss, "**"), paste("**", p.mss, "**"),
                 paste("**", q.mss, "**")), collapse = "\n"))
-   .vrb("\n\n")
+   .verbose_msg("\n\n")
 
    ftr <- paste0("Finished loading files -- run time: ", r0[[1]])
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
-   .vrb("\n")
+   .verbose_msg("\n")
    return(plr.out)
 }
 

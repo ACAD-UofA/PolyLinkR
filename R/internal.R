@@ -5,7 +5,7 @@
 #' @importFrom rlang peek_option
 #' @keywords internal
 #' @noRd
-.vrb <- function(m) {
+.verbose_msg <- function(m) {
    if (isTRUE(rlang::peek_option("verbose"))) { # access verbose setting from parent function
       cat(m)
    }
@@ -32,22 +32,22 @@
 #'  otherwise the function stops with an error.
 #' @keywords internal
 #' @noRd
-.path_check <- function(oi.path, si.path, so.path, rr.path, vi.path,
+.check_file_paths <- function(oi.path, si.path, so.path, rr.path, vi.path,
                         input.path, group, ENV) {
 
    # check single or specific file paths
    emss <- c("input file paths\nEither specify path to each file ",
              "using obj.info.path, set.info.path, and set.obj.path arguments\n",
              "Or specify folder containing all files using file.path argument")
-   mp0 <- sapply(list(oi.path, si.path, so.path), is.null)
+   missing_paths <- sapply(list(oi.path, si.path, so.path), is.null)
    if (is.null(input.path)) {
-      if (any(mp0)) { # not all required separate paths specified
+      if (any(missing_paths)) { # not all required separate paths specified
          stop("Incomplete ", emss, call. = FALSE)
       } else { # required paths specified
          multi.path <- TRUE
       }
    } else { # check
-      if (any(!mp0)) { # not all required separate paths specified
+       if (any(!missing_paths)) { # not all required separate paths specified
          stop("Conflicting ", emss, call. = FALSE)
       } else { # required paths specified
          multi.path <- FALSE
@@ -144,7 +144,7 @@
 #'  datasets from plR object are unpacked within the specified environment.
 #' @keywords internal
 #' @noRd
-.plR_unpack <- function(plr, ENV) {
+.unpack_plr_object <- function(plr, ENV) {
    list2env(plr, envir = ENV) # unpack core objects
    p.unp <- c("plR.data", "plR.args", "plR.summary", "plR.seed",
               "plR.track", "plR.session")
@@ -178,7 +178,7 @@
 #'  environment (`ENV`).
 #' @keywords internal
 #' @noRd
-.arg_check <- function(f, ENV) {
+.check_arguments <- function(f, ENV) {
    f0 <- ifelse(f == "plot", paste0(f, ".plR"), paste0("plR_", f)) # function names
    f0.args <- names(formals(get(f0, envir = asNamespace("polylinkR")))) # retrieve argument names
    list2env(mget(setdiff(f0.args, "..."), envir = ENV), envir = environment()) # collect function arguments
@@ -200,14 +200,14 @@
 
    if (f == "read") { # check plR_read argumants
       # check lengths of single value options
-      n1 <- c("min.set.n", "max.set.n", "group", "set.merge", "map.fun",
-              "obj.stat.fun", "obj.buffer", "bin.size")
-      cn1 <- sapply(n1, function(x) ifelse(is.null(get(x)), TRUE,
-                                           length(get(x)) == 1))
-      if (!all(cn1)) {
-         stop("Length of ", paste(n1[!cn1], collapse = " & "), " != 1",
-              call. = FALSE)
-      }
+       single_value_params <- c("min.set.n", "max.set.n", "group", "set.merge", "map.fun",
+               "obj.stat.fun", "obj.buffer", "bin.size")
+       valid_params <- sapply(single_value_params, function(x) ifelse(is.null(get(x)), TRUE,
+                                            length(get(x)) == 1))
+       if (!all(valid_params)) {
+          stop("Length of ", paste(single_value_params[!valid_params], collapse = " & "), " != 1",
+               call. = FALSE)
+       }
 
       e.mss <- paste0("set.merge incorrectly specified [",
                       "must be numeric value between 0 and 1]\n")
@@ -292,14 +292,14 @@
 
    if (f == "permute") { # check plR_permute arguments
       # check lengths of single value options
-      n1 <- c("md.meth", "n.perm", "n.boot", "alt", "kern.func", "kern.scale",
-              "kern.wt.max", "gpd.cutoff", "n.cores", "fut.plan", "permute")
-      cn1 <- sapply(n1, function(x) ifelse(is.null(get(x)), TRUE,
-                                           length(get(x)) == 1))
-      if (!all(cn1)) {
-         stop("Length of ", paste(n1[!cn1], collapse = " & "), " != 1",
-              call. = FALSE)
-      }
+       single_value_params <- c("md.meth", "n.perm", "n.boot", "alt", "kern.func", "kern.scale",
+               "kern.wt.max", "gpd.cutoff", "n.cores", "fut.plan", "permute")
+       valid_params <- sapply(single_value_params, function(x) ifelse(is.null(get(x)), TRUE,
+                                            length(get(x)) == 1))
+       if (!all(valid_params)) {
+          stop("Length of ", paste(single_value_params[!valid_params], collapse = " & "), " != 1",
+               call. = FALSE)
+       }
 
       # check for violations in logical settings
       if (!is.logical(permute)) {
@@ -448,14 +448,14 @@
 
    if (f == "rescale") { # check plR_rescale arguments
       # check lengths of single value options
-      n1 <- c("cgm.bin", "cgm.range", "cgm.wt.max", "emp.bayes", "min.rho",
-              "rescale", "fast", "n.cores", "fut.plan")
-      cn1 <- sapply(n1, function(x) ifelse(is.null(get(x)), TRUE,
-                                           length(get(x)) == 1))
-      if (!all(cn1)) {
-         stop("Length of ", paste(n1[!cn1], collapse = " & "), " != 1",
-              call. = FALSE)
-      }
+       single_value_params <- c("cgm.bin", "cgm.range", "cgm.wt.max", "emp.bayes", "min.rho",
+               "rescale", "fast", "n.cores", "fut.plan")
+       valid_params <- sapply(single_value_params, function(x) ifelse(is.null(get(x)), TRUE,
+                                            length(get(x)) == 1))
+       if (!all(valid_params)) {
+          stop("Length of ", paste(single_value_params[!valid_params], collapse = " & "), " != 1",
+               call. = FALSE)
+       }
 
       # check for violations in logical settings
       lp <- c("rescale", "fast")
@@ -571,13 +571,13 @@
       }
 
       # check lengths of single value options
-      n1 <- c("n.fdr", "tolerance", "n.cores", "fut.plan")
-      cn1 <- sapply(n1, function(x) ifelse(is.null(get(x)), TRUE,
-                                           length(get(x)) == 1))
-      if (!all(cn1)) {
-         stop("Length of ", paste(n1[!cn1], collapse = " & "), " != 1",
-              call. = FALSE)
-      }
+       single_value_params <- c("n.fdr", "tolerance", "n.cores", "fut.plan")
+       valid_params <- sapply(single_value_params, function(x) ifelse(is.null(get(x)), TRUE,
+                                            length(get(x)) == 1))
+       if (!all(valid_params)) {
+          stop("Length of ", paste(single_value_params[!valid_params], collapse = " & "), " != 1",
+               call. = FALSE)
+       }
 
       # check logical parameters
       if (!is.logical(est.pi0)) {
@@ -623,14 +623,14 @@ if (f == "plot") { # check plotting arguments
        params <- x_read_data
        list2env(params, envir = environment())
 
-      n1 <- c("log.dist", "log.Ne", "log.gamma", "output.path", "plot.name",
-              "max.facets", "plot.all")
-      cn1 <- sapply(n1, function(x) ifelse(is.null(get(x)), TRUE,
-                                           length(get(x)) == 1))
-      if (!all(cn1)) {
-         stop("Length of ", paste(n1[!cn1], collapse = " & "), " != 1",
-              call. = FALSE)
-      }
+       single_value_params <- c("log.dist", "log.Ne", "log.gamma", "output.path", "plot.name",
+               "max.facets", "plot.all")
+       valid_params <- sapply(single_value_params, function(x) ifelse(is.null(get(x)), TRUE,
+                                            length(get(x)) == 1))
+       if (!all(valid_params)) {
+          stop("Length of ", paste(single_value_params[!valid_params], collapse = " & "), " != 1",
+               call. = FALSE)
+       }
 
       if (!is.null(output.path)) {
          if (!dir.exists(output.path)) {
@@ -767,23 +767,23 @@ if (f == "plot") { # check plotting arguments
 #' @noRd
 .plR_track <- function() {
    # define possible output tracks for each function
-   pT.read <- "000"
-   pT.permute <- paste0(1:3, 0, 0)
-   pT.rescale <- paste0(outer(2:3, 1:3, paste0), 0)
-   pT.prune <- paste0(outer(2:3, c(0, 2:3), paste0), 1)
-   pT.names <- c("plR_read", "plR_permute", "plR_rescale", "plR_prune")
+   plr_track_read <- "000"
+   plr_track_permute <- paste0(1:3, 0, 0)
+   plr_track_rescale <- paste0(outer(2:3, 1:3, paste0), 0)
+   plr_track_prune <- paste0(outer(2:3, c(0, 2:3), paste0), 1)
+   plr_track_names <- c("read_polylinkr_data", "permute_polylinkr_data", "rescale_polylinkr_data", "prune_polylinkr_data")
    # assign valid inputs
    in0 <- c("Input data",
-            paste(c(pT.read, pT.permute[1]), collapse = "; "),
-            paste(c(pT.permute[-1], pT.rescale[1:2]), collapse = "; "),
-            paste(c(pT.permute[-1], pT.rescale[-(1:2)]), collapse = "; "))
+            paste(c(plr_track_read, plr_track_permute[1]), collapse = "; "),
+            paste(c(plr_track_permute[-1], plr_track_rescale[1:2]), collapse = "; "),
+            paste(c(plr_track_permute[-1], plr_track_rescale[-(1:2)]), collapse = "; "))
    # assign valid outputs
-   out0 <- c(paste(pT.read, collapse = "; "),
-             paste(pT.permute, collapse = "; "),
-             paste(pT.rescale, collapse = "; "),
-             paste(pT.prune, collapse = "; "))
-   plr.tab <- data.table::data.table(FUNCTION = pT.names, INPUT = in0,
-                                     OUTPUT = out0)
+   out0 <- c(paste(plr_track_read, collapse = "; "),
+              paste(plr_track_permute, collapse = "; "),
+              paste(plr_track_rescale, collapse = "; "),
+              paste(plr_track_prune, collapse = "; "))
+   plr.tab <- data.table::data.table(FUNCTION = plr_track_names, INPUT = in0,
+                                      OUTPUT = out0)
    return(plr.tab)
 }
 
@@ -1358,7 +1358,7 @@ if (f == "plot") { # check plotting arguments
 #' @import foreach
 #' @return A numeric vector with model coefficients.
 #' @noRd
-.fit_lqr <- function(d1, wt0,  os0, n.cv) {
+.fit_local_quad_reg <- function(d1, wt0,  object_scores, n.cv) {
    # get second degree terms
    d2 <- foreach::foreach(j = 1:n.cv) %do% {
       d1[, j:n.cv] * d1[, j]
@@ -1366,7 +1366,7 @@ if (f == "plot") { # check plotting arguments
    d2 <- cbind(1, d1, do.call(cbind, d2)) # create design matrix
    dX <- d2 * wt0 # weighted design matrix
    LHS <- crossprod(dX, d2) # left-hand side (LHS) of the normal equation: (X'WX)
-   RHS <- crossprod(dX, os0) # right-hand side (RHS) of the normal equation: (X'WY)
+   RHS <- crossprod(dX, object_scores) # right-hand side (RHS) of the normal equation: (X'WY)
    # attempt to solve 2nd order polynomial equation
    theta0 <- tryCatch(solve(LHS, RHS), error = function(e) e)
    if (methods::is(theta0, "error")) { # try linear model
@@ -1391,12 +1391,12 @@ if (f == "plot") { # check plotting arguments
 #' @return A list containing the combined object from the iteration.
 #'  Includes the ECDF `e0` and GDP fits `g0` for evaluated gene set sizes.
 #' @noRd
-.cmb <- function(A, B) {
+.combine_results <- function(A, B) {
    # iteratively combine raw value lists
-   if (is.null(A$e0$qX)) { # list form in parallel inner loop
-      A$e0 <- Map(function(x, y) c(x, list(y)), A$e0, B$e0) # aggregate raw value lists
+   if (is.null(A$ecdf_values$qX)) { # list form in parallel inner loop
+      A$ecdf_values <- Map(function(x, y) c(x, list(y)), A$ecdf_values, B$ecdf_values) # aggregate raw value lists
       # aggregate tails
-      AB <- cbind(A$g0, B$g0)
+      AB <- cbind(A$gpd_params, B$gpd_params)
       nT <- ncol(AB) / 2
       rTH <- Rfast::rowMedians(AB)
       rID <- which(AB >= rTH, arr.ind = TRUE)
@@ -1408,14 +1408,14 @@ if (f == "plot") { # check plotting arguments
             rID <- rID[!(rID[, 1] == wT & rID[, 2] %in% xOUT), ] # remove excess rows
          }
       }
-      A$g0 <- matrix(AB[rID[order(rID[, 1]), ]], byrow = TRUE, ncol = nT)
+      A$gpd_params <- matrix(AB[rID[order(rID[, 1]), ]], byrow = TRUE, ncol = nT)
    } else { # raw form in sequentail outer loop (bootstraps)
-      A$e0$qX <- Map(rbind, A$e0$qX, B$e0$qX) # combine ECDFs
-      A$e0$qE <- Map(rbind, A$e0$qE, B$e0$qE) # combine ECDF errors
-      A$g0 <- rbind(A$g0, B$g0) # bind tails
+      A$ecdf_values$qX <- Map(rbind, A$ecdf_values$qX, B$ecdf_values$qX) # combine ECDFs
+      A$ecdf_values$qE <- Map(rbind, A$ecdf_values$qE, B$ecdf_values$qE) # combine ECDF errors
+      A$gpd_params <- rbind(A$gpd_params, B$gpd_params) # bind tails
    }
-   if (!is.null(A$r0)) { # collect means for set-wise rescaling
-      A$r0 <- A$r0 + B$r0
+   if (!is.null(A$rescaling_factors)) { # collect means for set-wise rescaling
+      A$rescaling_factors <- A$rescaling_factors + B$rescaling_factors
    }
    return(A)
 }
@@ -1430,7 +1430,7 @@ if (f == "plot") { # check plotting arguments
 #' @return A list containing the estimated GPD parameters and associated
 #'  measurement errors.
 #' @noRd
-.fit_gpd <- function(x0) {
+.fit_gpd_tail <- function(x0) {
    gpd.fit0 <- tryCatch(
       ismev::gpd.fit(xdat = x0, threshold = min(x0), show = FALSE),
       error = function(e) e,
@@ -1455,14 +1455,14 @@ if (f == "plot") { # check plotting arguments
 #'  a numeric vector of error widths computed at `eps` distances either side of
 #'  each quantile.
 #' @noRd
-.get_quant <- function (tX, eQnt, eps) {
+.get_quantiles <- function (tX, empirical_quantiles, eps) {
    # Combine all raw values into a single vector
    all_vals <- unlist(tX, use.names = FALSE)
    # Extract quantiles using base R quantile function
-   qX <- stats::quantile(all_vals, probs = eQnt, names = FALSE)
+   qX <- stats::quantile(all_vals, probs = empirical_quantiles, names = FALSE)
    # quantify error bounds
-   qL <- stats::quantile(all_vals, probs = eQnt - eps, names = FALSE)
-   qH <- stats::quantile(all_vals, probs = eQnt + eps, names = FALSE)
+   qL <- stats::quantile(all_vals, probs = empirical_quantiles - eps, names = FALSE)
+   qH <- stats::quantile(all_vals, probs = empirical_quantiles + eps, names = FALSE)
    return(list(qX = qX, qE = qH - qL))
 }
 
@@ -1479,7 +1479,7 @@ if (f == "plot") { # check plotting arguments
 #'  for monotonicity (`adj.p`), the value at which the minimum tail probability
 #'  occurs (min.z), and the minimum possible tail probability (min.p).
 #' @noRd
-.get_gpd_mins <- function(gI, gpd.cutoff, q.bnd) {
+.get_gpd_minimums <- function(gI, gpd.cutoff, q.bnd) {
    gz <- (1:1e6L / 1e4L) # assume gpd scaled values
    if (gI$shape == 0) {
       pU <- exp(-gz)
@@ -1519,9 +1519,9 @@ if (f == "plot") { # check plotting arguments
 #' @import data.table
 #' @return A numeric vector of p-values, corresponding to the input scores.
 #' @noRd
-.get_p_lt <- function(ss, n, g0, e0) {
-   pU <- e0[[n]](ss) # get ECDF quantile
-   gI <- g0[n]
+.get_pvalue_lower <- function(ss, n, gpd_params, ecdf_values) {
+   pU <- ecdf_values[[n]](ss) # get ECDF quantile
+   gI <- gpd_params[n]
    if (any(ss <= gI$cut.z)) { # check for set scores in GPD tail region
       wp <- which(ss <= gI$cut.z)
       if (any(ss <= gI$min.z)) { # some values below absolute minimum p
@@ -1553,9 +1553,9 @@ if (f == "plot") { # check plotting arguments
 #' @import data.table
 #' @return A numeric vector of p-values, corresponding to the input scores.
 #' @noRd
-.get_p_ut <- function(ss, n, g0, e0) {
-   pU <- 1 - e0[[n]](ss) # get ECDF quantile
-   gI <- g0[n]
+.get_pvalue_upper <- function(ss, n, gpd_params, ecdf_values) {
+   pU <- 1 - ecdf_values[[n]](ss) # get ECDF quantile
+   gI <- gpd_params[n]
    if (any(ss >= gI$cut.z)) {
       wp <- which(ss >= gI$cut.z)
       if (any(ss >= gI$min.z)) { # some values below absolute minimum p
@@ -1693,7 +1693,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #'   \code{sm0$S.scale * sum(xW^2) / sum(sm0$X^2)}.
 #'  }
 #' @noRd
-.par_smooth <- function(y, x, sm0, tau, K, n.th) {
+.parallel_smooth <- function(y, x, sm0, tau, K, n.th) {
    Sigma <- K + diag(tau + rep(1e-9, n.th)) # include autocovariance and measurement error
    R <- chol(Sigma, pivot = TRUE) # Cholesky whitening matrix
    piv <- attr(R, "pivot") # allow column pivoting
@@ -1812,7 +1812,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #'  that annotation-driven covariance does not distort long-range LD
 #'  inference.
 #' @noRd
-.cov_fun <- function(h, ovlp, beta1, beta2, scale) {
+.covariance_function <- function(h, ovlp, beta1, beta2, scale) {
    ld_cov   <- beta1 * exp(-h / scale) # LD-driven covariance
    ovlp_cov <- beta2 * ovlp # Local overlap correction
    return(ld_cov + ovlp_cov)
@@ -1853,14 +1853,14 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #'  targeted correction at short lags, preventing distortion of the inferred LD
 #'  decay scale.
 #' @noRd
-.cgm_fun_fit <- function(par, fixed = NULL, cov_emp, se, ovlp, h, w) {
+.fit_cgm_function <- function(par, fixed = NULL, cov_emp, se, ovlp, h, w) {
    # Extract parameters
    b1 <- par[1]
    b2 <- par[2]
    lam <- ifelse(is.null(fixed), par[3], fixed)
 
    # Predicted covariance: Matérn + linear gene interval terms
-   cov_pred <- .cov_fun(h = h, ovlp = ovlp, beta1 = b1, beta2 = b2, scale = lam)
+   cov_pred <- .covariance_function(h = h, ovlp = ovlp, beta1 = b1, beta2 = b2, scale = lam)
    cov_pred <- pmax(cov_pred, 1e-12) # Numerical stabilisation
 
    # Heteroskedastic variances from Huber-M SEs
@@ -1909,7 +1909,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #'  alternative weighting schemes are explicitly desired.
 #' @import data.table
 #' @noRd
-.emp_bayes_est <- function(cPar, gPar, cN0, corr = FALSE, maxit = 1e3) {
+.empirical_bayes_estimate <- function(cPar, gPar, cN0, corr = FALSE, maxit = 1e3) {
    # extract values
    cN0 <- data.table::copy(cN0)[chr != "All"]
    nChr <- ncol(cPar)
@@ -2002,9 +2002,9 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #' @return A data.table of autocovariances (`C`) for each null gene set (`sID`)
 #'   and by successive set sizes (`sN`)
 #' @noRd
-.get_cov0 <- function(csj, rsX, SS0, ac0) {
-   SSi <- SS0[, oID := c(csj)]
-   ACx <- ac0[SSi, on = .(A = oID), nomatch = 0, allow.cartesian = TRUE]
+.get_covariance_null <- function(csj, rsX, set_scores, autocov_data) {
+   SSi <- set_scores[, oID := c(csj)]
+   ACx <- autocov_data[SSi, on = .(A = oID), nomatch = 0, allow.cartesian = TRUE]
    ACxx <- ACx[SSi, on = .(B = oID, sID = sID), nomatch = 0]
    ACxx[, sN0 := ifelse(sN > i.sN, sN, i.sN)] # get last appearance of gene and adjust for current minimum
    RSi <- ACxx[, .(CV = sum(CV)), keyby = .(sID, sN0)] # calculate sum of covariance and sort
@@ -2022,9 +2022,9 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #' @import data.table
 #' @return A data.table of autocovariances (`C`) for each null gene set (`sID`)
 #' @noRd
-.get_cov <- function(SSi, ac0) {
+.get_covariance <- function(SSi, autocov_data) {
    # extract covariances
-   ACx <- ac0[SSi, on = .(A = oID), nomatch = 0, allow.cartesian = TRUE]
+   ACx <- autocov_data[SSi, on = .(A = oID), nomatch = 0, allow.cartesian = TRUE]
    ACxx <- ACx[SSi, on = .(B = oID, sID = sID), nomatch = 0]
    # calculate sum of covariance and sort
    RSi <- ACxx[, .(CV = sum(CV)), keyby = sID]
@@ -2051,7 +2051,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #' @return A `matrix` summarizing the pruning results, including ranks, set
 #'  sizes, scores, and p-values for the top sets.
 #' @noRd
-.prune_sets <- function(OBS, EXP, GPD, acX, pX, nX, osX, PI, fpc, mss, gP) {
+.prune_gene_sets <- function(OBS, EXP, GPD, acX, pX, nX, osX, PI, finite_pop_correction, min_set_size, gP) {
    # keep track top gene sets and their genes
    n.set.rem <- max(PI$A) # no. gene sets remaining
    n.obj.rem <- length(osX) # no. genes remaining
@@ -2059,7 +2059,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
    rescaled <- !is.null(acX)
    if (rescaled) { # track autocovariance
       cX <- rep(0, n.set.rem)
-      cx0 <- .get_cov(SSi = PI[A == B, .(sID = A, oID = X)], ac0 = acX)
+      cx0 <- .get_covariance(SSi = PI[A == B, .(sID = A, oID = X)], autocov_data = acX)
       cX[cx0$sID] <- cx0$CV
    }
 
@@ -2077,9 +2077,9 @@ Predict.matrix.wls.smooth <- function(object, data) {
       n.ts <- nX[ts] # set size
       p.ts <- pX[ts] # p value
       if (rescaled) {
-         ss.ts <- OBS[ts] / sqrt((n.ts + cX[ts]) * fpc[n.ts]) # set score
+         ss.ts <- OBS[ts] / sqrt((n.ts + cX[ts]) * finite_pop_correction[n.ts]) # set score
       } else {
-         ss.ts <- OBS[ts] / sqrt(n.ts * fpc[n.ts]) # set score
+         ss.ts <- OBS[ts] / sqrt(n.ts * finite_pop_correction[n.ts]) # set score
       }
 
       # determine genes and sets to update
@@ -2090,7 +2090,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
       nX[ss.u] <- n.new # update gene set size
 
       # remove sets with insufficient genes after removing shared genes
-      ws.out <- n.new < mss
+      ws.out <- n.new < min_set_size
       set.out <- ss.u[ws.out]
       pX[set.out] <- 1 # invalidate removed sets from minimum p values in subsequent iterations
       nXY <- nXY0[!.(set.out), on = "B"] # determine gene sets with sufficient genes to modify
@@ -2119,9 +2119,9 @@ Predict.matrix.wls.smooth <- function(object, data) {
             ACxx <- ACxx[A %in% ss.j | B %in% ss.j] # only keep interactions involving removed genes
             cx0 <- ACxx[, .(CV = sum(CV)), keyby = sID]
             cX[cx0$sID] <- cX[cx0$sID] - cx0$CV
-            sso <- obs.new / sqrt((nU + cX[ss.i]) * fpc[nU]) # revised set score
+            sso <- obs.new / sqrt((nU + cX[ss.i]) * finite_pop_correction[nU]) # revised set score
          } else {
-            sso <- obs.new / sqrt(nU * fpc[nU]) # revised set score
+            sso <- obs.new / sqrt(nU * finite_pop_correction[nU]) # revised set score
          }
 
          # estimate p values
@@ -2192,7 +2192,7 @@ Predict.matrix.wls.smooth <- function(object, data) {
 #' @return No value returned. Instead, `pi0` and `pi0.dt` objects are returned
 #'  to the environment (`env`).
 #' @noRd
-.est_pi0 <- function(n.fdr.sets, SSO.pr, FDR.pr, tolerance, n.fdr, env) {
+.estimate_pi0 <- function(n.fdr.sets, SSO.pr, FDR.pr, tolerance, n.fdr, env) {
    n.cuts <- min(floor(n.fdr.sets), 100) + 1 # number of bins up to max 100
    pi0.p.bins <- seq(0, 1, length.out = n.cuts)
 
@@ -2290,3 +2290,137 @@ Predict.matrix.wls.smooth <- function(object, data) {
    return(paste(c("Parameters:", out), collapse = "\n"))
 }
 
+# Deprecated function wrappers for backward compatibility
+
+#' @rdname verbose_msg
+#' @keywords internal
+#' @noRd
+.vrb <- function(...) {
+   .verbose_msg(...)
+}
+
+#' @rdname combine_results
+#' @keywords internal
+#' @noRd
+.cmb <- function(...) {
+   .combine_results(...)
+}
+
+#' @rdname fit_local_quad_reg
+#' @keywords internal
+#' @noRd
+.fit_lqr <- function(...) {
+   .fit_local_quad_reg(...)
+}
+
+#' @rdname fit_gpd_tail
+#' @keywords internal
+#' @noRd
+.fit_gpd <- function(...) {
+   .fit_gpd_tail(...)
+}
+
+#' @rdname get_quantiles
+#' @keywords internal
+#' @noRd
+.get_quant <- function(...) {
+   .get_quantiles(...)
+}
+
+#' @rdname get_gpd_minimums
+#' @keywords internal
+#' @noRd
+.get_gpd_mins <- function(...) {
+   .get_gpd_minimums(...)
+}
+
+#' @rdname get_pvalue_lower
+#' @keywords internal
+#' @noRd
+.get_p_lt <- function(...) {
+   .get_pvalue_lower(...)
+}
+
+#' @rdname get_pvalue_upper
+#' @keywords internal
+#' @noRd
+.get_p_ut <- function(...) {
+   .get_pvalue_upper(...)
+}
+
+#' @rdname get_covariance_null
+#' @keywords internal
+#' @noRd
+.get_cov0 <- function(...) {
+   .get_covariance_null(...)
+}
+
+#' @rdname get_covariance
+#' @keywords internal
+#' @noRd
+.get_cov <- function(...) {
+   .get_covariance(...)
+}
+
+#' @rdname prune_gene_sets
+#' @keywords internal
+#' @noRd
+.prune_sets <- function(...) {
+   .prune_gene_sets(...)
+}
+
+#' @rdname estimate_pi0
+#' @keywords internal
+#' @noRd
+.est_pi0 <- function(...) {
+   .estimate_pi0(...)
+}
+
+#' @rdname empirical_bayes_estimate
+#' @keywords internal
+#' @noRd
+.emp_bayes_est <- function(...) {
+   .empirical_bayes_estimate(...)
+}
+
+#' @rdname covariance_function
+#' @keywords internal
+#' @noRd
+.cov_fun <- function(...) {
+   .covariance_function(...)
+}
+
+#' @rdname fit_cgm_function
+#' @keywords internal
+#' @noRd
+.cgm_fun_fit <- function(...) {
+   .fit_cgm_function(...)
+}
+
+#' @rdname parallel_smooth
+#' @keywords internal
+#' @noRd
+.par_smooth <- function(...) {
+   .parallel_smooth(...)
+}
+
+#' @rdname check_file_paths
+#' @keywords internal
+#' @noRd
+.path_check <- function(...) {
+   .check_file_paths(...)
+}
+
+#' @rdname unpack_plr_object
+#' @keywords internal
+#' @noRd
+.plR_unpack <- function(...) {
+   .unpack_plr_object(...)
+}
+
+#' @rdname check_arguments
+#' @keywords internal
+#' @noRd
+.arg_check <- function(...) {
+   .check_arguments(...)
+}

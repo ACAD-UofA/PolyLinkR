@@ -2,13 +2,11 @@
 % Please edit documentation in R/data.R
 \name{Anatolia_EF_CLR}
 \alias{Anatolia_EF_CLR}
-\title{Anatolia_EF_CLR}
+\title{Anatolia_EF_CLR (deprecated)}
 \format{
-A data frame with gene expression values.
-}
-\source{
-Internal example dataset for testing.
+See \code{anatolia_ef_clr}.
 }
 \description{
-Example data: Gene expression factors from Anatolia population.
+Deprecated alias for \code{anatolia_ef_clr}.
 }
+\keyword{internal}

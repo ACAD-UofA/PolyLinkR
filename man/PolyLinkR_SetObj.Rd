@@ -2,13 +2,11 @@
 % Please edit documentation in R/data.R
 \name{PolyLinkR_SetObj}
 \alias{PolyLinkR_SetObj}
-\title{PolyLinkR_SetObj}
+\title{PolyLinkR_SetObj (deprecated)}
 \format{
-A data frame with setID and objID columns.
-}
-\source{
-Internal example dataset for testing.
+See \code{polylinkr_set_obj}.
 }
 \description{
-Example gene-to-set mapping for testing.
+Deprecated alias for \code{polylinkr_set_obj}.
 }
+\keyword{internal}

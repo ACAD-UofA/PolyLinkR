@@ -8,8 +8,8 @@
 #' permutations). Applies a Generalized Pareto Distribution (GPD) to the tail of
 #' the empirical null for accurate estimation of small p-values.
 #'
-#' @param plR.input
-#'   \code{plR} class object; output from \code{polylinkR::plR_read}.
+#' @param plr_input
+#'   \code{plR} class object; output from \code{polylinkR::read_polylinkr_data}.
 #'   Required.
 #'
 #' @param permute
@@ -19,24 +19,24 @@
 #'   confounder covariates in \code{obj.info}. This is useful for exploring
 #'   how parameter settings impact deconfounded gene scores; the permutation
 #'   step can be performed later by passing the output back into
-#'   \code{plR_permute}.
+#'   \code{permute_polylinkr_data}.
 #'
-#' @param n.perm
+#' @param n_permutations
 #'   \code{integer}; number of permutations. Defaults to \code{1e5}. Must be
 #'   in the range \code{[5e4L, Inf)} and be exactly divisible by \code{1e4}.
 #'
-#' @param n.boot
+#' @param n_bootstraps
 #'   \code{integer}; number of bootstrap replicates for null inference.
 #'   Defaults to \code{30L}. Must be in the range \code{[5, Inf)}.
 #'
-#' @param alt
+#' @param alternative
 #'   \code{character}; direction of the hypothesis test. Defaults to
 #'   \code{"upper"} for enrichment in the upper tail (large set scores).
 #'   Alternatively, \code{"lower"} tests for enrichment in the lower tail
 #'   (small values). When \code{"lower"} is chosen, data are internally
 #'   negated in functions performing p-value estimation.
 #'
-#' @param md.meth
+#' @param md_method
 #'   \code{character}; determines whether raw covariate data or ranks are
 #'   used in Mahalanobis distance calculations. Defaults to \code{"robust"},
 #'   where Mahalanobis distances are converted to ranks and Spearman's metric
@@ -44,7 +44,7 @@
 #'   \code{"raw"} uses the original covariates and Pearson's covariance for
 #'   scaling.
 #'
-#' @param kern.bound
+#' @param kernel_boundary
 #'   \code{numeric}; flanking region around each gene where weights of
 #'   overlapping genes inside the region are set to 0. Weights of partially
 #'   overlapping genes are downscaled by the proportion overlapping the
@@ -54,37 +54,37 @@
 #'   Ignored if appropriate covariate columns are not detected in
 #'   \code{obj.info}.
 #'
-#' @param kern.func
+#' @param kernel_function
 #'   \code{character}; kernel function used to generate probability weights
 #'   from distances between the focal gene and other genes in confounder
 #'   space. Default is \code{"normal"} (Gaussian kernel). Alternate options
 #'   include \code{"exponential"} and \code{"inverse"}. Ignored if covariate
 #'   columns are not detected in \code{obj.info}.
 #'
-#' @param kern.scale
+#' @param kernel_scale
 #'   \code{numeric}; scalar used in the kernel function to convert
 #'   Mahalanobis distances to probabilities. Defaults to \code{2} for
 #'   Gaussian decay, \code{log(10)} for exponential decay, or \code{2} for
 #'   inverse decay. Range \code{(0, Inf]}. Ignored if covariate columns are
 #'   not detected in \code{obj.info}.
 #'
-#' @param kern.wt.max
+#' @param kernel_weight_max
 #'   \code{numeric}; maximum probability weight for a single gene. Defaults
 #'   to \code{0.05}. Must be in the range \code{(1 / (n.genes - 1), 1]}.
 #'   Set to \code{1} if no upper bound is desired. Ignored if covariate
 #'   columns are not detected in \code{obj.info}.
 #'
-#' @param gpd.cutoff
+#' @param gpd_cutoff
 #'   \code{numeric}; threshold tail probability at which to apply GPD tail
-#'   fitting. Defaults to \code{500 / n.perm}. Must be in the range
-#'   \code{[max(c(1e-04, 500 / n.perm)), 0.05]}. The lower bound constraint
+#'   fitting. Defaults to \code{500 / n_permutations}. Must be in the range
+#'   \code{[max(c(1e-04, 500 / n_permutations)), 0.05]}. The lower bound constraint
 #'   ensures that a minimum of \code{500} exceedances are available for GPD
 #'   estimation, while also ensuring compatibility with the empirical CDF, where
 #'   the lowest evaluated quantile is \code{1e-4}.
 #'
 #' @param seed
 #'   \code{integer}; random seed for reproducibility. Preserved across
-#'   subsequent polylinkR functions (\code{plR_permute}, \code{plR_rescale}).
+#'   subsequent polylinkR functions (\code{permute_polylinkr_data}, \code{rescale_polylinkr_data}).
 #'   Defaults to \code{NULL}, in which case a seed is generated
 #'   automatically. Must be within
 #'   \code{[-.Machine$integer.max, .Machine$integer.max]}.
@@ -93,14 +93,14 @@
 #'   \code{logical}; should progress messages be printed to the console?
 #'   Defaults to \code{TRUE}.
 #'
-#' @param n.cores
+#' @param n_cores
 #'   \code{integer}; number of cores for parallel processing. Defaults to
 #'   \code{1} or \code{maximum cores - 1}. Must be in the range
 #'   \code{[1, maximum cores]}.
 #'
-#' @param fut.plan
+#' @param future_plan
 #'   \code{character}; parallel backend from the \code{future} package.
-#'   Defaults to user \code{n.cores} choice or checks available cores,
+#'   Defaults to user \code{n_cores} choice or checks available cores,
 #'   choosing \code{"sequential"} on single-core and \code{"multisession"}
 #'   on multi-core systems. Options: \code{"multisession"},
 #'   \code{"multicore"}, \code{"cluster"}, \code{"sequential"}.
@@ -156,61 +156,76 @@
 #' The first four attribute classes aggregate information over successive
 #' functions. For example, to access the \code{plr.data} attribute for the
 #' \code{plR} object output after running \code{plR_permute}, use
-#' \code{attributes(X)$plR.data$permute.data}, where \code{X} is the object
+#' \code{attributes(X)$plr_data$permute.data}, where \code{X} is the object
 #' name. Similarly, the arguments used in \code{plR_read} are in
-#' \code{attributes(X)$plR.args$read.args}.
+#' \code{attributes(X)$plr_args$read.args}.
 #'
 #' The primary data structure of the \code{plR} object can be accessed using
 #' \code{print()} or by simply typing the object's name.
 #'
 #' @examples
 #' \dontrun{
-#' # Assuming `my_plr` is the result of `polylinkR::plR_read`
+#' # Assuming `my_plr` is the result of `polylinkR::read_polylinkr_data`
 #'
 #' # Example 1: Basic usage
-#' new_plr <- plR_permute(plR.input = my_plr)
+#' new_plr <- permute_polylinkr_data(plr_input = my_plr)
 #'
 #' # Example 2: Less permutations, more bootstraps
-#' new_plr <- plR_permute(
-#'    plR.input = my_plr,
-#'    n.perm    = 1e5,
-#'    n.boot    = 100
+#' new_plr <- permute_polylinkr_data(
+#'    plr_input       = my_plr,
+#'    n_permutations  = 1e5,
+#'    n_bootstraps    = 100
 #')
 #'
 #' # Example 3: Modified covariate handling, single processor
-#' new_plr <- plR_permute(
-#'   plR.input = my_plr,
-#'   kern.wt.max  = 0.2,
-#'   md.meth   = "raw",
-#'   n.cores   = 1
+#' new_plr <- permute_polylinkr_data(
+#'   plr_input        = my_plr,
+#'   kernel_weight_max = 0.2,
+#'   md_method        = "raw",
+#'   n_cores          = 1
 #' )
 #'
 #' # Example 4: Modified GPD estimation, user-specified seed
-#' new_plr <- plR_permute(
-#'   plR.input  = my_plr,
-#'   gpd.cutoff = 0.01,
+#' new_plr <- permute_polylinkr_data(
+#'   plr_input  = my_plr,
+#'   gpd_cutoff = 0.01,
 #'   seed       = 1000
 #' )
 #'
 #' # Example 5: Only deconfound scores (no enrichment analysis)
-#' new_plr <- plR_permute(
-#'    plR.input = my_plr,
-#'    permute =   FALSE
+#' new_plr <- permute_polylinkr_data(
+#'    plr_input = my_plr,
+#'    permute   = FALSE
 #' )
 #'
 #' # Example 6: Use deconfounded scores from Example 5 to run enrichment
-#' new_plr <- plR_permute(plR.input = new_plr)
+#' new_plr <- permute_polylinkr_data(plr_input = new_plr)
 #' }
-plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
-                        alt = "upper", md.meth = "robust", kern.wt.max = 0.05,
-                        kern.bound = "auto", kern.func = "normal",
-                        kern.scale = "auto", gpd.cutoff = 5e3L / n.perm,
-                        seed = NULL, verbose = TRUE, n.cores = "auto",
-                        fut.plan = "auto") {
+permute_polylinkr_data <- function(plr_input, permute = TRUE, n_permutations = 5e5L,
+                                    n_bootstraps = 30L, alternative = "upper",
+                                    md_method = "robust", kernel_weight_max = 0.05,
+                                    kernel_boundary = "auto", kernel_function = "normal",
+                                    kernel_scale = "auto", gpd_cutoff = 5e3L / n_permutations,
+                                    seed = NULL, verbose = TRUE, n_cores = "auto",
+                                    future_plan = "auto") {
 
    ##=========================================================================##
    ## PART 1: Clean data and run checks
    ##=========================================================================##
+
+   # Map snake_case parameters to legacy names for internal use
+   plR.input <- plr_input
+   n.perm <- n_permutations
+   n.boot <- n_bootstraps
+   alt <- alternative
+   md.meth <- md_method
+   kern.wt.max <- kernel_weight_max
+   kern.bound <- kernel_boundary
+   kern.func <- kernel_function
+   kern.scale <- kernel_scale
+   gpd.cutoff <- gpd_cutoff
+   n.cores <- n_cores
+   fut.plan <- future_plan
 
    # track function run time
    startT <- Sys.time()
@@ -219,9 +234,9 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
    rlang::local_options(verbose = verbose, .frame = environment())
 
    # perform checks and unpack required plR objects
-   .plR_check(f = "permute", ENV = environment())
-   .arg_check(f = "permute", ENV = environment())
-   .plR_unpack(plr = plR.input, ENV = environment())
+   .check_plr_object(f = "permute", ENV = environment())
+   .check_arguments(f = "permute", ENV = environment())
+   .unpack_plr_object(plr = plR.input, ENV = environment())
    rm(plR.input); gc(verbose = FALSE)
 
    # set random seed
@@ -260,37 +275,37 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       hdr <- "deconfound gene scores"
    }
 
-   hdr[1] <- paste("Running plR_permute:", hdr[1])
+   hdr[1] <- paste("Running permute_polylinkr_data:", hdr[1])
    pdg <- (80 - max(nchar(hdr))) / 2
-   .vrb(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(hdr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .vrb("\n")
+   .verbose_msg("\n")
    if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .vrb(paste0("\n", MSS, "\n"))
+   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
    if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .vrb(paste0("\n", pMSS, "\n"))
-   .vrb("\n")
+   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
+   .verbose_msg("\n")
 
    ##=========================================================================##
    ## PART 2: Calculate standardised gene scores
    ##=========================================================================##
 
    if (perm.path == "full") { # perform local regression
-      .vrb(cli::style_italic(paste("Estimating prognostic gene scores",
+      .verbose_msg(cli::style_italic(paste("Estimating prognostic gene scores",
                                    "(confounder effect) using local quadratic",
                                    "regression:\n")))
-      .vrb("Calculating pairwise Mahalanobis Distances for all genes")
+      .verbose_msg("Calculating pairwise Mahalanobis Distances for all genes")
 
       cv.val <- as.matrix(obj.info[, .SD, .SDcols = cov.names]) # covariate matrix
 
       if (md.meth == "robust") {
-         .vrb(" in robust covariate space (coverting to normal scores)\n")
+         .verbose_msg(" in robust covariate space (coverting to normal scores)\n")
          cv.val <- Rfast::colRanks(cv.val, method = "average") # generate ranks
          cv.val <- qnorm((cv.val - 0.5) / n.genes) # convert ranks to normal scores
       } else {
-         .vrb(" in covariate space\n")
+         .verbose_msg(" in covariate space\n")
       }
 
       # check for singularity among covariates
@@ -299,7 +314,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          if (qrX$rank < length(cov.names)) {
             col.keep <- qrX$pivot[1:qrX$rank]
             cv.val <- cv.val[, col.keep] # remove redundant covariates
-            .vrb(paste0("Covariate matrix is singular\nRedundant covariates [",
+            .verbose_msg(paste0("Covariate matrix is singular\nRedundant covariates [",
                         paste0("Cov", setdiff(1:ncol(cov.mat), col.keep),
                                collapse = ", "),
                         "] are ommited from all regression models\n"))
@@ -311,13 +326,13 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       # generate Mahalanobis distances
       M0 <- distances::distances(data = cv.val, normalize = "mahalanobize")
 
-      .vrb(paste("Estimating regression coefficients for each gene using",
+      .verbose_msg(paste("Estimating regression coefficients for each gene using",
                  kern.func, "kernel weights \n"))
       if (kern.scale == "auto") {
          wK <- which(c("normal", "exponential", "inverse") == kern.func)
          kern.scale <- c(2, log(10), 2)[wK]
       }
-      .vrb("\n")
+      .verbose_msg("\n")
 
       # determine boundary for excluding genes
       if (kern.bound == "auto") {
@@ -387,7 +402,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
                # estimate local regression coefficients
                lqr <- foreach::foreach(i = I) %do% {
                  d.i <- sweep(cv.val, 2, cv.val[i, ], "-", check.margin = FALSE) # centre covariates
-                 .fit_lqr(d1 = d.i, wt0 = wt.i[i - min(I) + 1, ], os0 = os0,
+                 .fit_local_quad_reg(d1 = d.i, wt0 = wt.i[i - min(I) + 1, ], os0 = os0,
                           n.cv = n.cov)
                }
 
@@ -411,17 +426,17 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       lqr.fit <- Rfast::rowTrue(!is.na(lqr.coeff))
       if (any(lqr.fit < choose(n.cov, 3) + 1)) {
          tfit <- table(lqr.fit)
-         .vrb("Local quadratic regression failed for some genes:\n")
+         .verbose_msg("Local quadratic regression failed for some genes:\n")
          if (any(lqr.fit == n.cov + 1)) {
             lf <- tfit[names(tfit) == n.par[2]]
-            .vrb(paste(lf, "gene", ifelse(lf == 1, "", "s"), "had linear fit"))
+            .verbose_msg(paste(lf, "gene", ifelse(lf == 1, "", "s"), "had linear fit"))
          }
-         .vrb(ifelse(length(tfit) == 3, " and ", " "))
+         .verbose_msg(ifelse(length(tfit) == 3, " and ", " "))
          if (any(lqr.fit == 1)) {
             nf <- tfit[names(tfit) == n.par[3]]
-            .vrb(paste(nf, "gene", ifelse(lf == 1, "", "s"), "had 0-order fit"))
+            .verbose_msg(paste(nf, "gene", ifelse(lf == 1, "", "s"), "had 0-order fit"))
          }
-         .vrb("\n[check lqr.fit object in attributes]\n")
+         .verbose_msg("\n[check lqr.fit object in attributes]\n")
       }
 
       # extract NW estimator
@@ -436,7 +451,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       obj.info[, objStat.res := objStat - lqr.coeff[, 1]] # calculate residual values (observed - prognostic score)
       obj.info[, objStat.std := scale(objStat.res)] # ensure mean = 1 sd = 0
 
-      .vrb("Generating deconfounded gene scores and model fitting statistics\n")
+      .verbose_msg("Generating deconfounded gene scores and model fitting statistics\n")
       # calculate correlations between gene scores and covariates
       cv.val <- cbind(obj.info[, .(objStat, objStat.std)], cv.val)
       cP <- stats::cor(cv.val, method = "pearson")
@@ -459,7 +474,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       rm(obj.Ne, obj.MD, set.Ne, set.MD, sO, sS); gc(verbose = FALSE)
    } else { # no regression required
       if (perm.path == "partial") { # no prognostic scores present
-         .vrb(paste("No covariate columns identified:",
+         .verbose_msg(paste("No covariate columns identified:",
                     "Skipping gene score deconfounding step\n"))
          # update gene scores
          obj.info[, objStat.res := objStat - mean(objStat)] # calculate residual values
@@ -479,8 +494,8 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
    ##=========================================================================##
 
    if (permute) {
-      .vrb(cli::style_italic("\nGenerating null set score distributions:\n"))
-      .vrb(paste0("Estimating empirical CDFs and fitting GPDs using ",
+      .verbose_msg(cli::style_italic("\nGenerating null set score distributions:\n"))
+      .verbose_msg(paste0("Estimating empirical CDFs and fitting GPDs using ",
                   n.boot, " x ", n.perm / ifelse(n.perm / 1e6 >= 1, 1e6, 1e3),
                   ifelse(n.perm / 1e6 >= 1, "M", "k"), " permuted gene sets\n"))
 
@@ -595,7 +610,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          ecdf0 <- NULL
          eSumm <- NULL
       } else { # smooth estimates and interpolate missing set sizes
-         .vrb(paste("Smoothing empirical CDF and GPD parameter estimates",
+         .verbose_msg(paste("Smoothing empirical CDF and GPD parameter estimates",
                     "and interpolating missing values\n"))
 
          K <- .est_ss_cov(x = th0, n.genes = n.genes) # covariance matrix
@@ -627,7 +642,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
                                    ej = split(eEmean, eQnt),
                                    .options.future = fopt,
                                    .combine = cbind) %dofuture% {
-            eSmFit <- .par_smooth(y = ei, x = th0, K = K, n.th = n.th,
+            eSmFit <- .parallel_smooth(y = ei, x = th0, K = K, n.th = n.th,
                                   sm0 = sm0, tau = ej)
             predict(eSmFit, newdata = data.frame(x = log(2:n.max), oneW = 1))
          }
@@ -657,7 +672,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          for (p in c("scale", "shape")) {
             gM <- g0[, mean(get(p)), by = setN]
             gV <- g0[, mean(get(paste0(p, ".var"))), by = setN]
-            gSmFit <- .par_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
+            gSmFit <- .parallel_smooth(y = gM$V1, x = th0, K = K, n.th = n.th,
                                   sm0 = sm0, tau = gV$V1)
             yFit <- predict(gSmFit, newdata = data.frame(x = log(2:n.max),
                                                          oneW = 1))
@@ -671,14 +686,14 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
          gpd0[, cut.z := c(NA, cut.z)] # add 0.999 quantile threshold
 
          # calculate associated cutoff p-value gpd minimum non-0 p values and quantiles
-         .vrb(paste("Identifying and setting minimum possible p values\n"))
+         .verbose_msg(paste("Identifying and setting minimum possible p values\n"))
          fopt <- list(packages = "data.table",
                       globals = c("gpd.cutoff", "q.bnd", ".get_gpd_mins"),
                       seed = seed)
          gpdM <- foreach::foreach(gpdI = split(gpd0[-1], 2:n.max),
                                   .options.future = fopt,
                                   .combine = rbind) %dofuture% {
-            .get_gpd_mins(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
+            .get_gpd_minimums(gpdI, gpd.cutoff = gpd.cutoff, q.bnd = q.bnd)
          }
          gpd0[, adj.p := c(NA, gpdM[, "adj.p"])]
          gpd0[, min.z := c(NA, gpdM[, "min.z"])]
@@ -686,7 +701,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
 
          rm(g0, gpdM); gc(verbose = FALSE) # clean up
       }
-      .vrb("\n")
+      .verbose_msg("\n")
    } else {
       dqi <- NULL
       ecdf0 <- NULL
@@ -700,8 +715,8 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
    ##=========================================================================##
 
    if (permute) {
-      .vrb(cli::style_italic("Calculating test statistics:\n"))
-      .vrb(paste0("Calculating observed and null gene set scores\n"))
+      .verbose_msg(cli::style_italic("Calculating test statistics:\n"))
+      .verbose_msg(paste0("Calculating observed and null gene set scores\n"))
 
       # calculate observed standardised set scores
       # mean of standardised gene scores = 0 and variance = 1 -> set score variance = set size (assuming independence)
@@ -710,7 +725,7 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
       set.info[.(ss.obs), setScore.std := V1]
 
       # calculate p values
-      .vrb("Calculating p values for each gene set\n")
+      .verbose_msg("Calculating p values for each gene set\n")
       if (alt == "lower") {
          .get_p <- .get_p_lt
       } else {
@@ -768,15 +783,62 @@ plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
    # set s3 class and create attributes
    .file_reset(OI = obj.info, SI = set.info, SO = set.obj, pos.info = pos.info) # recreate original file formats
    OUT <- list(set.info = set.info, obj.info = obj.info, set.obj = set.obj)
-   plr.out <- .new_plR(BASE = OUT, plR.data = plr.data, plR.args = plr.args,
-                       plR.summary = plr.summary, plR.seed = plr.seed,
-                       plR.session = plr.session)
+   plr.out <- .new_plr(BASE = OUT, plr_data = plr.data, plr_args = plr.args,
+                       plr_summary = plr.summary, plr_seed = plr.seed,
+                       plr_session = plr.session)
 
-   .vrb("\n")
-   ftr <- cli::col_cyan(paste0("Finished plR_permute -- run time: ", r0[[1]]))
+   .verbose_msg("\n")
+   ftr <- cli::col_cyan(paste0("Finished permute_polylinkr_data -- run time: ", r0[[1]]))
    pdg <- (80 - nchar(ftr)) / 2
-   .vrb(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
+   .verbose_msg(cli::boxx(ftr, padding = c(0, floor(pdg), 0, ceiling(pdg)),
                   border_style = "double", col = "cyan", border_col = "cyan"))
-   .vrb("\n")
+   .verbose_msg("\n")
    return(invisible(plr.out))
+}
+
+
+#' @title Gene set enrichment with control for confounding covariates (deprecated)
+#' @description
+#' This function is deprecated. Please use \code{permute_polylinkr_data()} instead.
+#' @param plR.input Deprecated. Use \code{plr_input}.
+#' @param permute Deprecated. Use \code{permute}.
+#' @param n.perm Deprecated. Use \code{n_permutations}.
+#' @param n.boot Deprecated. Use \code{n_bootstraps}.
+#' @param alt Deprecated. Use \code{alternative}.
+#' @param md.meth Deprecated. Use \code{md_method}.
+#' @param kern.wt.max Deprecated. Use \code{kernel_weight_max}.
+#' @param kern.bound Deprecated. Use \code{kernel_boundary}.
+#' @param kern.func Deprecated. Use \code{kernel_function}.
+#' @param kern.scale Deprecated. Use \code{kernel_scale}.
+#' @param gpd.cutoff Deprecated. Use \code{gpd_cutoff}.
+#' @param seed Deprecated. Use \code{seed}.
+#' @param verbose Deprecated. Use \code{verbose}.
+#' @param n.cores Deprecated. Use \code{n_cores}.
+#' @param fut.plan Deprecated. Use \code{future_plan}.
+#' @export
+plR_permute <- function(plR.input, permute = TRUE, n.perm = 5e5L, n.boot = 30L,
+                         alt = "upper", md.meth = "robust", kern.wt.max = 0.05,
+                         kern.bound = "auto", kern.func = "normal",
+                         kern.scale = "auto", gpd.cutoff = 5e3L / n.perm,
+                         seed = NULL, verbose = TRUE, n.cores = "auto",
+                         fut.plan = "auto") {
+   .Deprecated("permute_polylinkr_data", package = "polylinkR",
+               msg = "plR_permute() is deprecated. Use permute_polylinkr_data() instead.")
+   permute_polylinkr_data(
+      plr_input = plR.input,
+      permute = permute,
+      n_permutations = n.perm,
+      n_bootstraps = n.boot,
+      alternative = alt,
+      md_method = md.meth,
+      kernel_weight_max = kern.wt.max,
+      kernel_boundary = kern.bound,
+      kernel_function = kern.func,
+      kernel_scale = kern.scale,
+      gpd_cutoff = gpd.cutoff,
+      seed = seed,
+      verbose = verbose,
+      n_cores = n.cores,
+      future_plan = fut.plan
+   )
 }

@@ -19,11 +19,11 @@ exclusions: list(
   "tests/testthat/humanpops_extract/",
   "new_code/",
   # Exclude vignettes (they have different formatting needs)
-  "vignettes/basic-workflow.Rmd",
-  "vignettes/covariates-deconfounding.Rmd",
-  "vignettes/input-formats-parameters.Rmd",
-  "vignettes/parallel-processing.Rmd",
-  "vignettes/recombination-rates.Rmd"
+  "vignettes/basic_workflow.Rmd",
+  "vignettes/covariates_deconfounding.Rmd",
+  "vignettes/input_formats_parameters.Rmd",
+  "vignettes/parallel_processing.Rmd",
+  "vignettes/recombination_rates.Rmd"
 )
 
 # Ignore specific patterns that are common in statistical computing

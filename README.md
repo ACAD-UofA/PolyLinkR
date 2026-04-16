@@ -13,10 +13,10 @@ PolyLinkR introduces several improvements and faster implementations of the popu
 
 PolyLinkR uses a four-step workflow:
 
-1. **Read data** with `plR_read()`
-2. **Generate permutation nulls** with `plR_permute()`
-3. **Rescale for autocorrelation** with `plR_rescale()`
-4. **Prune and identify significant sets** with `plR_prune()`
+1. **Read data** with `plr_read()`
+2. **Generate permutation nulls** with `plr_permute()`
+3. **Rescale for autocorrelation** with `plr_rescale()`
+4. **Prune and identify significant sets** with `plr_prune()`
 
 ## Installation
 
@@ -41,16 +41,16 @@ For example:
 library(polylinkR)
 
 # Step 1: Read your data
-plr_obj <- plR_read(input.path = "path/to/your/data")
+plr_obj <- plr_read(plr_input = "path/to/your/data")
 
 # Step 2: Generate permutation nulls
-plr_perm <- plR_permute(plr_obj, n.perm = 1e5)
+plr_perm <- plr_permute(plr_obj, n_permutations = 1e5)
 
 # Step 3: Rescale for genetic autocorrelation
-plr_rescale <- plR_rescale(plr_perm)
+plr_rescale <- plr_rescale(plr_perm)
 
 # Step 4: Prune and identify significant gene sets
-plr_final <- plR_prune(plr_rescale)
+plr_final <- plr_prune(plr_rescale)
 ```
 
 ## Documentation
@@ -67,7 +67,7 @@ Visit our [pkgdown site](https://acad-uofa.github.io/PolyLinkR/) for comprehensi
 
 ## Getting Help
 
-If you encounter a bug or have a feature request, please [open an issue](https://github.com/ACAD-UofA/PolyLinkR/issues) on GitHub. For general questions and discussions, please use [GitHub Discussions](https://github.com/ACAD-UofA/PolyLinkR/discussions).
+If you encounter a bug, have a feature request, or need help, please [open an issue](https://github.com/ACAD-UofA/PolyLinkR/issues) on GitHub.
 
 ## Citation
 
