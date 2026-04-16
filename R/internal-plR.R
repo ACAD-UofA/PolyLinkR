@@ -187,9 +187,14 @@
    WMSS <- NULL # collect warnings
 
    if (f %in% c("permute", "rescale", "prune")) {
-      track <- attributes(get("plR.input", envir = ENV))$plR.track
-      list2env(get("plR.input", envir = ENV), envir = environment()) # retrieve input objects
-      params <- attributes(get("plR.input", envir = ENV))$plR.data$read.data
+      plr_input_obj <- get("plR.input", envir = ENV)
+      attrs <- attributes(plr_input_obj)
+      # Handle both old and new attribute names for backward compatibility
+      track <- if (!is.null(attrs$plr_track)) attrs$plr_track else attrs$plR.track
+      list2env(plr_input_obj, envir = environment()) # retrieve input objects
+      plr_data <- if (!is.null(attrs$plr_data)) attrs$plr_data else attrs$plR.data
+      read_data <- if (!is.null(plr_data$read_data)) plr_data$read_data else plr_data$read.data
+      params <- read_data
       list2env(params, envir = environment())
    }
 
@@ -608,10 +613,15 @@
       }
    }
 
-   if (f == "plot") { # check plotting arguments
-      track <- attributes(get("x", envir = ENV))$plR.track
-      params <- attributes(get("x", envir = ENV))$plR.data$read.data
-      list2env(params, envir = environment())
+if (f == "plot") { # check plotting arguments
+       x_obj <- get("x", envir = ENV)
+       x_attrs <- attributes(x_obj)
+       # Handle both old and new attribute names for backward compatibility
+       track <- if (!is.null(x_attrs$plr_track)) x_attrs$plr_track else x_attrs$plR.track
+       x_plr_data <- if (!is.null(x_attrs$plr_data)) x_attrs$plr_data else x_attrs$plR.data
+       x_read_data <- if (!is.null(x_plr_data$read_data)) x_plr_data$read_data else x_plr_data$read.data
+       params <- x_read_data
+       list2env(params, envir = environment())
 
       n1 <- c("log.dist", "log.Ne", "log.gamma", "output.path", "plot.name",
               "max.facets", "plot.all")
@@ -686,7 +696,10 @@
          }
       }
 
-      rsum <- attributes(get("x", envir = ENV))$plR.summary$read.summary
+      x_attrs2 <- attributes(get("x", envir = ENV))
+      x_plr_summary <- if (!is.null(x_attrs2$plr_summary)) x_attrs2$plr_summary else x_attrs2$plR.summary
+      x_read_summary <- if (!is.null(x_plr_summary$read_summary)) x_plr_summary$read_summary else x_plr_summary$read.summary
+      rsum <- x_read_summary
       osp <- !is.null(rsum$obj.std.param) # gene scores were computed in plR_read
 
       if (track.vec[1] %in% 1:2) { # deconfounding was performed
