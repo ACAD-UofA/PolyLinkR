@@ -23,12 +23,12 @@ test_that(".fit_gpd_tail handles edge cases", {
   expect_true(all(is.na(result)))
 })
 
-test_that(".est_ss_cov returns valid matrix", {
+test_that(".estimate.setsize.covariance returns valid matrix", {
   # Test with a small set of sizes
   sizes <- c(5, 10, 20, 50)
   n.genes <- 1000
   
-  K <- polylinkR:::.est_ss_cov(sizes, n.genes)
+  K <- polylinkR:::.estimate.setsize.covariance(sizes, n.genes)
   
   # Should be a square matrix
   expect_equal(nrow(K), length(sizes))
@@ -62,12 +62,12 @@ test_that(".covariance_function returns expected values", {
   expect_true(all(diff(result) < 0))
 })
 
-test_that(".cap_probs normalizes rows", {
+test_that(".cap.probabilities normalizes rows", {
   # Create a matrix with some values > maxP
   mm0 <- matrix(c(0.5, 0.3, 0.2,
                   0.6, 0.3, 0.1), nrow = 2, byrow = TRUE)
   
-  result <- polylinkR:::.cap_probs(mm0, maxP = 0.4)
+  result <- polylinkR:::.cap.probabilities(mm0, maxP = 0.4)
   
   # Each row should sum to 1 (within tolerance)
   expect_equal(rowSums(result), c(1, 1), tolerance = 1e-10)
