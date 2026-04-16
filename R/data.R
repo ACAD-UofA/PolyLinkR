@@ -1,32 +1,3 @@
-# Deprecated data object aliases for backward compatibility - MUST BE FIRST
-#' @name Anatolia_EF_CLR
-#' @title Anatolia_EF_CLR (deprecated)
-#' @description Deprecated alias for \code{anatolia_ef_clr}.
-#' @format See \code{anatolia_ef_clr}.
-#' @keywords internal
-NULL
-
-#' @name PolyLinkR_SetInfo
-#' @title PolyLinkR_SetInfo (deprecated)
-#' @description Deprecated alias for \code{polylinkr_set_info}.
-#' @format See \code{polylinkr_set_info}.
-#' @keywords internal
-NULL
-
-#' @name PolyLinkR_SetObj
-#' @title PolyLinkR_SetObj (deprecated)
-#' @description Deprecated alias for \code{polylinkr_set_obj}.
-#' @format See \code{polylinkr_set_obj}.
-#' @keywords internal
-NULL
-
-#' @name human_sexavg_RR_Bherer2017
-#' @title human_sexavg_RR_Bherer2017 (deprecated)
-#' @description Deprecated alias for \code{human_sexavg_rr_bherer2017}.
-#' @format See \code{human_sexavg_rr_bherer2017}.
-#' @keywords internal
-NULL
-
 #' Anatolia gene expression example data
 #'
 #' Example data: Gene expression factors from Anatolia population.
