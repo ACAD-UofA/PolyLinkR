@@ -113,23 +113,5 @@ test_that(".check_file_paths detects multiple file versions", {
   )
 })
 
-test_that(".report_messages handles NULL messages", {
-  # Set up environment with NULL messages
-  info.messages <- NULL
-  warning.messages <- NULL
-  param.messages <- NULL
-  param.warnings <- NULL
-  
-  # Should not error with all NULLs
-  expect_silent(polylinkR:::.report_messages())
-})
-
-test_that(".report_messages handles non-NULL messages", {
-  # Test that warnings are issued
-  info.messages <- NULL
-  warning.messages <- "Test warning"
-  param.messages <- NULL
-  param.warnings <- NULL
-  
-  expect_warning(polylinkR:::.report_messages(), "Test warning")
-})
+# Note: .report_messages() tests will be added after PR #27 (extract patterns) is merged
+# See test-edge-cases-messaging.R
