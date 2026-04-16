@@ -176,12 +176,7 @@ prune_polylinkr_data <- function(plr_input, n_fdr = 300L, estimate_pi0 = TRUE,
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .verbose_msg("\n")
-   if (!is.null(WMSS)) warning(WMSS, immediate. = T, call. = F)
-   if (!is.null(MSS)) .verbose_msg(paste0("\n", MSS, "\n"))
-   if (!is.null(pWMSS)) warning(pWMSS, immediate. = T, call. = F)
-   if (!is.null(pMSS)) .verbose_msg(paste0("\n", pMSS, "\n"))
-   .verbose_msg("\n")
+   .report_messages()
 
    ##=========================================================================##
    ##PART 2: generate FDR sets and empirical prepare objects for pruning step
