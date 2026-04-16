@@ -313,6 +313,10 @@ summary.plR <- function(object, sig = 0.05, ...) {
 #' @noRd
 .plR_check <- function(f, ENV) {
    .Deprecated(".check_plr_object", package = "polylinkR")
+   # Map old variable name (plR.input) to new name (plr_input) in the environment
+   if (exists("plR.input", envir = ENV, inherits = FALSE)) {
+      assign("plr_input", get("plR.input", envir = ENV), envir = ENV)
+   }
    .check_plr_object(f, ENV)
 }
 
