@@ -50,26 +50,26 @@ test_that("plR_read returns valid plR object structure", {
   expect_equal(attr(out, "plr_track"), "000")
 })
 
-test_that("plR_read validates min.set.n and max_set_size", {
+test_that("read_polylinkr_data validates min_set_size and max_set_size", {
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
 
-  # max_set_size too small
+  # max_set_size too small (internally still uses max.set.n in error messages)
   expect_error(
     read_polylinkr_data(input_path = d, max_set_size = 1),
-    regexp = "max_set_size"
+    regexp = "max\.set\.n"
   )
 })
 
-test_that("plR_read merge_threshold parameter validation", {
+test_that("read_polylinkr_data merge_threshold parameter validation", {
   d <- system.file("extdata", "tiny_polylinkR", package = "polylinkR")
 
-  # merge_threshold must be in (0, 1]
+  # merge_threshold must be in (0, 1] (internally still uses set.merge in error messages)
   expect_error(
     read_polylinkr_data(input_path = d, merge_threshold = 0),
-    regexp = "merge_threshold"
+    regexp = "set\.merge"
   )
   expect_error(
     read_polylinkr_data(input_path = d, merge_threshold = 1.1),
-    regexp = "merge_threshold"
+    regexp = "set\.merge"
   )
 })
