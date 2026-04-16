@@ -9,21 +9,21 @@
 #'   \code{list}; core data for the \code{plR} object, i.e. \code{set.info},
 #'   \code{obj.info}, and \code{set.obj}.
 #'
-#' @param plr_data
+#' @param plR.data
 #'   \code{list}; ancillary data required by downstream \code{polylinkR}
 #'   functions.
 #'
-#' @param plr_args
+#' @param plR.args
 #'   \code{list}; arguments passed to \code{polylinkR} functions.
 #'
-#' @param plr_summary
+#' @param plR.summary
 #'   \code{list}; \code{polylinkR} summary data from internal model fitting used
 #'   in diagnostics and plotting.
 #'
-#' @param plr_seed
+#' @param plR.seed
 #'   \code{list}; random seed information used internally.
 #'
-#' @param plr_session
+#' @param plR.session
 #'   \code{list}; function run time and session information from
 #'   \code{sessionInfo}.
 #'
@@ -32,34 +32,34 @@
 #'
 #' @keywords internal
 #' @noRd
-.new_plr <- function(BASE = NA, plr_data = NULL, plr_args = NULL,
-                     plr_summary = NULL, plr_seed = NULL, plr_session = NULL) {
+.new_plr <- function(BASE = NA, plR.data = NULL, plR.args = NULL,
+                     plR.summary = NULL, plR.seed = NULL, plR.session = NULL) {
    if (all(c("set.info", "obj.info", "set.obj") %in% names(BASE))) {
-      plr_track <- c(0, 0, 0)
+      plr.track <- c(0, 0, 0)
       # diagnose input file structure
-      if (!is.null(plr_args$permute_args)) {
-         permute <- plr_args$permute_args$permute
-         no_deconf <- plr_data$permute_data$no_deconf
-         plr_track[1] <- ifelse(permute, ifelse(no_deconf, 3, 2), 1)
+      if (!is.null(plR.args$permute_args)) {
+         permute <- plR.args$permute_args$permute
+         no_deconf <- plR.data$permute_data$no_deconf
+         plr.track[1] <- ifelse(permute, ifelse(no_deconf, 3, 2), 1)
       }
 
-      if (!is.null(plr_args$rescale_args)) {
-         rescale <- plr_args$rescale_args$rescale
-         user_ac <- plr_data$rescale_data$user_ac
-         plr_track[2] <- ifelse(rescale, ifelse(user_ac, 3, 2), 1)
+      if (!is.null(plR.args$rescale_args)) {
+         rescale <- plR.args$rescale_args$rescale
+         user_ac <- plR.data$rescale_data$user_ac
+         plr.track[2] <- ifelse(rescale, ifelse(user_ac, 3, 2), 1)
       }
 
-      if (!is.null(plr_args$prune_args)) {
-         plr_track[3] <- 1
+      if (!is.null(plR.args$prune_args)) {
+         plr.track[3] <- 1
       }
 
-      plr_track <- paste(plr_track, collapse = "")
+      plr.track <- paste(plr.track, collapse = "")
    } else { # core data missing, not a proper plR object
-      plr_track <- "INVALID"
+      plr.track <- "INVALID"
    }
-   structure(.Data = BASE, plr_data = plr_data, plr_args = plr_args,
-             plr_summary = plr_summary, plr_seed = plr_seed,
-             plr_session = plr_session, plr_track = plr_track, class = "plR")
+   structure(.Data = BASE, plR.data = plR.data, plR.args = plR.args,
+             plR.summary = plR.summary, plR.seed = plR.seed,
+             plR.session = plR.session, plr.track = plr.track, class = "plR")
 }
 
 
@@ -91,7 +91,7 @@
    if (plr == "") {
       stop("plr_input is empty; please provide valid plr input", call. = FALSE)
    } else {
-      pT <- attributes(get("plr_input", envir = ENV))$plr_track
+      pT <- attributes(get("plr_input", envir = ENV))$plr.track
       if (is.null(pT)) {
          stop("plr_input = ", plr, " is not a plr class object", call. = FALSE)
       } else {
@@ -99,8 +99,8 @@
          f0 <- paste0("plr_", f)
          req.track <- unlist(strsplit(pT.all[FUNCTION == f0]$INPUT, "; "))
          if (pT %in% req.track) { # return output to parent environment
-            plr_track <- pT
-            assign(x = "plr_track",
+            plr.track <- pT
+            assign(x = "plr.track",
                    value = as.numeric(unlist(strsplit(pT, split = ""))),
                    envir = ENV)
          } else {
@@ -288,20 +288,6 @@ summary.plR <- function(object, sig = 0.05, ...) {
 
 # Deprecated aliases for backward compatibility (v0.6.0)
 # These will be removed in v1.0.0
-
-#' @keywords internal
-#' @noRd
-.new_plR <- function(BASE = NA, plR.data = NULL, plR.args = NULL,
-                     plR.summary = NULL, plR.seed = NULL, plR.session = NULL) {
-   .Deprecated(".new_plr", package = "polylinkR")
-   # Map old parameter names to new ones
-   plr_data <- plR.data
-   plr_args <- plR.args
-   plr_summary <- plR.summary
-   plr_seed <- plR.seed
-   plr_session <- plR.session
-   .new_plr(BASE, plr_data, plr_args, plr_summary, plr_seed, plr_session)
-}
 
 #' @keywords internal
 #' @noRd
