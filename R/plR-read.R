@@ -282,44 +282,45 @@
 #' @examples
 #' \dontrun{
 #' # Example 1: Read all files from a single folder
-#' my_plr <- plR_read(input.path = "path/to/files")
+#' my_plr <- read_polylinkr_data(input_path = "path/to/files")
 #'
 #' # Example 2: Read all files with "POP1" in label from a single folder
-#' my_plr <- plR_read(
-#'    input.path = "path/to/files",
-#'    group      = "POP1"
+#' my_plr <- read_polylinkr_data(
+#'    input_path = "path/to/files",
+#'    group_label = "POP1"
 #' )
 #'
 #' # Example 3: Relax gene set merging criteria
-#' my_plr <- plR_read(
-#'    input.path = "path/to/files",
-#'    set.merge  = 0.50
+#' my_plr <- read_polylinkr_data(
+#'    input_path = "path/to/files",
+#'    merge_threshold = 0.50
 #' )
 #'
 #' # Example 4: Specify separate file paths and remove user-specified sets
-#' my_plr <- plR_read(
-#'   set.info.path = "path/to/set.info",
-#'   set.obj.path  = "path/to/set.obj",
-#'   obj.info.path = "path/to/obj.info",
-#'   set.out       = c("set1", "set2")
+#' my_plr <- read_polylinkr_data(
+#'   gene_set_info_path = "path/to/set.info",
+#'   gene_set_mapping_path = "path/to/set.obj",
+#'   object_info_path = "path/to/obj.info",
+#'   sets_to_exclude = c("set1", "set2")
 #' )
 #'
-#' # Example 5: Generate gene scores from var.info using regression
+#' # Example 5: Generate gene scores from variant info using regression
 #' # and include a 50 kb buffer around genes
-#' my_plr <- plR_read(
-#'   set.info.path = "path/to/set.info",
-#'   set.obj.path  = "path/to/set.obj",
-#'   obj.info.path = "path/to/obj.info",
-#'   var.info.path = "path/to/var.info",
-#'   obj.stat.fun   = "lm.logN", obj.buffer = 5e4
+#' my_plr <- read_polylinkr_data(
+#'   gene_set_info_path = "path/to/set.info",
+#'   gene_set_mapping_path = "path/to/set.obj",
+#'   object_info_path = "path/to/obj.info",
+#'   variant_info_path = "path/to/var.info",
+#'   object_statistic_function = "lm.logN",
+#'   object_buffer = 5e4
 #' )
 #'
-#' # Example 6: Convert distances to cM using rec.rate file
-#' my_plr <- plR_read(
-#'   set.info.path = "path/to/set.info",
-#'   set.obj.path  = "path/to/set.obj",
-#'   obj.info.path = "path/to/obj.info",
-#'   rec.rate.path = "path/to/rec.rate"
+#' # Example 6: Convert distances to cM using recombination rate file
+#' my_plr <- read_polylinkr_data(
+#'   gene_set_info_path = "path/to/set.info",
+#'   gene_set_mapping_path = "path/to/set.obj",
+#'   object_info_path = "path/to/obj.info",
+#'   recombination_rate_path = "path/to/rec.rate"
 #' )
 #' }
 read_polylinkr_data <- function(input_path = NULL, object_info_path = NULL,
