@@ -37,10 +37,10 @@ test_that("read_polylinkr_data errors on conflicting paths", {
 
 test_that("read_polylinkr_data validates set size parameters", {
   d <- system.file("extdata", "tiny_polylinkr", package = "polylinkR")
-  
-  # min.set.n must be at least 2 and less than max.set.n
+
+  # min_set_size must be at least 2 and less than max_set_size
   expect_error(
-    read_polylinkr_data(input_path = d, min.set.n = 1000, verbose = FALSE)
+    read_polylinkr_data(input_path = d, min_set_size = 1000, verbose = FALSE)
   )
 })
 
@@ -131,4 +131,62 @@ test_that(".create_seed rejects invalid seeds", {
   expect_error(polylinkR:::.create_seed(.Machine$integer.max + 1), "Incorrect random seed")
 })
 
-# Note: .report_messages() tests will be added after PR #27 (extract patterns) is merged
+test_that(".report_messages emits no output when all variables are NULL", {
+  f <- function() {
+    warning.messages <- NULL
+    param.warnings   <- NULL
+    info.messages    <- NULL
+    param.messages   <- NULL
+    withr::local_options(verbose = FALSE)
+    polylinkR:::.report_messages()
+  }
+  expect_silent(f())
+})
+
+test_that(".report_messages issues warning for warning.messages", {
+  f <- function() {
+    warning.messages <- "test warning"
+    param.warnings   <- NULL
+    info.messages    <- NULL
+    param.messages   <- NULL
+    withr::local_options(verbose = FALSE)
+    polylinkR:::.report_messages()
+  }
+  expect_warning(f(), "test warning")
+})
+
+test_that(".report_messages issues warning for param.warnings", {
+  f <- function() {
+    warning.messages <- NULL
+    param.warnings   <- "param warning"
+    info.messages    <- NULL
+    param.messages   <- NULL
+    withr::local_options(verbose = FALSE)
+    polylinkR:::.report_messages()
+  }
+  expect_warning(f(), "param warning")
+})
+
+test_that(".report_messages prints info.messages when verbose", {
+  f <- function() {
+    warning.messages <- NULL
+    param.warnings   <- NULL
+    info.messages    <- "some info"
+    param.messages   <- NULL
+    withr::local_options(verbose = TRUE)
+    polylinkR:::.report_messages()
+  }
+  expect_output(f(), "some info")
+})
+
+test_that(".report_messages prints param.messages when verbose", {
+  f <- function() {
+    warning.messages <- NULL
+    param.warnings   <- NULL
+    info.messages    <- NULL
+    param.messages   <- "some param info"
+    withr::local_options(verbose = TRUE)
+    polylinkR:::.report_messages()
+  }
+  expect_output(f(), "some param info")
+})
