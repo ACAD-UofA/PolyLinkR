@@ -250,12 +250,7 @@ rescale_polylinkr_data <- function(plr_input, rescale = TRUE, fast = TRUE, ac = 
                   align = "center", col = "cyan", border_col = "cyan"))
 
    # report collated warnings and messages
-   .verbose_msg("\n")
-   if (!is.null(warning.messages)) warning(warning.messages, immediate. = T, call. = F)
-   if (!is.null(info.messages)) .verbose_msg(paste0("\n", info.messages, "\n"))
-   if (!is.null(param.warnings)) warning(param.warnings, immediate. = T, call. = F)
-   if (!is.null(param.messages)) .verbose_msg(paste0("\n", param.messages, "\n"))
-   .verbose_msg("\n")
+   .report_messages()
 
    ##==========================================================================##
    ## PART 2: Calculate genomic autocovariance
