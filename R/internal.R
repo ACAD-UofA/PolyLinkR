@@ -17,20 +17,27 @@
 #' during argument validation. Reads from the calling environment.
 #' @noRd
 .report_messages <- function() {
+   pf <- parent.frame()
+   get0_pf <- function(nm) get0(nm, envir = pf, inherits = FALSE)
+
    .verbose_msg("\n")
 
    # Report warnings
+   warning.messages <- get0_pf("warning.messages")
    if (!is.null(warning.messages)) {
       warning(warning.messages, immediate. = TRUE, call. = FALSE)
    }
+   param.warnings <- get0_pf("param.warnings")
    if (!is.null(param.warnings)) {
       warning(param.warnings, immediate. = TRUE, call. = FALSE)
    }
 
    # Report info messages
+   info.messages <- get0_pf("info.messages")
    if (!is.null(info.messages)) {
       .verbose_msg(paste0("\n", info.messages, "\n"))
    }
+   param.messages <- get0_pf("param.messages")
    if (!is.null(param.messages)) {
       .verbose_msg(paste0("\n", param.messages, "\n"))
    }
